@@ -1,7 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import Script from "next/script";
 import { useState } from "react";
+
+const TELEGRAM_BOT_USERNAME = "CMdemobot";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -46,16 +49,45 @@ export default function LoginPage() {
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8">
-          {/* Telegram Login */}
-          <button
-            onClick={() => alert("Login con Telegram: configurar widget de BotFather")}
-            className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-[#229ED9] text-white font-semibold rounded-lg hover:bg-[#1a87bd] transition mb-4"
-          >
-            <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current">
-              <path d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z" />
-            </svg>
-            Iniciar con Telegram
-          </button>
+          {/* Telegram Login Widget oficial. Dominio aprobado en BotFather:
+              cotizador.hectoria.mx. data-onauth llama a window.onTelegramAuth
+              definido abajo. */}
+          <div
+            className="flex justify-center mb-4"
+            dangerouslySetInnerHTML={{
+              __html: `
+              <script async
+                src="https://telegram.org/js/telegram-widget.js?22"
+                data-telegram-login="${TELEGRAM_BOT_USERNAME}"
+                data-size="large"
+                data-radius="8"
+                data-onauth="onTelegramAuth(user)"
+                data-request-access="write"></script>
+            `,
+            }}
+          />
+
+          <Script id="telegram-callback" strategy="afterInteractive">
+            {`
+              window.onTelegramAuth = async function(user) {
+                try {
+                  const res = await fetch("/api/auth/telegram", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(user),
+                  });
+                  if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    alert("Login Telegram falló: " + (data.error || "error desconocido"));
+                    return;
+                  }
+                  window.location.href = "/dashboard";
+                } catch (e) {
+                  alert("Error de red: " + e.message);
+                }
+              };
+            `}
+          </Script>
 
           <div className="flex items-center my-6">
             <div className="flex-grow border-t border-slate-200" />
