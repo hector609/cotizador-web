@@ -1,36 +1,56 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Cotizador Telcel — Web App
 
-## Getting Started
+Aplicación web complementaria al bot Telegram CMdemobot. Permite cotizar Telcel desde un navegador con UI completa, multi-tenant, login para distribuidores.
 
-First, run the development server:
+## Stack
+
+- **Next.js 15** con App Router
+- **TypeScript** + **Tailwind CSS**
+- **Vercel** para hosting (free tier)
+- Backend: comparte el de [`hector609/cotizador-telcel`](https://github.com/hector609/cotizador-telcel) (Fly.io)
+
+## Páginas
+
+- `/` — landing pública con CTA a login
+- `/login` — login con Telegram widget + email/password
+- `/dashboard` — vista privada con KPIs, clientes, cotizar, historial
+- `/api/auth/login` — endpoint stub para autenticar
+
+## Setup local
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abre http://localhost:3000
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Deploy
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Push a `main` → Vercel deployea automático.
 
-## Learn More
+## Dominio
 
-To learn more about Next.js, take a look at the following resources:
+Producción: `cotizador.hectoria.mx` (Cloudflare DNS → Vercel)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Pendientes
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- [ ] Conectar `/api/auth/login` con backend Fly.io
+- [ ] Telegram Login Widget configurado en BotFather
+- [ ] Flow `/cotizar` que llama `/api/cotizar` (= comando `/cot` del bot)
+- [ ] Listado de clientes (`/api/clientes`)
+- [ ] Historial de cotizaciones
+- [ ] Descarga PDFs
+- [ ] Magic link via Resend (cuando dominio esté verificado)
 
-## Deploy on Vercel
+## Arquitectura
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+Internet
+   ↓
+cotizador.hectoria.mx (Cloudflare DNS)
+   ↓
+Vercel (este repo) — frontend Next.js
+   ↓ API calls
+cmdemobot.fly.dev (cotizador-telcel) — backend Python + Playwright
+```
