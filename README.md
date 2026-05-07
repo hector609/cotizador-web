@@ -1,6 +1,6 @@
-# Cotizador Telcel — Web App
+# Cotizador Telc... — Web App
 
-Aplicación web complementaria al bot Telegram CMdemobot. Permite cotizar Telcel desde un navegador con UI completa, multi-tenant, login para distribuidores.
+Aplicación web complementaria al bot Telegram CMdemobot. Cotizador para distribuidores autorizados de telefonía corporativa, accesible desde el navegador con UI completa, multi-tenant, login para distribuidores.
 
 ## Stack
 

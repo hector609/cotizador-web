@@ -45,7 +45,7 @@ export default function LoginPage() {
             ← Volver
           </Link>
           <h1 className="text-3xl font-bold text-slate-900">Iniciar sesión</h1>
-          <p className="text-slate-600 mt-2">Cotizador Telcel</p>
+          <p className="text-slate-600 mt-2">Cotizador Telc...</p>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8">

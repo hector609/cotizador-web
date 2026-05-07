@@ -62,7 +62,7 @@ export default function ClientesPage() {
     <main className="min-h-screen bg-slate-50">
       <header className="bg-white border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <h1 className="text-xl font-bold text-slate-900">Cotizador Telcel</h1>
+          <h1 className="text-xl font-bold text-slate-900">Cotizador Telc...</h1>
           <nav className="flex items-center gap-4 text-sm">
             <Link href="/dashboard" className="text-slate-600 hover:text-slate-900">
               Dashboard
@@ -135,7 +135,7 @@ export default function ClientesPage() {
             </div>
           ) : !error && clientes.length === 0 ? (
             <div className="p-12 text-center text-slate-600">
-              Aún no tienes clientes en cartera. Cuando agregues uno desde el portal Telcel aparecerá aquí.
+              Aún no tienes clientes en cartera. Cuando agregues uno desde el portal del operador aparecerá aquí.
             </div>
           ) : !error && filtered.length === 0 ? (
             <div className="p-12 text-center text-slate-500 text-sm">

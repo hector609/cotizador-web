@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Cotizador Telcel — Hectoria",
+  title: "Cotizador Telc... — Hectoria",
   description:
-    "Cotizador inteligente Telcel para distribuidores. Multi-tenant, rápido, con calibrador de rentabilidad.",
+    "Cotizador inteligente para distribuidores autorizados — Hectoria",
 };
 
 export default function RootLayout({
