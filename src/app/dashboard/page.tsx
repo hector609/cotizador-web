@@ -33,12 +33,18 @@ export default function DashboardPage() {
 
       <div className="max-w-5xl mx-auto px-6 py-12">
         <div className="mb-8">
-          <h2 className="text-2xl font-bold text-slate-900">Bienvenido</h2>
-          <p className="text-slate-600">Tu cotizador vive donde tú trabajas.</p>
+          <h2 className="text-2xl font-bold text-slate-900">
+            Listo. Tu cotizador está activo.
+          </h2>
+          <p className="text-slate-600">
+            Las cotizaciones se generan en Telegram. Este panel es para que veas
+            tu cartera, métricas y configuración.
+          </p>
         </div>
 
         <div className="bg-gradient-to-br from-blue-700 to-blue-900 text-white rounded-2xl shadow-lg p-10 md:p-14 text-center">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-white/10 mb-6">
+            {/* brand: Telegram logo (third-party brand glyph, kept inline) */}
             <svg
               className="w-8 h-8"
               viewBox="0 0 24 24"
@@ -49,23 +55,41 @@ export default function DashboardPage() {
             </svg>
           </div>
           <h3 className="text-3xl md:text-4xl font-bold mb-4">
-            Tu cotización vive en Telegram
+            Cotiza desde Telegram, controla desde aquí.
           </h3>
-          <p className="text-blue-100 text-lg max-w-xl mx-auto mb-8">
-            Cotiza, busca expedientes y descarga PDFs oficiales desde el chat
-            que ya usas a diario. Sin instalar nada, sin cambiar de pestaña.
-          </p>
+          <div className="text-blue-100 text-lg max-w-xl mx-auto mb-8 space-y-4">
+            <p>
+              Cotiza, busca expedientes y descarga PDFs oficiales sin abrir el
+              portal del operador. Todo desde el chat de Telegram que ya usas a
+              diario.
+            </p>
+            <p>
+              Cuando termines una cotización, vuelve aquí: en este panel ves tu
+              cartera de clientes, métricas de uso del mes y el historial de
+              PDFs generados por tu equipo.
+            </p>
+          </div>
           <a
             href={TELEGRAM_BOT_URL}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-white text-blue-700 font-bold rounded-lg hover:bg-blue-50 transition shadow-lg"
           >
-            Abrir bot
+            Abrir bot en Telegram
             <span aria-hidden="true">→</span>
           </a>
           <p className="text-blue-200 text-xs mt-6">
-            ¿Aún no estás dado de alta? Pide tu acceso a tu administrador.
+            ¿Es tu primera vez en el bot? Empieza con <code className="font-mono bg-white/10 px-1 py-0.5 rounded">/start</code> y el menú te
+            guía. Si algo no jala, escríbenos a{" "}
+            <a
+              href="https://instagram.com/hectoria.mx"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:text-white"
+            >
+              @hectoria.mx
+            </a>
+            .
           </p>
         </div>
 
@@ -76,8 +100,8 @@ export default function DashboardPage() {
           >
             <h4 className="font-semibold text-slate-900 mb-1">Mis clientes</h4>
             <p className="text-sm text-slate-600">
-              Consulta tu cartera de RFCs sincronizada desde el portal del
-              operador autorizado.
+              Tu cartera de clientes corporativos sincronizada con el portal del
+              operador. Busca por RFC, razón social o expediente.
             </p>
           </Link>
           <a
@@ -88,8 +112,8 @@ export default function DashboardPage() {
           >
             <h4 className="font-semibold text-slate-900 mb-1">Cotizar ahora</h4>
             <p className="text-sm text-slate-600">
-              Abre el bot en Telegram y empieza una cotización en menos de un
-              minuto.
+              Abre el bot y arranca una cotización. El primer plan listo para
+              enviar al cliente toma 2 minutos.
             </p>
           </a>
         </div>

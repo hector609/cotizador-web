@@ -22,6 +22,28 @@ interface TelegramUser {
   hash: string;
 }
 
+// Mensajes de error según copy/login.md sección 3. Un mapa local evita que el
+// servidor tenga que conocer el wording final y mantiene el "qué hacer ahora"
+// del usuario aquí, junto a la UI.
+function friendlyAuthError(serverError: string | undefined): string {
+  const msg = (serverError || "").toLowerCase();
+  if (
+    msg.includes("credencial") ||
+    msg.includes("credentials") ||
+    msg.includes("invalid") ||
+    msg.includes("password") ||
+    msg.includes("unauthorized")
+  ) {
+    return "Email o contraseña no coinciden. Revisa que no haya espacios o mayúsculas de más, o entra con Telegram si prefieres.";
+  }
+  if (msg.includes("pending") || msg.includes("rfc") || msg.includes("activ")) {
+    return "Tu cuenta aún no está activada. Validamos tu RFC en horas hábiles — si han pasado más de 24h, escríbenos a hola@hectoria.mx con el asunto 'alta pendiente'.";
+  }
+  return serverError && serverError.trim().length > 0
+    ? serverError
+    : "Email o contraseña no coinciden. Revisa que no haya espacios o mayúsculas de más, o entra con Telegram si prefieres.";
+}
+
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -42,13 +64,16 @@ export default function LoginPage() {
           body: JSON.stringify(user),
         });
         if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          setError(`Login Telegram falló: ${data.error || "error desconocido"}`);
+          setError(
+            "Tu sesión de Telegram expiró antes de poder validarla. Vuelve a tocar el botón de Telegram para intentar de nuevo.",
+          );
           return;
         }
         window.location.href = "/dashboard";
-      } catch (e: unknown) {
-        setError(`Error de red: ${e instanceof Error ? e.message : "desconocido"}`);
+      } catch {
+        setError(
+          "No pudimos conectar con el servidor. Revisa tu internet y vuelve a intentar; si sigue, avísanos en @hectoria.mx.",
+        );
       }
     };
 
@@ -83,11 +108,19 @@ export default function LoginPage() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "Credenciales incorrectas");
+        throw new Error(friendlyAuthError(data.error));
       }
       window.location.href = "/dashboard";
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Error inesperado");
+      // Error de red (fetch lanza TypeError cuando no hay conexión) vs error
+      // ya formateado por el throw de arriba.
+      if (e instanceof TypeError) {
+        setError(
+          "No pudimos conectar con el servidor. Revisa tu internet y vuelve a intentar; si sigue, avísanos en @hectoria.mx.",
+        );
+      } else {
+        setError(e instanceof Error ? e.message : friendlyAuthError(undefined));
+      }
     } finally {
       setLoading(false);
     }
@@ -103,8 +136,13 @@ export default function LoginPage() {
           >
             ← Volver
           </Link>
-          <h1 className="text-3xl font-bold text-slate-900">Iniciar sesión</h1>
-          <p className="text-slate-600 mt-2">Cotizador Inteligente para DATS</p>
+          <h1 className="text-3xl font-bold text-slate-900">
+            Entra a tu cotizador.
+          </h1>
+          <p className="text-slate-600 mt-2">
+            Distribuidores autorizados: usa Telegram para entrar en un toque, o
+            tu email si prefieres.
+          </p>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8">
@@ -116,7 +154,8 @@ export default function LoginPage() {
             className="flex justify-center mb-2 min-h-[44px]"
           />
           <p className="text-xs text-center text-slate-400 mb-4">
-            Si no aparece el botón, verifica que tu navegador no bloquee Telegram
+            El widget de Telegram no cargó. Puede ser un bloqueador de anuncios
+            o tu red corporativa — desactívalo para este sitio o entra con email.
           </p>
 
           <div className="flex items-center my-6">
@@ -169,24 +208,26 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <p className="text-xs text-slate-500 text-center mt-6">
-            ¿Aún no tienes acceso? Solicita una demo en{" "}
+          <p className="text-xs text-slate-500 text-center mt-6 leading-relaxed">
+            ¿Todavía sin cuenta? Pide tu acceso y te respondemos en menos de 24
+            horas hábiles. Escríbenos a{" "}
             <a
               href="mailto:hola@hectoria.mx"
               className="text-blue-700 font-semibold hover:underline"
             >
               hola@hectoria.mx
             </a>{" "}
-            o por{" "}
+            o por DM en{" "}
             <a
               href="https://instagram.com/hectoria.mx"
               target="_blank"
               rel="noopener noreferrer"
               className="text-blue-700 font-semibold hover:underline"
             >
-              Instagram
+              @hectoria.mx
             </a>
-            .
+            . Si eres distribuidor autorizado del operador líder en México, el
+            alta es inmediata tras validar tu RFC.
           </p>
         </div>
       </div>
