@@ -2,6 +2,13 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import {
+  ArrowRightIcon,
+  LockClosedIcon,
+  MapPinIcon,
+  ShieldCheckIcon,
+} from "@/components/icons";
+import { TrustSignals } from "@/components/ui/TrustSignals";
 
 const TELEGRAM_BOT_USERNAME = "CMdemobot";
 
@@ -132,9 +139,10 @@ export default function LoginPage() {
         <div className="text-center mb-8">
           <Link
             href="/"
-            className="inline-block text-sm text-slate-500 hover:text-slate-700 mb-4"
+            className="inline-flex items-center text-sm text-slate-500 hover:text-slate-700 mb-4"
           >
-            ← Volver
+            <ArrowRightIcon className="w-4 h-4 rotate-180 mr-1" />
+            Volver
           </Link>
           <h1 className="text-3xl font-bold text-slate-900">
             Entra a tu cotizador.
@@ -230,6 +238,16 @@ export default function LoginPage() {
             alta es inmediata tras validar tu RFC.
           </p>
         </div>
+
+        {/* Trust signals — reassure users right before they enter credentials. */}
+        <TrustSignals
+          className="mt-6"
+          items={[
+            { icon: MapPinIcon, label: "Datos en México" },
+            { icon: LockClosedIcon, label: "Cifrado en tránsito" },
+            { icon: ShieldCheckIcon, label: "RFC nunca expuesto" },
+          ]}
+        />
       </div>
     </main>
   );

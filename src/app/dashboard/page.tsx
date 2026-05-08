@@ -1,4 +1,9 @@
 import Link from "next/link";
+import {
+  ArrowRightIcon,
+  DocumentTextIcon,
+  UsersIcon,
+} from "@/components/icons";
 
 // Placeholder — el usuario ajustará el handle real del bot en Telegram.
 const TELEGRAM_BOT_URL = "https://t.me/CotizadorInteligenteBot";
@@ -76,7 +81,7 @@ export default function DashboardPage() {
             className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-white text-blue-700 font-bold rounded-lg hover:bg-blue-50 transition shadow-lg"
           >
             Abrir bot en Telegram
-            <span aria-hidden="true">→</span>
+            <ArrowRightIcon className="w-4 h-4" />
           </a>
           <p className="text-blue-200 text-xs mt-6">
             ¿Es tu primera vez en el bot? Empieza con <code className="font-mono bg-white/10 px-1 py-0.5 rounded">/start</code> y el menú te
@@ -98,6 +103,7 @@ export default function DashboardPage() {
             href="/dashboard/clientes"
             className="bg-white rounded-xl border border-slate-200 p-6 hover:border-blue-400 hover:shadow-sm transition"
           >
+            <UsersIcon className="w-6 h-6 text-blue-700 mb-2" />
             <h4 className="font-semibold text-slate-900 mb-1">Mis clientes</h4>
             <p className="text-sm text-slate-600">
               Tu cartera de clientes corporativos sincronizada con el portal del
@@ -110,6 +116,7 @@ export default function DashboardPage() {
             rel="noopener noreferrer"
             className="bg-white rounded-xl border border-slate-200 p-6 hover:border-blue-400 hover:shadow-sm transition"
           >
+            <DocumentTextIcon className="w-6 h-6 text-blue-700 mb-2" />
             <h4 className="font-semibold text-slate-900 mb-1">Cotizar ahora</h4>
             <p className="text-sm text-slate-600">
               Abre el bot y arranca una cotización. El primer plan listo para

@@ -1,4 +1,12 @@
 import Link from "next/link";
+import {
+  ArrowRightIcon,
+  CheckCircleIcon,
+  LockClosedIcon,
+  MapPinIcon,
+} from "@/components/icons";
+import { Badge } from "@/components/ui/Badge";
+import { TrustSignals } from "@/components/ui/TrustSignals";
 
 const planes = [
   {
@@ -142,29 +150,34 @@ export default function PreciosPage() {
       {/* Top nav */}
       <nav className="bg-white border-b border-slate-200">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="text-lg font-bold text-blue-700">
-            ← Hectoria
+          <Link
+            href="/"
+            className="inline-flex items-center text-lg font-bold text-blue-700"
+          >
+            <ArrowRightIcon className="w-4 h-4 rotate-180 mr-2" />
+            Hectoria
           </Link>
           <Link
             href="/login"
-            className="text-sm font-semibold text-blue-700 hover:text-blue-900"
+            className="inline-flex items-center text-sm font-semibold text-blue-700 hover:text-blue-900"
           >
-            Iniciar sesión →
+            Iniciar sesión
+            <ArrowRightIcon className="w-4 h-4 ml-2" />
           </Link>
         </div>
       </nav>
 
       {/* Hero */}
       <section className="max-w-4xl mx-auto px-6 pt-16 pb-12 text-center">
-        <div className="inline-block px-4 py-1 mb-6 text-xs font-semibold uppercase tracking-wider text-blue-700 bg-blue-100 rounded-full">
-          Planes y precios
+        <div className="mb-6">
+          <Badge variant="primary">Planes y precios</Badge>
         </div>
         <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-slate-900 mb-6">
           Recupera 15 horas al mes
           <br />
           <span className="text-blue-700">desde $499.</span>
         </h1>
-        <p className="text-lg text-slate-600 mb-2 max-w-2xl mx-auto">
+        <p className="text-lg text-slate-600 mb-2 max-w-2xl mx-auto leading-relaxed">
           Planes mensuales para distribuidores autorizados. Sin permanencia,
           cancela cuando quieras. Precios en MXN, sin IVA.
         </p>
@@ -173,22 +186,14 @@ export default function PreciosPage() {
       {/* Planes */}
       <section className="max-w-6xl mx-auto px-6 pb-20">
         {/* Trust signals */}
-        <div className="mb-10 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-xs text-slate-600">
-          <span className="inline-flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-            Datos en México
-          </span>
-          <span className="text-slate-300">·</span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-            Cifrado en tránsito
-          </span>
-          <span className="text-slate-300">·</span>
-          <span className="inline-flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-            Cancela cuando quieras
-          </span>
-        </div>
+        <TrustSignals
+          className="mb-10"
+          items={[
+            { icon: MapPinIcon, label: "Datos en México" },
+            { icon: LockClosedIcon, label: "Cifrado en tránsito" },
+            { icon: CheckCircleIcon, label: "Cancela cuando quieras" },
+          ]}
+        />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {planes.map((p) => (
@@ -196,13 +201,15 @@ export default function PreciosPage() {
               key={p.nombre}
               className={`relative bg-white rounded-2xl shadow-sm border-2 p-8 ${
                 p.destacado
-                  ? "border-blue-700 shadow-xl md:scale-105"
+                  ? "border-blue-700 shadow-xl"
                   : "border-slate-200"
               }`}
             >
               {p.destacado && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-blue-700 text-white text-xs font-bold uppercase tracking-wider rounded-full">
-                  Recomendado
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                  <Badge variant="primary" size="md">
+                    Recomendado
+                  </Badge>
                 </div>
               )}
               <h3 className="text-xl font-bold text-slate-900 mb-1">{p.nombre}</h3>
@@ -222,19 +229,7 @@ export default function PreciosPage() {
                     key={f}
                     className="flex items-start gap-2 text-sm text-slate-700"
                   >
-                    <svg
-                      className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
+                    <CheckCircleIcon className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
                     <span>{f}</span>
                   </li>
                 ))}
@@ -274,8 +269,8 @@ export default function PreciosPage() {
       <section className="bg-white border-t border-slate-200">
         <div className="max-w-6xl mx-auto px-6 py-20">
           <div className="text-center mb-12">
-            <div className="inline-block px-4 py-1 mb-4 text-xs font-semibold uppercase tracking-wider text-blue-700 bg-blue-100 rounded-full">
-              Roadmap 2026
+            <div className="mb-4">
+              <Badge variant="primary">Roadmap 2026</Badge>
             </div>
             <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900">
               Hacia dónde vamos
@@ -323,8 +318,8 @@ export default function PreciosPage() {
       <section className="bg-slate-50 border-t border-slate-200">
         <div className="max-w-3xl mx-auto px-6 py-20">
           <div className="text-center mb-10">
-            <div className="inline-block px-4 py-1 mb-4 text-xs font-semibold uppercase tracking-wider text-blue-700 bg-blue-100 rounded-full">
-              Preguntas frecuentes
+            <div className="mb-4">
+              <Badge variant="primary">Preguntas frecuentes</Badge>
             </div>
             <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900">
               Lo que más nos preguntan
@@ -368,7 +363,8 @@ export default function PreciosPage() {
             href="/login"
             className="inline-flex items-center justify-center px-8 py-4 bg-white text-blue-700 font-bold rounded-lg hover:bg-blue-50 transition shadow-lg"
           >
-            Iniciar sesión →
+            Iniciar sesión
+            <ArrowRightIcon className="w-4 h-4 ml-2" />
           </Link>
         </div>
       </section>
