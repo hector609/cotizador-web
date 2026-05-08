@@ -1,13 +1,13 @@
-# Cotizador Telc... — Web App
+# Cotizador Inteligente para DATS — Web App
 
-Aplicación web complementaria al bot Telegram CMdemobot. Cotizador para distribuidores autorizados de telefonía corporativa, accesible desde el navegador con UI completa, multi-tenant, login para distribuidores.
+Aplicación web complementaria al bot Telegram. Cotizador para distribuidores autorizados de telefonía corporativa, accesible desde el navegador con UI completa, multi-tenant, login para distribuidores. Desarrollado por Hectoria.
 
 ## Stack
 
 - **Next.js 15** con App Router
 - **TypeScript** + **Tailwind CSS**
 - **Vercel** para hosting (free tier)
-- Backend: comparte el de [`hector609/cotizador-telcel`](https://github.com/hector609/cotizador-telcel) (Fly.io)
+- Backend: servicio de Hectoria en Fly.io
 
 ## Páginas
 
@@ -37,7 +37,7 @@ Producción: `cotizador.hectoria.mx` (Cloudflare DNS → Vercel)
 
 - [ ] Conectar `/api/auth/login` con backend Fly.io
 - [ ] Telegram Login Widget configurado en BotFather
-- [ ] Flow `/cotizar` que llama `/api/cotizar` (= comando `/cot` del bot)
+- [ ] Flow `/cotizar` que llama `/api/cotizar`
 - [ ] Listado de clientes (`/api/clientes`)
 - [ ] Historial de cotizaciones
 - [ ] Descarga PDFs
@@ -52,5 +52,5 @@ cotizador.hectoria.mx (Cloudflare DNS)
    ↓
 Vercel (este repo) — frontend Next.js
    ↓ API calls
-cmdemobot.fly.dev (cotizador-telcel) — backend Python + Playwright
+Backend Hectoria en Fly.io
 ```

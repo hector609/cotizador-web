@@ -270,7 +270,8 @@ export default function PreciosPage() {
       <footer className="bg-slate-900 text-slate-400 text-sm">
         <div className="max-w-6xl mx-auto px-6 py-8 flex flex-col md:flex-row items-center justify-between gap-4">
           <div>
-            Powered by <span className="font-semibold text-white">Hectoria</span> · Sistema sin fines de lucro
+            Desarrollado por{" "}
+            <span className="font-semibold text-white">Hectoria</span>
           </div>
           <div className="flex items-center gap-4">
             <a href="https://instagram.com/hectoria.mx" target="_blank" rel="noopener" className="hover:text-white">

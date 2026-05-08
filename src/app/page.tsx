@@ -5,7 +5,7 @@ export default function Home() {
     <main className="min-h-screen flex flex-col items-center justify-center px-6 bg-gradient-to-br from-slate-50 to-blue-50">
       <div className="max-w-3xl w-full text-center">
         <div className="inline-block px-4 py-1 mb-6 text-xs font-semibold uppercase tracking-wider text-blue-700 bg-blue-100 rounded-full">
-          Cotizador Telc... inteligente
+          Cotizador Inteligente para DATS
         </div>
         <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-slate-900 mb-6">
           Cotiza
@@ -14,7 +14,7 @@ export default function Home() {
         </h1>
         <p className="text-xl text-slate-600 mb-10 max-w-2xl mx-auto">
           Bot inteligente para distribuidores autorizados de telefonía corporativa. Genera cotizaciones,
-          aplica palancas de rentabilidad y descarga PDFs sin abrir el portal del operador.
+          aplica palancas de rentabilidad y descarga PDFs oficiales sin abrir el portal del operador líder en México.
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Link
@@ -88,13 +88,8 @@ export default function Home() {
               hectoria.mx
             </a>
           </div>
-          <div>
-            <span className="inline-block px-3 py-1 bg-slate-100 rounded-full text-xs font-medium">
-              Sistema sin fines de lucro
-            </span>
-          </div>
           <div className="text-xs">
-            Powered by <span className="font-semibold">Hectoria</span> · No afiliado a operadores oficiales
+            Desarrollado por <span className="font-semibold">Hectoria</span> · No afiliado a operadores oficiales
           </div>
         </footer>
       </div>

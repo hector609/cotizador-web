@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Cotizador Telc... — Hectoria",
+  title: "Cotizador Inteligente para DATS — Hectoria",
   description:
-    "Cotizador inteligente para distribuidores autorizados — Hectoria",
+    "Cotizador Inteligente para DATS — distribuidores autorizados de telefonía corporativa. Desarrollado por Hectoria.",
 };
 
 export default function RootLayout({
