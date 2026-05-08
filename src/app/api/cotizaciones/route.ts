@@ -163,38 +163,104 @@ export async function POST(request: Request) {
       return errJson("RFC inválido", 400);
     }
   }
-  if (
-    typeof body.lineas !== "number" ||
-    !Number.isInteger(body.lineas) ||
-    body.lineas < 1 ||
-    body.lineas > 500
-  ) {
-    return errJson("Líneas debe ser entero entre 1 y 500", 400);
-  }
-  if (
-    typeof body.plan !== "number" ||
-    body.plan < 100 ||
-    body.plan > 5000
-  ) {
-    return errJson("Plan debe estar entre 100 y 5000 MXN", 400);
-  }
-  if (
-    typeof body.equipos_qty !== "number" ||
-    !Number.isInteger(body.equipos_qty) ||
-    body.equipos_qty < 0 ||
-    body.equipos_qty > body.lineas
-  ) {
-    return errJson("Cantidad de equipos inválida", 400);
-  }
 
-  // Whitelist el payload upstream (no pasar campos extra).
-  const upstreamBody = {
-    rfc: body.rfc || undefined,
-    lineas: body.lineas,
-    plan: body.plan,
-    equipo: body.equipo || undefined,
-    equipos_qty: body.equipos_qty,
-  };
+  // Detectar shape: si viene `perfiles` array no vacío, es multi-perfil; si
+  // no, validamos los cuatro campos legacy (lineas/plan/equipo/equipos_qty).
+  const isMulti = Array.isArray(body.perfiles) && body.perfiles.length > 0;
+
+  let upstreamBody: Record<string, unknown>;
+
+  if (isMulti) {
+    const perfiles = body.perfiles!;
+    if (perfiles.length < 1 || perfiles.length > 10) {
+      return errJson("perfiles[] debe tener entre 1 y 10 elementos", 400);
+    }
+    let totalLineas = 0;
+    for (let i = 0; i < perfiles.length; i++) {
+      const p = perfiles[i];
+      if (!p || typeof p !== "object") {
+        return errJson(`perfiles[${i}] inválido`, 400);
+      }
+      if (typeof p.equipo !== "string" || !p.equipo.trim()) {
+        return errJson(`perfiles[${i}].equipo requerido`, 400);
+      }
+      if (
+        typeof p.lineas !== "number" ||
+        !Number.isInteger(p.lineas) ||
+        p.lineas < 1 ||
+        p.lineas > 500
+      ) {
+        return errJson(
+          `perfiles[${i}].lineas debe ser entero entre 1 y 500`,
+          400,
+        );
+      }
+      if (
+        typeof p.equipos_qty !== "number" ||
+        !Number.isInteger(p.equipos_qty) ||
+        p.equipos_qty < 0 ||
+        p.equipos_qty > p.lineas
+      ) {
+        return errJson(`perfiles[${i}].equipos_qty inválido`, 400);
+      }
+      totalLineas += p.lineas;
+    }
+    if (totalLineas > 1000) {
+      return errJson(
+        `Total de líneas combinadas (${totalLineas}) excede 1000`,
+        400,
+      );
+    }
+    if (
+      body.plan_global !== undefined &&
+      body.plan_global !== "" &&
+      typeof body.plan_global !== "string"
+    ) {
+      return errJson("plan_global debe ser string", 400);
+    }
+    upstreamBody = {
+      rfc: body.rfc || undefined,
+      perfiles: perfiles.map((p) => ({
+        equipo: p.equipo,
+        lineas: p.lineas,
+        equipos_qty: p.equipos_qty,
+      })),
+      plan_global: body.plan_global || undefined,
+    };
+  } else {
+    if (
+      typeof body.lineas !== "number" ||
+      !Number.isInteger(body.lineas) ||
+      body.lineas < 1 ||
+      body.lineas > 500
+    ) {
+      return errJson("Líneas debe ser entero entre 1 y 500", 400);
+    }
+    if (
+      typeof body.plan !== "number" ||
+      body.plan < 100 ||
+      body.plan > 5000
+    ) {
+      return errJson("Plan debe estar entre 100 y 5000 MXN", 400);
+    }
+    if (
+      typeof body.equipos_qty !== "number" ||
+      !Number.isInteger(body.equipos_qty) ||
+      body.equipos_qty < 0 ||
+      body.equipos_qty > body.lineas
+    ) {
+      return errJson("Cantidad de equipos inválida", 400);
+    }
+
+    // Whitelist el payload upstream (no pasar campos extra).
+    upstreamBody = {
+      rfc: body.rfc || undefined,
+      lineas: body.lineas,
+      plan: body.plan,
+      equipo: body.equipo || undefined,
+      equipos_qty: body.equipos_qty,
+    };
+  }
 
   let authHeader: { "X-Auth": string };
   try {

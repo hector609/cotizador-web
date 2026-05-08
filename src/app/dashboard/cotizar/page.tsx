@@ -31,7 +31,18 @@ import {
   RFC_REGEX,
   type CrearCotizacionInput,
   type CrearCotizacionResponse,
+  type PerfilCotizacion,
 } from "@/types/cotizacion";
+
+/**
+ * Multi-perfil wizard: cada fila del Step2 es un perfil. Mantenemos en state
+ * un array `perfiles` que es el source-of-truth del wizard. Los states
+ * singulares (`lineas`/`equipo`/`equiposQty`) se conservan SOLO para el modo
+ * experto (Claude los autollena) — el wizard ya no los usa.
+ */
+type PerfilWizard = PerfilCotizacion;
+const MAX_PERFILES = 10;
+const MAX_TOTAL_LINEAS = 1000;
 
 /**
  * Polling: el backend procesa la cotización async (Playwright tarda 2-4 min).
@@ -144,11 +155,16 @@ function CotizarPageInner() {
   const [rfc, setRfc] = useState<string>(() => (params.get("rfc") || "").toUpperCase());
   const [rfcTouched, setRfcTouched] = useState(false);
 
-  // Step 2
+  // Step 2 — singulares (modo experto los usa; Claude los autollena)
   const [lineas, setLineas] = useState<number>(1);
   const [plan, setPlan] = useState<number>(500);
   const [equipo, setEquipo] = useState<string>(SIN_EQUIPO_LABEL);
   const [equiposQty, setEquiposQty] = useState<number>(0);
+
+  // Step 2 — multi-perfil (source-of-truth del wizard)
+  const [perfiles, setPerfiles] = useState<PerfilWizard[]>(() => [
+    { equipo: "", lineas: 1, equipos_qty: 1 },
+  ]);
 
   // Wizard
   const [step, setStep] = useState<Step>(1);
@@ -199,14 +215,38 @@ function CotizarPageInner() {
   }, [params]);
 
   // Si elige "Sin equipo", forzar 0 (y deshabilitar el input — ver render).
+  // Aplica al modo experto (singular).
   useEffect(() => {
     if (equipo === SIN_EQUIPO_LABEL && equiposQty !== 0) setEquiposQty(0);
   }, [equipo, equiposQty]);
 
   // Si líneas baja por debajo de equiposQty, recortar para mantener invariante.
+  // Aplica al modo experto (singular).
   useEffect(() => {
     if (equiposQty > lineas) setEquiposQty(lineas);
   }, [lineas, equiposQty]);
+
+  // Wizard multi-perfil: mismas invariantes aplicadas a cada fila del array.
+  // - Si una fila tiene equipo "Sin equipo", forzar equipos_qty=0.
+  // - Si líneas baja por debajo de equipos_qty, recortar.
+  // Único useEffect que mira el array completo y devuelve uno nuevo cuando
+  // hay corrección — evita renders en loop comparando con previous.
+  useEffect(() => {
+    let changed = false;
+    const next = perfiles.map((p) => {
+      let nextQty = p.equipos_qty;
+      if (p.equipo === SIN_EQUIPO_LABEL && nextQty !== 0) {
+        nextQty = 0;
+        changed = true;
+      }
+      if (nextQty > p.lineas) {
+        nextQty = p.lineas;
+        changed = true;
+      }
+      return nextQty === p.equipos_qty ? p : { ...p, equipos_qty: nextQty };
+    });
+    if (changed) setPerfiles(next);
+  }, [perfiles]);
 
   /**
    * Carga catálogos de equipos y planes en paralelo. Si el backend aún no
@@ -283,16 +323,34 @@ function CotizarPageInner() {
       : null;
 
   const step1Valido = tieneRfc === "no" || (tieneRfc === "si" && rfcValido);
-  const step2Valido =
-    Number.isInteger(lineas) &&
-    lineas >= 1 &&
-    lineas <= 500 &&
-    plan >= 100 &&
-    plan <= 5000 &&
-    Number.isInteger(equiposQty) &&
-    equiposQty >= 0 &&
-    equiposQty <= lineas &&
-    (equipo !== SIN_EQUIPO_LABEL || equiposQty === 0);
+
+  // Step2 wizard: validación sobre el array `perfiles`. El plan es global y
+  // sigue usando el state singular `plan` (numérico MXN para single, o el
+  // primer plan del catálogo en multi). En multi-perfil el backend acepta
+  // `plan_global` como string adicional — lo derivamos abajo en handleSubmit.
+  const totalLineasPerfiles = useMemo(
+    () => perfiles.reduce((acc, p) => acc + (Number(p.lineas) || 0), 0),
+    [perfiles],
+  );
+  const perfilesValidos = useMemo(() => {
+    if (perfiles.length < 1 || perfiles.length > MAX_PERFILES) return false;
+    if (totalLineasPerfiles > MAX_TOTAL_LINEAS) return false;
+    for (const p of perfiles) {
+      const equipoOk =
+        typeof p.equipo === "string" && p.equipo.trim().length > 0;
+      const lineasOk =
+        Number.isInteger(p.lineas) && p.lineas >= 1 && p.lineas <= 500;
+      const qtyOk =
+        Number.isInteger(p.equipos_qty) &&
+        p.equipos_qty >= 0 &&
+        p.equipos_qty <= p.lineas;
+      const qtyConsistente =
+        p.equipo !== SIN_EQUIPO_LABEL || p.equipos_qty === 0;
+      if (!equipoOk || !lineasOk || !qtyOk || !qtyConsistente) return false;
+    }
+    return true;
+  }, [perfiles, totalLineasPerfiles]);
+  const step2Valido = perfilesValidos && plan >= 100 && plan <= 5000;
 
   function next() {
     if (step === 1 && step1Valido) setStep(2);
@@ -426,12 +484,35 @@ function CotizarPageInner() {
   }
 
   async function handleSubmit() {
+    // Wizard: usa el array `perfiles` como source-of-truth.
+    // - 1 perfil → mandar shape legacy (compat con backend pre-multi).
+    // - >1 perfil → mandar shape multi (perfiles[] + plan_global).
+    if (perfiles.length === 1) {
+      const p = perfiles[0];
+      const payload: CrearCotizacionInput = {
+        rfc: tieneRfc === "si" ? rfc : undefined,
+        lineas: p.lineas,
+        plan,
+        equipo: p.equipo === SIN_EQUIPO_LABEL ? undefined : p.equipo,
+        equipos_qty: p.equipos_qty,
+      };
+      await submitCotizacion(payload);
+      return;
+    }
+
+    // Multi-perfil. `plan_global` es el nombre legible del plan; en MVP
+    // mandamos el monto MXN como string formato "<monto>" — el bot puede
+    // mapearlo o ignorarlo según política. TODO(plan-name): cuando el
+    // catálogo exponga el nombre exacto del plan seleccionado, sustituir
+    // por ese label.
     const payload: CrearCotizacionInput = {
       rfc: tieneRfc === "si" ? rfc : undefined,
-      lineas,
-      plan,
-      equipo: equipo === SIN_EQUIPO_LABEL ? undefined : equipo,
-      equipos_qty: equiposQty,
+      perfiles: perfiles.map((p) => ({
+        equipo: p.equipo,
+        lineas: p.lineas,
+        equipos_qty: p.equipos_qty,
+      })),
+      plan_global: String(plan),
     };
     await submitCotizacion(payload);
   }
@@ -638,14 +719,11 @@ function CotizarPageInner() {
               )}
               {step === 2 && (
                 <Step2
-                  lineas={lineas}
-                  setLineas={setLineas}
+                  perfiles={perfiles}
+                  setPerfiles={setPerfiles}
+                  totalLineas={totalLineasPerfiles}
                   plan={plan}
                   setPlan={setPlan}
-                  equipo={equipo}
-                  setEquipo={setEquipo}
-                  equiposQty={equiposQty}
-                  setEquiposQty={setEquiposQty}
                   equiposCatalog={equiposCatalog}
                   equiposUnavailable={equiposUnavailable}
                   planesCatalog={planesCatalog}
@@ -657,10 +735,9 @@ function CotizarPageInner() {
                 <Step3
                   tieneRfc={tieneRfc}
                   rfc={rfc}
-                  lineas={lineas}
+                  perfiles={perfiles}
+                  totalLineas={totalLineasPerfiles}
                   plan={plan}
-                  equipo={equipo}
-                  equiposQty={equiposQty}
                   submit={submit}
                   onSubmit={handleSubmit}
                   onRetry={handleRetry}
@@ -919,14 +996,11 @@ function Step1(props: {
 }
 
 function Step2(props: {
-  lineas: number;
-  setLineas: (v: number) => void;
+  perfiles: PerfilWizard[];
+  setPerfiles: (v: PerfilWizard[]) => void;
+  totalLineas: number;
   plan: number;
   setPlan: (v: number) => void;
-  equipo: string;
-  setEquipo: (v: string) => void;
-  equiposQty: number;
-  setEquiposQty: (v: number) => void;
   equiposCatalog: EquipoCatalogo[];
   equiposUnavailable: boolean;
   planesCatalog: PlanCatalogo[];
@@ -934,49 +1008,44 @@ function Step2(props: {
   catalogLoading: boolean;
 }) {
   const {
-    lineas,
-    setLineas,
+    perfiles,
+    setPerfiles,
+    totalLineas,
     plan,
     setPlan,
-    equipo,
-    setEquipo,
-    equiposQty,
-    setEquiposQty,
     equiposCatalog,
     equiposUnavailable,
     planesCatalog,
     planesUnavailable,
     catalogLoading,
   } = props;
-  const sinEquipo = equipo === SIN_EQUIPO_LABEL;
+
+  function updatePerfil(idx: number, patch: Partial<PerfilWizard>) {
+    setPerfiles(
+      perfiles.map((p, i) => (i === idx ? { ...p, ...patch } : p)),
+    );
+  }
+  function addPerfil() {
+    if (perfiles.length >= MAX_PERFILES) return;
+    setPerfiles([...perfiles, { equipo: "", lineas: 1, equipos_qty: 1 }]);
+  }
+  function removePerfil(idx: number) {
+    if (perfiles.length <= 1) return;
+    setPerfiles(perfiles.filter((_, i) => i !== idx));
+  }
+
+  const overTotal = totalLineas > MAX_TOTAL_LINEAS;
 
   return (
     <div>
       <h3 className="text-lg font-semibold text-slate-900">Detalles</h3>
       <p className="text-sm text-slate-600 mt-1">
-        Definimos cuántas líneas, plan mensual y equipos.
+        Define el plan global y agrega un equipo por modelo distinto. Cada
+        fila es un perfil con sus líneas y cantidad de equipos.
       </p>
 
-      <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-5">
-        <div>
-          <label htmlFor="lineas" className="block text-sm font-medium text-slate-700 mb-1">
-            Líneas
-          </label>
-          <input
-            id="lineas"
-            type="number"
-            min={1}
-            max={500}
-            step={1}
-            value={lineas}
-            onChange={(e) =>
-              setLineas(Math.max(1, Math.min(500, Number(e.target.value) || 0)))
-            }
-            className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <p className="text-xs text-slate-500 mt-1">Entre 1 y 500.</p>
-        </div>
-
+      {/* Plan global — aplica a TODOS los perfiles. */}
+      <div className="mt-6">
         <PlanPicker
           plan={plan}
           setPlan={setPlan}
@@ -984,41 +1053,133 @@ function Step2(props: {
           unavailable={planesUnavailable}
           loading={catalogLoading}
         />
+      </div>
 
-        <EquipoAutocomplete
-          equipo={equipo}
-          setEquipo={setEquipo}
-          equipos={equiposCatalog}
-          unavailable={equiposUnavailable}
-          loading={catalogLoading}
-        />
+      {/* Filas de perfiles. */}
+      <div className="mt-6 space-y-4">
+        {perfiles.map((p, idx) => {
+          const sinEquipo = p.equipo === SIN_EQUIPO_LABEL;
+          return (
+            <div
+              key={idx}
+              className="rounded-xl border border-slate-200 bg-slate-50/40 p-4"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  Equipo {idx + 1}
+                </span>
+                {perfiles.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removePerfil(idx)}
+                    className="text-xs text-red-700 hover:text-red-900 font-medium underline underline-offset-2"
+                    aria-label={`Eliminar equipo ${idx + 1}`}
+                  >
+                    Eliminar
+                  </button>
+                )}
+              </div>
 
-        <div>
-          <label
-            htmlFor="equipos_qty"
-            className="block text-sm font-medium text-slate-700 mb-1"
-          >
-            Cantidad de equipos
-          </label>
-          <input
-            id="equipos_qty"
-            type="number"
-            min={0}
-            max={lineas}
-            step={1}
-            value={equiposQty}
-            disabled={sinEquipo}
-            onChange={(e) =>
-              setEquiposQty(Math.max(0, Math.min(lineas, Number(e.target.value) || 0)))
-            }
-            className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 disabled:text-slate-400"
-          />
-          <p className="text-xs text-slate-500 mt-1">
-            {sinEquipo
-              ? "No aplica cuando seleccionas Sin equipo."
-              : `Máximo ${lineas} (igual al número de líneas).`}
-          </p>
-        </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="md:col-span-1">
+                  <EquipoAutocomplete
+                    equipo={p.equipo || SIN_EQUIPO_LABEL}
+                    setEquipo={(v) => updatePerfil(idx, { equipo: v })}
+                    equipos={equiposCatalog}
+                    unavailable={equiposUnavailable}
+                    loading={catalogLoading}
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor={`lineas-${idx}`}
+                    className="block text-sm font-medium text-slate-700 mb-1"
+                  >
+                    Líneas
+                  </label>
+                  <input
+                    id={`lineas-${idx}`}
+                    type="number"
+                    min={1}
+                    max={500}
+                    step={1}
+                    value={p.lineas}
+                    onChange={(e) =>
+                      updatePerfil(idx, {
+                        lineas: Math.max(
+                          1,
+                          Math.min(500, Number(e.target.value) || 0),
+                        ),
+                      })
+                    }
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">Entre 1 y 500.</p>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor={`qty-${idx}`}
+                    className="block text-sm font-medium text-slate-700 mb-1"
+                  >
+                    Cantidad de equipos
+                  </label>
+                  <input
+                    id={`qty-${idx}`}
+                    type="number"
+                    min={0}
+                    max={p.lineas}
+                    step={1}
+                    value={p.equipos_qty}
+                    disabled={sinEquipo}
+                    onChange={(e) =>
+                      updatePerfil(idx, {
+                        equipos_qty: Math.max(
+                          0,
+                          Math.min(
+                            p.lineas,
+                            Number(e.target.value) || 0,
+                          ),
+                        ),
+                      })
+                    }
+                    className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 disabled:text-slate-400"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">
+                    {sinEquipo
+                      ? "No aplica con Sin equipo."
+                      : `Máximo ${p.lineas}.`}
+                  </p>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Footer del Step2: agregar perfil + resumen del total. */}
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={addPerfil}
+          disabled={perfiles.length >= MAX_PERFILES}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-50 rounded-lg border border-blue-200 disabled:opacity-40 disabled:cursor-not-allowed transition"
+        >
+          <span aria-hidden="true">+</span> Agregar otro equipo
+          <span className="text-xs text-slate-500">
+            ({perfiles.length}/{MAX_PERFILES})
+          </span>
+        </button>
+        <p
+          className={[
+            "text-sm",
+            overTotal ? "text-red-700 font-semibold" : "text-slate-600",
+          ].join(" ")}
+        >
+          Total de líneas: <strong>{totalLineas}</strong>
+          {overTotal && ` (excede ${MAX_TOTAL_LINEAS})`}
+        </p>
       </div>
     </div>
   );
@@ -1322,16 +1483,16 @@ function PlanPicker({
 function Step3(props: {
   tieneRfc: "si" | "no";
   rfc: string;
-  lineas: number;
+  perfiles: PerfilWizard[];
+  totalLineas: number;
   plan: number;
-  equipo: string;
-  equiposQty: number;
   submit: SubmitState;
   onSubmit: () => void;
   onRetry: () => void;
 }) {
-  const { tieneRfc, rfc, lineas, plan, equipo, equiposQty, submit, onSubmit, onRetry } =
+  const { tieneRfc, rfc, perfiles, totalLineas, plan, submit, onSubmit, onRetry } =
     props;
+  const totalEquipos = perfiles.reduce((acc, p) => acc + (p.equipos_qty || 0), 0);
 
   return (
     <div>
@@ -1346,17 +1507,55 @@ function Step3(props: {
           value={tieneRfc === "si" ? rfc : "Cotización sin base"}
           mono={tieneRfc === "si"}
         />
-        <ResumenRow label="Líneas" value={lineas.toString()} />
         <ResumenRow
           label="Plan mensual por línea"
           value={`$${plan.toLocaleString("es-MX")} MXN`}
         />
-        <ResumenRow label="Equipo" value={equipo} />
-        <ResumenRow
-          label="Cantidad de equipos"
-          value={equipo === SIN_EQUIPO_LABEL ? "—" : equiposQty.toString()}
-        />
+        <ResumenRow label="Total de líneas" value={totalLineas.toString()} />
+        <ResumenRow label="Total de equipos" value={totalEquipos.toString()} />
       </dl>
+
+      <div className="mt-6 overflow-x-auto rounded-xl border border-slate-200">
+        <table className="w-full text-sm">
+          <thead className="bg-slate-50 text-slate-600">
+            <tr>
+              <th className="text-left px-4 py-2 font-medium">#</th>
+              <th className="text-left px-4 py-2 font-medium">Equipo</th>
+              <th className="text-right px-4 py-2 font-medium">Líneas</th>
+              <th className="text-right px-4 py-2 font-medium">Cantidad</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {perfiles.map((p, idx) => (
+              <tr key={idx}>
+                <td className="px-4 py-2 text-slate-500">{idx + 1}</td>
+                <td className="px-4 py-2 text-slate-900">
+                  {p.equipo || "—"}
+                </td>
+                <td className="px-4 py-2 text-right text-slate-900">
+                  {p.lineas}
+                </td>
+                <td className="px-4 py-2 text-right text-slate-900">
+                  {p.equipo === SIN_EQUIPO_LABEL ? "—" : p.equipos_qty}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot className="bg-slate-50">
+            <tr>
+              <td className="px-4 py-2 font-semibold text-slate-700" colSpan={2}>
+                Total
+              </td>
+              <td className="px-4 py-2 text-right font-semibold text-slate-900">
+                {totalLineas}
+              </td>
+              <td className="px-4 py-2 text-right font-semibold text-slate-900">
+                {totalEquipos}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
 
       <SubmitArea submit={submit} onSubmit={onSubmit} onRetry={onRetry} />
     </div>
