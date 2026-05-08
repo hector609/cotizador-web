@@ -1,16 +1,75 @@
 "use client";
 
 import Link from "next/link";
-import Script from "next/script";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 const TELEGRAM_BOT_USERNAME = "CMdemobot";
+
+// Type augmentation: el callback global que el widget de Telegram llama.
+declare global {
+  interface Window {
+    onTelegramAuth?: (user: TelegramUser) => void;
+  }
+}
+
+interface TelegramUser {
+  id: number;
+  first_name?: string;
+  last_name?: string;
+  username?: string;
+  photo_url?: string;
+  auth_date: number;
+  hash: string;
+}
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const telegramContainerRef = useRef<HTMLDivElement>(null);
+
+  // Inyectar el script del widget Telegram en el DOM real (React no ejecuta
+  // scripts insertados con dangerouslySetInnerHTML). Y registrar el callback
+  // global que el widget invocará al autenticar.
+  useEffect(() => {
+    // Callback global que el widget invoca con los datos del usuario.
+    window.onTelegramAuth = async (user: TelegramUser) => {
+      try {
+        const res = await fetch("/api/auth/telegram", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(user),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          setError(`Login Telegram falló: ${data.error || "error desconocido"}`);
+          return;
+        }
+        window.location.href = "/dashboard";
+      } catch (e: unknown) {
+        setError(`Error de red: ${e instanceof Error ? e.message : "desconocido"}`);
+      }
+    };
+
+    // Inyectar el <script> real del widget Telegram.
+    const container = telegramContainerRef.current;
+    if (!container) return;
+    container.innerHTML = "";
+    const script = document.createElement("script");
+    script.src = "https://telegram.org/js/telegram-widget.js?22";
+    script.async = true;
+    script.setAttribute("data-telegram-login", TELEGRAM_BOT_USERNAME);
+    script.setAttribute("data-size", "large");
+    script.setAttribute("data-radius", "8");
+    script.setAttribute("data-onauth", "onTelegramAuth(user)");
+    script.setAttribute("data-request-access", "write");
+    container.appendChild(script);
+
+    return () => {
+      delete window.onTelegramAuth;
+    };
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -50,44 +109,15 @@ export default function LoginPage() {
 
         <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-8">
           {/* Telegram Login Widget oficial. Dominio aprobado en BotFather:
-              cotizador.hectoria.mx. data-onauth llama a window.onTelegramAuth
-              definido abajo. */}
+              cotizador.hectoria.mx. El script se inyecta desde useEffect
+              (React no ejecuta scripts via dangerouslySetInnerHTML). */}
           <div
-            className="flex justify-center mb-4"
-            dangerouslySetInnerHTML={{
-              __html: `
-              <script async
-                src="https://telegram.org/js/telegram-widget.js?22"
-                data-telegram-login="${TELEGRAM_BOT_USERNAME}"
-                data-size="large"
-                data-radius="8"
-                data-onauth="onTelegramAuth(user)"
-                data-request-access="write"></script>
-            `,
-            }}
+            ref={telegramContainerRef}
+            className="flex justify-center mb-2 min-h-[44px]"
           />
-
-          <Script id="telegram-callback" strategy="afterInteractive">
-            {`
-              window.onTelegramAuth = async function(user) {
-                try {
-                  const res = await fetch("/api/auth/telegram", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(user),
-                  });
-                  if (!res.ok) {
-                    const data = await res.json().catch(() => ({}));
-                    alert("Login Telegram falló: " + (data.error || "error desconocido"));
-                    return;
-                  }
-                  window.location.href = "/dashboard";
-                } catch (e) {
-                  alert("Error de red: " + e.message);
-                }
-              };
-            `}
-          </Script>
+          <p className="text-xs text-center text-slate-400 mb-4">
+            Si no aparece el botón, verifica que tu navegador no bloquee Telegram
+          </p>
 
           <div className="flex items-center my-6">
             <div className="flex-grow border-t border-slate-200" />
