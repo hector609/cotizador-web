@@ -20,10 +20,20 @@ Aplicación web complementaria al bot Telegram. Cotizador para distribuidores au
 
 ```bash
 npm install
+cp .env.example .env.local
+# editá .env.local con TELEGRAM_BOT_TOKEN y SESSION_SECRET
 npm run dev
 ```
 
 Abre http://localhost:3000
+
+## Variables de entorno
+
+- `TELEGRAM_BOT_TOKEN` — usado SOLO para verificar el widget de Telegram
+  Login. NO se usa para firmar la cookie de sesión.
+- `SESSION_SECRET` — usado SOLO para firmar/verificar la cookie de sesión.
+  Genera con `openssl rand -hex 32`. Si falta, el cold-start de
+  `/api/auth/telegram` aborta. NO se permite fallback al bot token.
 
 ## Deploy
 

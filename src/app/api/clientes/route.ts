@@ -5,31 +5,52 @@ import crypto from "crypto";
  * GET /api/clientes
  *
  * Proxy autenticado al backend Fly.io. Lee la cookie `session` (firmada con
- * HMAC-SHA256 sobre TELEGRAM_BOT_TOKEN en /api/auth/telegram), valida la
- * firma con timingSafeEqual, extrae `telegram_id` y consulta clientes en
- * cmdemobot.fly.dev firmando el header X-Auth con el mismo bot token.
+ * HMAC-SHA256 sobre SESSION_SECRET en /api/auth/telegram), valida la firma
+ * con timingSafeEqual, extrae `tenant_id` y consulta clientes en
+ * cmdemobot.fly.dev firmando el header X-Auth con TELEGRAM_BOT_TOKEN
+ * (acuerdo simétrico entre web y backend).
  *
- * El bot token NUNCA se expone al cliente.
+ * SECURITY: backend MUST verify tenant_id from X-Auth matches resource
+ * ownership. Do NOT trust any client-supplied IDs.
+ *
+ * El bot token y SESSION_SECRET NUNCA se exponen al cliente.
  */
 
 const BACKEND_URL = "https://cmdemobot.fly.dev/api/v1/clientes";
 
+function requireSessionSecret(): string {
+  const s = process.env.SESSION_SECRET;
+  if (!s) {
+    throw new Error(
+      "SESSION_SECRET no configurado. Genéralo con `openssl rand -hex 32` y agrégalo a las variables de entorno."
+    );
+  }
+  return s;
+}
+const SESSION_SECRET: string = requireSessionSecret();
+
 interface SessionPayload {
   telegram_id: number;
+  tenant_id: string;
   iat: number;
 }
 
 const errJson = (msg: string, status: number) =>
   NextResponse.json({ error: msg }, { status });
 
-function verifySession(cookieValue: string, botToken: string): SessionPayload | null {
+function verifySession(cookieValue: string): SessionPayload | null {
   const [b64, sig] = cookieValue.split(".");
   if (!b64 || !sig) return null;
 
-  const expected = crypto.createHmac("sha256", botToken).update(b64).digest("hex");
+  const expected = crypto
+    .createHmac("sha256", SESSION_SECRET)
+    .update(b64)
+    .digest("hex");
   if (expected.length !== sig.length) return null;
   try {
-    if (!crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(sig))) return null;
+    if (!crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(sig))) {
+      return null;
+    }
   } catch {
     return null;
   }
@@ -38,13 +59,16 @@ function verifySession(cookieValue: string, botToken: string): SessionPayload | 
     const parsed = JSON.parse(
       Buffer.from(b64, "base64url").toString("utf8")
     ) as SessionPayload;
-    return typeof parsed.telegram_id === "number" ? parsed : null;
+    if (typeof parsed.tenant_id !== "string" || !parsed.tenant_id) return null;
+    return parsed;
   } catch {
     return null;
   }
 }
 
 export async function GET(request: Request) {
+  // SECURITY: backend MUST verify tenant_id from X-Auth matches resource
+  // ownership. Do NOT trust any client-supplied IDs.
   const botToken = process.env.TELEGRAM_BOT_TOKEN;
   if (!botToken) return errJson("Configuración del servidor incompleta", 500);
 
@@ -53,24 +77,30 @@ export async function GET(request: Request) {
   const match = cookieHeader.match(/(?:^|;\s*)session=([^;]+)/);
   if (!match) return errJson("No autenticado", 401);
 
-  const session = verifySession(decodeURIComponent(match[1]), botToken);
+  const session = verifySession(decodeURIComponent(match[1]));
   if (!session) return errJson("No autenticado", 401);
 
-  // 2. Firmar telegram_id con HMAC-SHA256 para X-Auth
-  const telegramId = String(session.telegram_id);
-  const xAuth = crypto.createHmac("sha256", botToken).update(telegramId).digest("hex");
+  // 2. Firmar tenant_id con HMAC-SHA256(botToken) para X-Auth.
+  //    El backend identifica al usuario SOLO por este header firmado, no por
+  //    parámetros en la query string controlables por el cliente.
+  const tenantId = session.tenant_id;
+  const xAuth = crypto
+    .createHmac("sha256", botToken)
+    .update(tenantId)
+    .digest("hex");
 
-  // 3. Llamar al backend
+  // 3. Llamar al backend (sin telegram_id en la URL).
   let upstream: Response;
   try {
-    upstream = await fetch(
-      `${BACKEND_URL}?telegram_id=${encodeURIComponent(telegramId)}`,
-      {
-        method: "GET",
-        headers: { "X-Auth": xAuth, Accept: "application/json" },
-        cache: "no-store",
-      }
-    );
+    upstream = await fetch(BACKEND_URL, {
+      method: "GET",
+      headers: {
+        "X-Auth": xAuth,
+        "X-Tenant-Id": tenantId,
+        Accept: "application/json",
+      },
+      cache: "no-store",
+    });
   } catch {
     return errJson("Backend no disponible", 502);
   }

@@ -9,11 +9,30 @@ import crypto from "crypto";
  * con el bot token (env TELEGRAM_BOT_TOKEN) según
  * https://core.telegram.org/widgets/login#checking-authorization
  *
- * Si el hash es válido y el auth_date no es viejo (>1 hora), emite cookie
- * de sesión y redirige a /dashboard.
+ * Si el hash es válido y el auth_date no es viejo (>1 hora), emite una
+ * cookie de sesión firmada con SESSION_SECRET (NO con el bot token) y
+ * redirige a /dashboard.
  *
- * NOTA: el bot token NUNCA se expone al cliente. Está solo en el server.
+ * SEGURIDAD:
+ *  - TELEGRAM_BOT_TOKEN se usa SOLO para verificar el widget de Telegram.
+ *  - SESSION_SECRET se usa SOLO para firmar/verificar la cookie de sesión.
+ *    Si se mezclaran, comprometer uno expondría al otro. Generar con:
+ *      openssl rand -hex 32
+ *  - Ningún secreto se expone al cliente.
  */
+
+// Cold-start fail-fast: si no hay SESSION_SECRET, no podemos firmar sesiones
+// de forma segura. NO usar el bot token como fallback.
+function requireSessionSecret(): string {
+  const s = process.env.SESSION_SECRET;
+  if (!s) {
+    throw new Error(
+      "SESSION_SECRET no configurado. Genéralo con `openssl rand -hex 32` y agrégalo a las variables de entorno."
+    );
+  }
+  return s;
+}
+const SESSION_SECRET: string = requireSessionSecret();
 
 interface TelegramUser {
   id: number;
@@ -82,20 +101,24 @@ export async function POST(request: Request) {
   }
 
   // Hash válido. Emitir cookie de sesión.
-  // TODO: aquí llamamos al backend Fly.io para validar que este user_id está
-  // autorizado en algún tenant, y obtenemos su rol. Por ahora aceptamos cualquiera.
+  // TODO: backend debe devolver tenant_id real al validar el login. Por ahora
+  // usamos el telegram_id como tenant_id provisional para que el resto del
+  // sistema ya razone en términos de tenant. NO confiar en este valor en
+  // backend: cuando se conecte el endpoint real de validación, sustituirlo.
   const sessionPayload = {
     telegram_id: user.id,
+    tenant_id: String(user.id),
     name: [user.first_name, user.last_name].filter(Boolean).join(" "),
     username: user.username || null,
     iat: Math.floor(Date.now() / 1000),
   };
 
-  // Cookie firmada simple (HMAC). En siguiente iteración: JWT con expiración.
+  // Cookie firmada con SESSION_SECRET (NO con el bot token). En siguiente
+  // iteración: JWT con expiración explícita.
   const sessionStr = JSON.stringify(sessionPayload);
   const sessionB64 = Buffer.from(sessionStr).toString("base64url");
   const sessionSig = crypto
-    .createHmac("sha256", botToken)
+    .createHmac("sha256", SESSION_SECRET)
     .update(sessionB64)
     .digest("hex");
 
