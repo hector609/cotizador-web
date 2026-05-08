@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import crypto from "crypto";
 import { getSessionFromRequest } from "@/lib/auth";
+import { signBackendRequest } from "@/lib/backend-auth";
 import type {
   CrearCotizacionInput,
   ListarCotizacionesResponse,
@@ -15,48 +15,62 @@ import { RFC_REGEX } from "@/types/cotizacion";
  *      → lista cotizaciones del tenant.
  * POST /api/cotizaciones
  *      Body: CrearCotizacionInput
+ *      Headers (opcional): Idempotency-Key
  *      → crea cotización (job asíncrono Playwright en backend).
  *
- * SECURITY: backend MUST verify tenant_id from X-Auth and filter results by it.
- * Do NOT trust client IDs.
- *
- * Header X-Auth: HMAC-SHA256(TELEGRAM_BOT_TOKEN, tenant_id) — mismo esquema
- * que /api/clientes/route.ts. Si en el futuro docs/CONTRACT.md migra a
- * `HMAC(SESSION_SECRET, "${tenant_id}|${timestamp}")`, hay que actualizar
- * AMBOS handlers (clientes y cotizaciones) en el mismo commit para evitar
- * desync.
- *
- * El bot token y SESSION_SECRET NUNCA se exponen al cliente.
+ * SECURITY:
+ *  - Header X-Auth: `v1.<ts>.<hmac(SESSION_SECRET, "v1|<distribuidor_id>|<ts>")>`
+ *    (unificado con `cotizador-telcel-bot/src/api/server.py`). Helper en
+ *    `src/lib/backend-auth.ts`.
+ *  - NO se incluye `tenant_id`/`telegram_id` en query string. El backend
+ *    deriva el tenant del payload firmado.
+ *  - Idempotency-Key: dedup en memoria por
+ *    `${distribuidor_id}:${idempotency_key}` con TTL 5min para prevenir
+ *    F9 (doble-click race). TODO: mover a Vercel KV / Redis cuando salgamos
+ *    de single-region.
  */
 
 const BOT_API_URL = process.env.BOT_API_URL || "https://cmdemobot.fly.dev";
+const IDEMPOTENCY_TTL_MS = 5 * 60 * 1000; // 5 min
+
+interface IdempotencyEntry {
+  status: number;
+  body: unknown;
+  expiresAt: number;
+}
+
+// Map en memoria. En Vercel single-region funciona porque las invocaciones
+// del mismo handler tienden a colocar en la misma instancia caliente; no
+// es garantía 100% pero cubre el caso de doble-click humano. Para
+// garantía completa cross-instancia → migrar a Vercel KV / Upstash.
+// TODO(KV): mover a storage compartido si pasamos a multi-region.
+const idempotencyCache = new Map<string, IdempotencyEntry>();
+
+function pruneIdempotency(now: number): void {
+  // Barrer perezosamente entradas vencidas. Map iteration order es de
+  // inserción, así que el primero en vencer suele estar al frente.
+  for (const [key, entry] of idempotencyCache) {
+    if (entry.expiresAt > now) break;
+    idempotencyCache.delete(key);
+  }
+}
 
 const errJson = (msg: string, status: number) =>
   NextResponse.json({ error: msg }, { status });
 
-function signTenant(tenantId: string, botToken: string): string {
-  return crypto.createHmac("sha256", botToken).update(tenantId).digest("hex");
-}
-
-function buildAuthHeaders(tenantId: string, botToken: string): HeadersInit {
-  return {
-    "X-Auth": signTenant(tenantId, botToken),
-    "X-Tenant-Id": tenantId,
-    Accept: "application/json",
-  };
-}
-
 export async function GET(request: Request) {
-  // SECURITY: backend MUST verify tenant_id from X-Auth and filter results by it.
-  // Do NOT trust client IDs.
-  const botToken = process.env.TELEGRAM_BOT_TOKEN;
-  if (!botToken) return errJson("Configuración del servidor incompleta", 500);
-
   const session = getSessionFromRequest(request);
   if (!session) return errJson("No autenticado", 401);
 
-  // Parse pasa-thru de query params (whitelist explícito; nunca aceptar
-  // tenant_id vía query — el backend lo deriva del X-Auth firmado).
+  let authHeader: { "X-Auth": string };
+  try {
+    authHeader = signBackendRequest(session.distribuidor_id);
+  } catch (e) {
+    console.error("[api/cotizaciones GET] sign error", e);
+    return errJson("Servicio no disponible", 500);
+  }
+
+  // Whitelist de query params al upstream (NUNCA pasar tenant_id).
   const url = new URL(request.url);
   const allowed = ["limit", "offset", "estado", "from", "to"] as const;
   const upstreamParams = new URLSearchParams();
@@ -73,10 +87,14 @@ export async function GET(request: Request) {
   try {
     upstream = await fetch(upstreamUrl, {
       method: "GET",
-      headers: buildAuthHeaders(session.tenant_id, botToken),
+      headers: {
+        ...authHeader,
+        Accept: "application/json",
+      },
       cache: "no-store",
     });
-  } catch {
+  } catch (e) {
+    console.error("[api/cotizaciones GET] backend fetch error", e);
     return errJson("Backend no disponible", 502);
   }
 
@@ -98,19 +116,38 @@ export async function GET(request: Request) {
   try {
     const data = (await upstream.json()) as ListarCotizacionesResponse;
     return NextResponse.json(data, { status: 200 });
-  } catch {
+  } catch (e) {
+    console.error("[api/cotizaciones GET] json parse", e);
     return errJson("Respuesta inválida del backend", 502);
   }
 }
 
 export async function POST(request: Request) {
-  // SECURITY: backend MUST verify tenant_id from X-Auth and filter results by it.
-  // Do NOT trust client IDs.
-  const botToken = process.env.TELEGRAM_BOT_TOKEN;
-  if (!botToken) return errJson("Configuración del servidor incompleta", 500);
-
   const session = getSessionFromRequest(request);
   if (!session) return errJson("No autenticado", 401);
+
+  // F9: dedup por Idempotency-Key + distribuidor_id. Si el frontend manda
+  // el mismo key dos veces (doble-click) devolvemos la respuesta cacheada
+  // sin re-ejecutar el job upstream.
+  const idempotencyKeyRaw = request.headers.get("Idempotency-Key");
+  const idempotencyKey =
+    typeof idempotencyKeyRaw === "string" &&
+    /^[A-Za-z0-9._\-]{8,128}$/.test(idempotencyKeyRaw)
+      ? idempotencyKeyRaw
+      : null;
+
+  const cacheKey = idempotencyKey
+    ? `${session.distribuidor_id}:${idempotencyKey}`
+    : null;
+
+  if (cacheKey) {
+    const now = Date.now();
+    pruneIdempotency(now);
+    const cached = idempotencyCache.get(cacheKey);
+    if (cached && cached.expiresAt > now) {
+      return NextResponse.json(cached.body, { status: cached.status });
+    }
+  }
 
   let body: CrearCotizacionInput;
   try {
@@ -150,7 +187,7 @@ export async function POST(request: Request) {
     return errJson("Cantidad de equipos inválida", 400);
   }
 
-  // Whitelist el payload que se envía upstream (no pasar campos extra).
+  // Whitelist el payload upstream (no pasar campos extra).
   const upstreamBody = {
     rfc: body.rfc || undefined,
     lineas: body.lineas,
@@ -159,18 +196,27 @@ export async function POST(request: Request) {
     equipos_qty: body.equipos_qty,
   };
 
+  let authHeader: { "X-Auth": string };
+  try {
+    authHeader = signBackendRequest(session.distribuidor_id);
+  } catch (e) {
+    console.error("[api/cotizaciones POST] sign error", e);
+    return errJson("Servicio no disponible", 500);
+  }
+
   let upstream: Response;
   try {
     upstream = await fetch(`${BOT_API_URL}/api/v1/cotizaciones`, {
       method: "POST",
       headers: {
-        ...buildAuthHeaders(session.tenant_id, botToken),
+        ...authHeader,
         "Content-Type": "application/json",
       },
       body: JSON.stringify(upstreamBody),
       cache: "no-store",
     });
-  } catch {
+  } catch (e) {
+    console.error("[api/cotizaciones POST] backend fetch error", e);
     return errJson("Backend no disponible", 502);
   }
 
@@ -178,23 +224,37 @@ export async function POST(request: Request) {
     return errJson("No autorizado", 403);
   }
   if (upstream.status === 400 || upstream.status === 422) {
-    // Pasar mensaje del backend si está disponible y es seguro (no stacktrace).
+    // Pasar mensaje del backend SOLO si es string seguro (no stacktrace).
+    let msg = "Datos inválidos";
     try {
       const data = await upstream.json();
-      const msg =
-        typeof data?.error === "string" ? data.error : "Datos inválidos";
-      return errJson(msg, 400);
+      if (typeof data?.error === "string" && data.error.length < 200) {
+        msg = data.error;
+      }
     } catch {
-      return errJson("Datos inválidos", 400);
+      // ignore
     }
+    return errJson(msg, 400);
   }
   if (upstream.status >= 500) return errJson("Backend no disponible", 502);
   if (!upstream.ok) return errJson("Error en backend", 502);
 
+  let data: CrearCotizacionResponse;
   try {
-    const data = (await upstream.json()) as CrearCotizacionResponse;
-    return NextResponse.json(data, { status: 201 });
-  } catch {
+    data = (await upstream.json()) as CrearCotizacionResponse;
+  } catch (e) {
+    console.error("[api/cotizaciones POST] json parse", e);
     return errJson("Respuesta inválida del backend", 502);
   }
+
+  // F9: cachear la respuesta exitosa para deduplicar reintentos del mismo key.
+  if (cacheKey) {
+    idempotencyCache.set(cacheKey, {
+      status: 201,
+      body: data,
+      expiresAt: Date.now() + IDEMPOTENCY_TTL_MS,
+    });
+  }
+
+  return NextResponse.json(data, { status: 201 });
 }
