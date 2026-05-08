@@ -81,13 +81,13 @@ const fases = [
     ],
   },
   {
-    titulo: "Fase 4 — Visión",
+    titulo: "Fase 4 — Escala nacional",
     timing: "Mes 12",
     items: [
-      "80+ tenants pagando",
-      "$80,000 MXN/mes recurrente",
-      "Margen ~85%",
-      "Mercado: 3,000-5,000 distribuidores en MX",
+      "Red de distribuidores en todo México",
+      "Integraciones nativas con CRMs",
+      "API pública para automatizaciones",
+      "Comunidad y eventos para distribuidores",
     ],
   },
 ];
