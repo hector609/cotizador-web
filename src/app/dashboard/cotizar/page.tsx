@@ -285,14 +285,34 @@ function CotizarPageInner() {
 
         if (plRes.ok) {
           const data = (await plRes.json()) as {
-            planes?: PlanCatalogo[];
+            planes?: Array<Record<string, unknown>>;
             unavailable?: boolean;
           };
-          if (data.unavailable || !Array.isArray(data.planes) || data.planes.length === 0) {
+          // Normalizar el shape del bot ({clave, nombre, grupo, modalidad,
+          // plazo, renta, ...}) al shape PlanCatalogo ({label, precio, ...}).
+          // Sin esta capa, p.precio queda undefined → toLocaleString crash.
+          const normalizados: PlanCatalogo[] = Array.isArray(data.planes)
+            ? data.planes
+                .map((p): PlanCatalogo | null => {
+                  const renta = typeof p.renta === "number" ? p.renta : typeof p.precio_lista === "number" ? p.precio_lista : typeof p.precio === "number" ? p.precio : null;
+                  const label = typeof p.nombre === "string" && p.nombre ? p.nombre : typeof p.label === "string" ? p.label : typeof p.clave === "string" ? p.clave : "";
+                  if (!label || renta === null) return null;
+                  return {
+                    label,
+                    precio: renta,
+                    grupo: typeof p.grupo === "string" ? p.grupo : undefined,
+                    modalidad: typeof p.modalidad === "string" ? p.modalidad : undefined,
+                    plazo: typeof p.plazo === "number" ? p.plazo : undefined,
+                    id: typeof p.clave === "string" ? p.clave : typeof p.id === "string" ? p.id : undefined,
+                  };
+                })
+                .filter((x): x is PlanCatalogo => x !== null)
+            : [];
+          if (data.unavailable || normalizados.length === 0) {
             setPlanesCatalog([]);
             setPlanesUnavailable(true);
           } else {
-            setPlanesCatalog(data.planes);
+            setPlanesCatalog(normalizados);
             setPlanesUnavailable(false);
           }
         } else {
@@ -1467,11 +1487,14 @@ function PlanPicker({
         aria-label="Plan específico"
       >
         <option value="">Selecciona plan…</option>
-        {planesFiltrados.map((p) => (
-          <option key={p.id || `${p.label}-${p.precio}`} value={String(p.precio)}>
-            {p.label} — ${p.precio.toLocaleString("es-MX")} MXN
-          </option>
-        ))}
+        {planesFiltrados.map((p) => {
+          const precioNum = typeof p.precio === "number" && Number.isFinite(p.precio) ? p.precio : 0;
+          return (
+            <option key={p.id || `${p.label}-${precioNum}`} value={String(precioNum)}>
+              {p.label} — ${precioNum.toLocaleString("es-MX")} MXN
+            </option>
+          );
+        })}
       </select>
       <p className="text-xs text-slate-500 mt-1">
         Filtra por grupo/modalidad/plazo y elige el plan exacto.
@@ -1509,7 +1532,7 @@ function Step3(props: {
         />
         <ResumenRow
           label="Plan mensual por línea"
-          value={`$${plan.toLocaleString("es-MX")} MXN`}
+          value={`$${(typeof plan === "number" && Number.isFinite(plan) ? plan : 0).toLocaleString("es-MX")} MXN`}
         />
         <ResumenRow label="Total de líneas" value={totalLineas.toString()} />
         <ResumenRow label="Total de equipos" value={totalEquipos.toString()} />
