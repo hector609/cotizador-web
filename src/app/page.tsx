@@ -8,26 +8,26 @@ export default function Home() {
           Cotizador Inteligente para DATS
         </div>
         <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-slate-900 mb-6">
-          Cotiza
+          Una cotización corporativa
           <br />
-          <span className="text-blue-700">en segundos</span>
+          <span className="text-blue-700">en lo que tarda un café.</span>
         </h1>
-        <p className="text-xl text-slate-600 mb-10 max-w-2xl mx-auto">
-          Bot inteligente para distribuidores autorizados de telefonía corporativa. Genera cotizaciones,
-          aplica palancas de rentabilidad y descarga PDFs oficiales sin abrir el portal del operador líder en México.
+        <p className="text-xl text-slate-600 mb-10 max-w-2xl mx-auto leading-relaxed">
+          Cotizador para distribuidores autorizados: PDFs oficiales, palancas de
+          rentabilidad y multi-vendedor — sin abrir el portal del operador.
         </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
           <Link
             href="/login"
             className="inline-flex items-center justify-center px-8 py-3 text-base font-semibold text-white bg-blue-700 rounded-lg hover:bg-blue-800 transition shadow-md"
           >
-            Solicitar acceso →
+            Cotiza tu primera demo →
           </Link>
           <Link
             href="/precios"
             className="inline-flex items-center justify-center px-8 py-3 text-base font-semibold text-blue-700 bg-white border-2 border-blue-700 rounded-lg hover:bg-blue-50 transition"
           >
-            Ver planes y precios
+            Ver cuánto te costaría →
           </Link>
           <a
             href="https://t.me/CMdemobot"
@@ -48,7 +48,12 @@ export default function Home() {
           <span className="text-slate-300">·</span>
           <span className="inline-flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-            Cifrado en tránsito
+            Cifrado en tránsito (HTTPS)
+          </span>
+          <span className="text-slate-300">·</span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+            RFC nunca expuesto en logs
           </span>
           <span className="text-slate-300">·</span>
           <span className="inline-flex items-center gap-1.5">
@@ -60,16 +65,16 @@ export default function Home() {
         <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-6 text-left">
           {[
             {
-              title: "🎯 Multi-distribuidor",
-              desc: "Cada distribuidor con sus propias credenciales. Datos aislados, cero leak entre cuentas.",
+              title: "⚡ De 20 minutos a 2.",
+              desc: "Cotizaciones completas con palancas aplicadas, sin abrir el portal ni una vez.",
             },
             {
-              title: "⚡ Rápido",
-              desc: "Cotizaciones en 2-4 minutos. Búsqueda de expedientes optimizada.",
+              title: "📊 Vende sin perder margen.",
+              desc: "El calibrador encuentra el plan que cumple tu rentabilidad objetivo en cada cotización.",
             },
             {
-              title: "📊 Calibrador A/B",
-              desc: "Ajusta automáticamente el precio para llegar a la rentabilidad objetivo.",
+              title: "🎯 Tu equipo, no tu cuello de botella.",
+              desc: "Cada vendedor cotiza con su propio acceso; tú revisas el dashboard.",
             },
           ].map((f) => (
             <div
@@ -81,6 +86,12 @@ export default function Home() {
             </div>
           ))}
         </div>
+
+        {/* Social proof preliminar */}
+        <p className="mt-12 max-w-2xl mx-auto text-sm text-slate-600 italic">
+          Construido con distribuidores reales, no con focus groups. Cada función
+          nació de una hora atorada en el portal.
+        </p>
 
         <footer className="mt-20 text-sm text-slate-500 space-y-3">
           <div className="flex items-center justify-center gap-4">
