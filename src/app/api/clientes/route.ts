@@ -1,81 +1,55 @@
 import { NextResponse } from "next/server";
-import crypto from "crypto";
+import { getSessionFromRequest } from "@/lib/auth";
+import { signBackendRequest } from "@/lib/backend-auth";
 
 /**
  * GET /api/clientes
  *
- * Proxy autenticado al backend Fly.io. Lee la cookie `session` (firmada con
- * HMAC-SHA256 sobre TELEGRAM_BOT_TOKEN en /api/auth/telegram), valida la
- * firma con timingSafeEqual, extrae `telegram_id` y consulta clientes en
- * cmdemobot.fly.dev firmando el header X-Auth con el mismo bot token.
+ * Proxy autenticado al backend del bot. Lee la cookie `session` (firmada
+ * con HMAC-SHA256 sobre SESSION_SECRET por /api/auth/telegram), valida la
+ * firma con timingSafeEqual, extrae `distribuidor_id` y consulta clientes
+ * en `${BOT_API_URL}/api/v1/clientes` firmando el header
+ *   X-Auth: v1.<ts>.<hmac(SESSION_SECRET, "v1|<distribuidor_id>|<ts>")>
+ * (esquema unificado con cotizador-telcel-bot/src/api/server.py).
  *
- * El bot token NUNCA se expone al cliente.
+ * NO incluimos `tenant_id`/`telegram_id` en query string — el backend
+ * deriva el tenant del payload firmado del X-Auth.
+ *
+ * SECURITY: el bot token y SESSION_SECRET NUNCA se exponen al cliente.
  */
 
-const BACKEND_URL = "https://cmdemobot.fly.dev/api/v1/clientes";
-
-interface SessionPayload {
-  telegram_id: number;
-  iat: number;
-}
+const BOT_API_URL = process.env.BOT_API_URL || "https://cmdemobot.fly.dev";
 
 const errJson = (msg: string, status: number) =>
   NextResponse.json({ error: msg }, { status });
 
-function verifySession(cookieValue: string, botToken: string): SessionPayload | null {
-  const [b64, sig] = cookieValue.split(".");
-  if (!b64 || !sig) return null;
-
-  const expected = crypto.createHmac("sha256", botToken).update(b64).digest("hex");
-  if (expected.length !== sig.length) return null;
-  try {
-    if (!crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(sig))) return null;
-  } catch {
-    return null;
-  }
-
-  try {
-    const parsed = JSON.parse(
-      Buffer.from(b64, "base64url").toString("utf8")
-    ) as SessionPayload;
-    return typeof parsed.telegram_id === "number" ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-
 export async function GET(request: Request) {
-  const botToken = process.env.TELEGRAM_BOT_TOKEN;
-  if (!botToken) return errJson("Configuración del servidor incompleta", 500);
-
-  // 1. Leer y validar cookie session
-  const cookieHeader = request.headers.get("cookie") || "";
-  const match = cookieHeader.match(/(?:^|;\s*)session=([^;]+)/);
-  if (!match) return errJson("No autenticado", 401);
-
-  const session = verifySession(decodeURIComponent(match[1]), botToken);
+  const session = getSessionFromRequest(request);
   if (!session) return errJson("No autenticado", 401);
 
-  // 2. Firmar telegram_id con HMAC-SHA256 para X-Auth
-  const telegramId = String(session.telegram_id);
-  const xAuth = crypto.createHmac("sha256", botToken).update(telegramId).digest("hex");
+  let authHeader: { "X-Auth": string };
+  try {
+    authHeader = signBackendRequest(session.distribuidor_id);
+  } catch (e) {
+    console.error("[api/clientes] sign error", e);
+    return errJson("Servicio no disponible", 500);
+  }
 
-  // 3. Llamar al backend
   let upstream: Response;
   try {
-    upstream = await fetch(
-      `${BACKEND_URL}?telegram_id=${encodeURIComponent(telegramId)}`,
-      {
-        method: "GET",
-        headers: { "X-Auth": xAuth, Accept: "application/json" },
-        cache: "no-store",
-      }
-    );
-  } catch {
+    upstream = await fetch(`${BOT_API_URL}/api/v1/clientes`, {
+      method: "GET",
+      headers: {
+        ...authHeader,
+        Accept: "application/json",
+      },
+      cache: "no-store",
+    });
+  } catch (e) {
+    console.error("[api/clientes] backend fetch error", e);
     return errJson("Backend no disponible", 502);
   }
 
-  // 4. Mapear status del backend
   if (upstream.status === 404) {
     return NextResponse.json({ clientes: [], total: 0 }, { status: 200 });
   }
@@ -88,7 +62,8 @@ export async function GET(request: Request) {
   try {
     const data = await upstream.json();
     return NextResponse.json(data, { status: 200 });
-  } catch {
+  } catch (e) {
+    console.error("[api/clientes] backend json parse", e);
     return errJson("Respuesta inválida del backend", 502);
   }
 }
