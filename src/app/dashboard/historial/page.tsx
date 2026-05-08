@@ -99,6 +99,12 @@ export default async function HistorialPage({ searchParams }: PageProps) {
             >
               Clientes
             </Link>
+            <Link
+              href="/dashboard/catalogos"
+              className="text-slate-600 hover:text-slate-900"
+            >
+              Catálogos
+            </Link>
             <Link href="/" className="text-slate-500 hover:text-slate-700 ml-4">
               Salir
             </Link>
@@ -297,6 +303,19 @@ function Fila({ c }: { c: Cotizacion }) {
               className="px-3 py-1.5 bg-blue-700 text-white text-xs font-medium rounded-lg hover:bg-blue-800 transition"
             >
               Descargar PDF
+            </a>
+          )}
+          {c.estado === "completada" && (
+            // Excel resumen: el backend acepta tanto job_id (uuid hex) como
+            // folio Telcel. El campo `id` del DTO es el folio si existe, o un
+            // hash sintético si no — en ambos casos el bot lo resuelve.
+            <a
+              href={`/api/cotizaciones/${encodeURIComponent(c.id)}/excel`}
+              download
+              className="px-3 py-1.5 bg-emerald-700 text-white text-xs font-medium rounded-lg hover:bg-emerald-800 transition"
+              title="Descarga un Excel con el resumen de la cotización"
+            >
+              Descargar Excel
             </a>
           )}
           {c.estado === "fallida" && (

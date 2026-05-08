@@ -35,8 +35,10 @@ interface Tab {
 const TABS: Tab[] = [
   { href: "/dashboard", label: "Inicio", exact: true },
   { href: "/dashboard/cotizar", label: "Cotizar" },
+  { href: "/dashboard/optimizar", label: "Optimizar" },
   { href: "/dashboard/historial", label: "Historial" },
   { href: "/dashboard/clientes", label: "Clientes" },
+  { href: "/dashboard/catalogos", label: "Catálogos" },
 ];
 
 export function DashboardNav() {

@@ -102,7 +102,7 @@ const EQUIPOS_FALLBACK: EquipoCatalogo[] = [
 
 const SIN_EQUIPO_LABEL = "Sin equipo";
 
-type Mode = "wizard" | "experto";
+type Mode = "wizard" | "experto" | "excel";
 type Step = 1 | 2 | 3;
 type SubmitState =
   | { kind: "idle" }
@@ -578,6 +578,12 @@ function CotizarPageInner() {
             >
               Clientes
             </Link>
+            <Link
+              href="/dashboard/catalogos"
+              className="text-slate-600 hover:text-slate-900"
+            >
+              Catálogos
+            </Link>
             <Link href="/" className="text-slate-500 hover:text-slate-700 ml-4">
               Salir
             </Link>
@@ -599,7 +605,21 @@ function CotizarPageInner() {
           </p>
         </div>
 
-        <ModeToggle mode={mode} setMode={setMode} disabled={submit.kind === "loading" || submit.kind === "polling"} />
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <ModeToggle
+            mode={mode}
+            setMode={setMode}
+            disabled={submit.kind === "loading" || submit.kind === "polling"}
+          />
+          <a
+            href="/api/excel/plantilla"
+            download
+            className="inline-flex items-center gap-1.5 text-xs text-slate-600 hover:text-slate-900 underline underline-offset-2"
+            title="Descarga la plantilla de Excel para cotizaciones multi-perfil"
+          >
+            <span aria-hidden="true">↓</span> Descargar plantilla Excel
+          </a>
+        </div>
 
         {mode === "wizard" ? (
           <>
@@ -673,7 +693,7 @@ function CotizarPageInner() {
               </div>
             </div>
           </>
-        ) : (
+        ) : mode === "experto" ? (
           <ExpertoMode
             texto={expertoTexto}
             setTexto={setExpertoTexto}
@@ -699,6 +719,13 @@ function CotizarPageInner() {
             onCotizar={handleCotizarExperto}
             onRetry={handleRetry}
           />
+        ) : (
+          <ExcelUploadMode
+            submit={submit}
+            setSubmit={setSubmit}
+            startPolling={startPolling}
+            onRetry={handleRetry}
+          />
         )}
       </Section>
     </main>
@@ -722,7 +749,7 @@ function ModeToggle({
       aria-label="Modo de cotización"
       className="inline-flex rounded-lg border border-slate-200 bg-white p-1 shadow-sm"
     >
-      {(["wizard", "experto"] as const).map((m) => (
+      {(["wizard", "experto", "excel"] as const).map((m) => (
         <button
           key={m}
           role="tab"
@@ -737,7 +764,11 @@ function ModeToggle({
               : "text-slate-600 hover:text-slate-900",
           ].join(" ")}
         >
-          {m === "wizard" ? "Wizard" : "Experto"}
+          {m === "wizard"
+            ? "Wizard"
+            : m === "experto"
+              ? "Experto"
+              : "Subir Excel"}
         </button>
       ))}
     </div>
@@ -1691,6 +1722,244 @@ function SubmitArea({
             Reintentar
           </button>
         </div>
+      )}
+    </div>
+  );
+}
+
+/* ---------- Modo Excel: subir plantilla llena ---------- */
+
+/**
+ * Tab "Subir Excel": el vendedor descarga la plantilla con
+ * `/api/excel/plantilla`, la llena off-line con N perfiles, y la sube aquí.
+ *
+ * El flujo POST /api/cotizaciones/excel devuelve 202 con el job_id; usamos
+ * el mismo `startPolling` del wizard para esperar a que cotizar.js termine
+ * y mostrar el resultado con SubmitArea (idéntica UX al wizard/experto).
+ *
+ * Drag&drop sin libs externas: HTML5 DataTransfer.files. Si el navegador no
+ * soporta drag, igual hay <input type="file"> visible.
+ */
+function ExcelUploadMode({
+  submit,
+  setSubmit,
+  startPolling,
+  onRetry,
+}: {
+  submit: SubmitState;
+  setSubmit: (s: SubmitState) => void;
+  startPolling: (id: string) => void;
+  onRetry: () => void;
+}) {
+  const [file, setFile] = useState<File | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const isBusy =
+    submit.kind === "loading" || submit.kind === "polling";
+
+  function pickFile(f: File | null) {
+    setError(null);
+    if (!f) {
+      setFile(null);
+      return;
+    }
+    const fname = f.name.toLowerCase();
+    if (!fname.endsWith(".xlsx") && !fname.endsWith(".xlsm")) {
+      setError("El archivo debe ser .xlsx o .xlsm.");
+      return;
+    }
+    if (f.size > 2 * 1024 * 1024) {
+      setError("Archivo muy grande (>2MB).");
+      return;
+    }
+    setFile(f);
+  }
+
+  function onDrop(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setIsDragging(false);
+    if (isBusy) return;
+    const f = e.dataTransfer?.files?.[0];
+    if (f) pickFile(f);
+  }
+
+  async function handleSubir() {
+    if (!file || isBusy) return;
+    setError(null);
+    setSubmit({ kind: "loading" });
+
+    const fd = new FormData();
+    fd.append("file", file);
+
+    try {
+      const res = await fetch("/api/cotizaciones/excel", {
+        method: "POST",
+        body: fd,
+      });
+
+      if (res.status === 401) {
+        // Redirigir manualmente — no tenemos router aquí; recargar a /login.
+        window.location.href = "/login?next=/dashboard/cotizar";
+        return;
+      }
+
+      if (!res.ok) {
+        let message = "No pudimos procesar el Excel.";
+        try {
+          const data = (await res.json()) as { error?: string };
+          if (data?.error) message = data.error;
+        } catch {
+          // ignore
+        }
+        setSubmit({ kind: "error", message });
+        return;
+      }
+
+      const data = (await res.json()) as CrearCotizacionResponse;
+      const cot = data.cotizacion;
+      if (!cot?.id) {
+        setSubmit({
+          kind: "error",
+          message: "Respuesta inesperada del servidor. Inténtalo otra vez.",
+        });
+        return;
+      }
+
+      // Backend ya completó (cache hit), saltamos el polling.
+      if (cot.estado === "completada") {
+        setSubmit({ kind: "success", id: cot.id, pdfUrl: cot.pdf_url });
+        return;
+      }
+      if (cot.estado === "fallida") {
+        setSubmit({
+          kind: "error",
+          message: cot.error || "La cotización falló en el portal del operador.",
+        });
+        return;
+      }
+
+      // Pendiente: mismo loop que el wizard.
+      startPolling(cot.id);
+    } catch {
+      setSubmit({
+        kind: "error",
+        message: "Sin conexión con el servidor. Revisa tu red e inténtalo otra vez.",
+      });
+    }
+  }
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8 mt-6">
+      <h3 className="text-lg font-semibold text-slate-900">
+        Cotización desde Excel
+      </h3>
+      <p className="text-sm text-slate-600 mt-1">
+        Para cotizaciones multi-perfil (varios equipos en el mismo cliente).
+        Descarga la plantilla, llénala off-line, y súbela aquí. Soporta hasta
+        50 perfiles por cotización.
+      </p>
+
+      <div className="mt-4 flex items-center gap-3">
+        <a
+          href="/api/excel/plantilla"
+          download
+          className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg transition"
+        >
+          <span aria-hidden="true">↓</span> Descargar plantilla
+        </a>
+        <span className="text-xs text-slate-500">
+          Llena RFC, Nombre, Trámite, Plazo y una fila por perfil.
+        </span>
+      </div>
+
+      <div
+        onDragEnter={(e) => {
+          e.preventDefault();
+          if (!isBusy) setIsDragging(true);
+        }}
+        onDragOver={(e) => e.preventDefault()}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={onDrop}
+        onClick={() => !isBusy && inputRef.current?.click()}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if ((e.key === "Enter" || e.key === " ") && !isBusy) {
+            inputRef.current?.click();
+          }
+        }}
+        className={[
+          "mt-6 rounded-2xl border-2 border-dashed p-8 text-center cursor-pointer transition",
+          isBusy
+            ? "border-slate-200 bg-slate-50 cursor-not-allowed opacity-60"
+            : isDragging
+              ? "border-blue-500 bg-blue-50"
+              : "border-slate-300 bg-slate-50 hover:bg-slate-100",
+        ].join(" ")}
+      >
+        <input
+          ref={inputRef}
+          type="file"
+          accept=".xlsx,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          className="hidden"
+          disabled={isBusy}
+          onChange={(e) => pickFile(e.target.files?.[0] || null)}
+        />
+        {file ? (
+          <div>
+            <p className="text-sm font-semibold text-slate-900">{file.name}</p>
+            <p className="text-xs text-slate-500 mt-1">
+              {(file.size / 1024).toFixed(1)} KB ·{" "}
+              <button
+                type="button"
+                disabled={isBusy}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  pickFile(null);
+                }}
+                className="underline hover:text-slate-700 disabled:opacity-50"
+              >
+                Cambiar
+              </button>
+            </p>
+          </div>
+        ) : (
+          <div>
+            <p className="text-sm font-medium text-slate-700">
+              Arrastra tu .xlsx aquí o haz clic para seleccionar
+            </p>
+            <p className="text-xs text-slate-500 mt-1">
+              Solo .xlsx / .xlsm · Máximo 2MB
+            </p>
+          </div>
+        )}
+      </div>
+
+      {error && (
+        <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+          {error}
+        </div>
+      )}
+
+      {/* Botón principal solo cuando NO hay actividad — durante loading/
+          polling/success/error, SubmitArea muestra el spinner/resultado. */}
+      {submit.kind === "idle" && (
+        <div className="mt-6">
+          <button
+            type="button"
+            onClick={handleSubir}
+            disabled={!file}
+            className="px-6 py-3 bg-blue-700 text-white font-semibold rounded-lg hover:bg-blue-800 disabled:opacity-40 disabled:cursor-not-allowed transition"
+          >
+            Cotizar Excel
+          </button>
+        </div>
+      )}
+
+      {submit.kind !== "idle" && (
+        <SubmitArea submit={submit} onSubmit={handleSubir} onRetry={onRetry} />
       )}
     </div>
   );

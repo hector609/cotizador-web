@@ -78,6 +78,9 @@ export default function ClientesPage() {
             <Link href="/dashboard/historial" className="text-slate-600 hover:text-slate-900">
               Historial
             </Link>
+            <Link href="/dashboard/catalogos" className="text-slate-600 hover:text-slate-900">
+              Catálogos
+            </Link>
             <Link href="/" className="text-slate-500 hover:text-slate-700 ml-4">
               Salir
             </Link>
@@ -154,14 +157,26 @@ export default function ClientesPage() {
               </thead>
               <tbody>
                 {filtered.map((c) => (
-                  <tr key={c.rfc} className="border-t border-slate-100 hover:bg-slate-50">
+                  <tr
+                    key={c.rfc}
+                    onClick={() =>
+                      router.push(`/dashboard/cliente/${encodeURIComponent(c.rfc)}`)
+                    }
+                    className="border-t border-slate-100 hover:bg-slate-50 cursor-pointer"
+                    title="Ver detalle del cliente"
+                  >
                     <td className="px-4 py-3 font-mono text-slate-900">{c.rfc}</td>
                     <td className="px-4 py-3 text-slate-700">{c.nombre}</td>
                     <td className="px-4 py-3 text-right">
+                      {/* stopPropagation: el botón hace su propia acción
+                          (cotizar) sin disparar la navegación de la fila. */}
                       <button
-                        onClick={() =>
-                          router.push(`/dashboard/cotizar?rfc=${encodeURIComponent(c.rfc)}`)
-                        }
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(
+                            `/dashboard/cotizar?rfc=${encodeURIComponent(c.rfc)}`
+                          );
+                        }}
                         className="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition"
                       >
                         Cotizar para este cliente

@@ -21,10 +21,34 @@ export default function DashboardPage() {
               Dashboard
             </Link>
             <Link
+              href="/dashboard/cotizar"
+              className="text-slate-600 hover:text-slate-900"
+            >
+              Cotizar
+            </Link>
+            <Link
+              href="/dashboard/optimizar"
+              className="text-slate-600 hover:text-slate-900"
+            >
+              Optimizar
+            </Link>
+            <Link
               href="/dashboard/clientes"
               className="text-slate-600 hover:text-slate-900"
             >
               Clientes
+            </Link>
+            <Link
+              href="/dashboard/catalogos"
+              className="text-slate-600 hover:text-slate-900"
+            >
+              Catálogos
+            </Link>
+            <Link
+              href="/dashboard/historial"
+              className="text-slate-600 hover:text-slate-900"
+            >
+              Historial
             </Link>
             <Link
               href="/"
