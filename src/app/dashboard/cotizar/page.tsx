@@ -20,7 +20,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Section } from "@/components/ui/Section";
 import { Badge } from "@/components/ui/Badge";
 import {
@@ -28,6 +28,16 @@ import {
   type CrearCotizacionInput,
   type CrearCotizacionResponse,
 } from "@/types/cotizacion";
+
+/**
+ * Polling: el backend procesa la cotización async (Playwright tarda 2-4 min).
+ * Tras el POST inicial el endpoint regresa 202 con `cotizacion.id` y estado
+ * "pendiente". El cliente pollea GET /api/cotizaciones/{id} cada 5s hasta que
+ * estado sea "completada" o "fallida". Se aborta a los 5 min para evitar
+ * spinners eternos si algo se cuelga upstream.
+ */
+const POLL_INTERVAL_MS = 5_000;
+const POLL_TIMEOUT_MS = 5 * 60 * 1_000;
 
 type EquipoOption = "iPhone 15" | "Samsung Galaxy S24" | "Motorola Edge 50" | "Sin equipo";
 const EQUIPO_OPTIONS: EquipoOption[] = [
@@ -41,6 +51,7 @@ type Step = 1 | 2 | 3;
 type SubmitState =
   | { kind: "idle" }
   | { kind: "loading" }
+  | { kind: "polling"; id: string }
   | { kind: "success"; pdfUrl?: string; id: string }
   | { kind: "error"; message: string };
 
@@ -83,6 +94,28 @@ function CotizarPageInner() {
   // Wizard
   const [step, setStep] = useState<Step>(1);
   const [submit, setSubmit] = useState<SubmitState>({ kind: "idle" });
+
+  // Polling refs: guardamos el interval handle y un timeout de corte para
+  // poder limpiarlos desde múltiples lugares (success, error, unmount).
+  // Refs en lugar de state porque NO queremos re-render cuando cambian.
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function clearPolling() {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+    if (pollTimeoutRef.current) {
+      clearTimeout(pollTimeoutRef.current);
+      pollTimeoutRef.current = null;
+    }
+  }
+
+  // Cleanup en unmount: si el usuario navega fuera mientras pollea, abortar.
+  useEffect(() => {
+    return () => clearPolling();
+  }, []);
 
   // Si entró con ?rfc=..., normaliza y arranca con "Sí".
   useEffect(() => {
@@ -130,8 +163,68 @@ function CotizarPageInner() {
     else if (step === 3) setStep(2);
   }
 
+  /**
+   * Inicia el loop de polling para una cotización pendiente.
+   * Idempotente: limpia cualquier polling previo antes de arrancar.
+   */
+  function startPolling(id: string) {
+    clearPolling();
+    setSubmit({ kind: "polling", id });
+
+    const tick = async () => {
+      try {
+        const res = await fetch(`/api/cotizaciones/${encodeURIComponent(id)}`, {
+          method: "GET",
+          cache: "no-store",
+        });
+
+        if (res.status === 401) {
+          clearPolling();
+          router.push("/login?next=/dashboard/cotizar");
+          return;
+        }
+
+        if (!res.ok) {
+          // 5xx/transient → seguimos polleando (puede ser deploy, blip, etc.).
+          // El timeout de 5min eventualmente cortará si nunca recupera.
+          return;
+        }
+
+        const data = (await res.json()) as CrearCotizacionResponse;
+        const cot = data.cotizacion;
+        if (!cot) return;
+
+        if (cot.estado === "completada") {
+          clearPolling();
+          setSubmit({ kind: "success", id: cot.id, pdfUrl: cot.pdf_url });
+        } else if (cot.estado === "fallida") {
+          clearPolling();
+          setSubmit({
+            kind: "error",
+            message: cot.error || "La cotización falló en el portal del operador.",
+          });
+        }
+        // pendiente → seguimos esperando.
+      } catch {
+        // Errores de red transitorios: dejamos que el siguiente tick reintente.
+      }
+    };
+
+    // Arrancar inmediato + cada 5s. El primer tick ayuda a UX cuando el
+    // backend ya completó muy rápido (ej. cache hit) sin tener que esperar 5s.
+    pollIntervalRef.current = setInterval(tick, POLL_INTERVAL_MS);
+    pollTimeoutRef.current = setTimeout(() => {
+      clearPolling();
+      setSubmit({
+        kind: "error",
+        message:
+          "La cotización está tardando más de lo normal. Revisa el historial en unos minutos o reintenta.",
+      });
+    }, POLL_TIMEOUT_MS);
+  }
+
   async function handleSubmit() {
-    if (submit.kind === "loading") return; // idempotencia visual
+    if (submit.kind === "loading" || submit.kind === "polling") return; // idempotencia visual
     setSubmit({ kind: "loading" });
 
     const payload: CrearCotizacionInput = {
@@ -170,17 +263,42 @@ function CotizarPageInner() {
       }
 
       const data = (await res.json()) as CrearCotizacionResponse;
-      setSubmit({
-        kind: "success",
-        pdfUrl: data.cotizacion?.pdf_url,
-        id: data.cotizacion?.id,
-      });
+      const cot = data.cotizacion;
+      if (!cot?.id) {
+        setSubmit({
+          kind: "error",
+          message: "Respuesta inesperada del servidor. Inténtalo otra vez.",
+        });
+        return;
+      }
+
+      // Si el backend ya devuelve completada/fallida en el POST (caso raro
+      // pero posible si tuvo cache hit), saltamos el polling.
+      if (cot.estado === "completada") {
+        setSubmit({ kind: "success", id: cot.id, pdfUrl: cot.pdf_url });
+        return;
+      }
+      if (cot.estado === "fallida") {
+        setSubmit({
+          kind: "error",
+          message: cot.error || "La cotización falló en el portal del operador.",
+        });
+        return;
+      }
+
+      // Estado pendiente: arrancar polling.
+      startPolling(cot.id);
     } catch {
       setSubmit({
         kind: "error",
         message: "Sin conexión con el servidor. Revisa tu red e inténtalo otra vez.",
       });
     }
+  }
+
+  function handleRetry() {
+    clearPolling();
+    setSubmit({ kind: "idle" });
   }
 
   return (
@@ -265,7 +383,7 @@ function CotizarPageInner() {
               equiposQty={equiposQty}
               submit={submit}
               onSubmit={handleSubmit}
-              onRetry={() => setSubmit({ kind: "idle" })}
+              onRetry={handleRetry}
             />
           )}
 
@@ -273,7 +391,11 @@ function CotizarPageInner() {
             <button
               type="button"
               onClick={back}
-              disabled={step === 1 || submit.kind === "loading"}
+              disabled={
+                step === 1 ||
+                submit.kind === "loading" ||
+                submit.kind === "polling"
+              }
               className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 disabled:opacity-30 disabled:cursor-not-allowed"
             >
               ← Atrás
@@ -614,8 +736,34 @@ function Step3(props: {
               className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"
               aria-hidden="true"
             />
-            Cotizando en el sistema… (puede tardar 30–60 seg)
+            Enviando solicitud…
           </button>
+        )}
+        {submit.kind === "polling" && (
+          <div
+            className="rounded-xl border border-blue-200 bg-blue-50 p-5"
+            role="status"
+            aria-live="polite"
+          >
+            <div className="flex items-start gap-3">
+              <span
+                className="mt-0.5 w-5 h-5 border-2 border-blue-300 border-t-blue-700 rounded-full animate-spin shrink-0"
+                aria-hidden="true"
+              />
+              <div>
+                <p className="text-blue-900 font-semibold">
+                  Cotizando en Telcel… esto tarda 2-4 min
+                </p>
+                <p className="text-sm text-blue-800 mt-1">
+                  Estamos corriendo la cotización contra el portal del operador.
+                  Puedes dejar esta pantalla abierta — te avisamos cuando termine.
+                </p>
+                <p className="text-xs text-blue-700 mt-2">
+                  Folio: <span className="font-mono">{submit.id}</span>
+                </p>
+              </div>
+            </div>
+          </div>
         )}
         {submit.kind === "success" && (
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5">
@@ -625,26 +773,28 @@ function Step3(props: {
             <p className="text-sm text-emerald-800 mt-1">
               Folio: <span className="font-mono">{submit.id}</span>
             </p>
-            {submit.pdfUrl ? (
-              <a
-                href={submit.pdfUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 mt-4 px-4 py-2 bg-emerald-700 text-white text-sm font-semibold rounded-lg hover:bg-emerald-800 transition"
-              >
-                Descargar PDF
-                <span aria-hidden="true">↗</span>
-              </a>
-            ) : (
-              <p className="mt-3 text-sm text-emerald-800">
-                El PDF aún se está generando. Revisa{" "}
-                <Link
-                  href="/dashboard/historial"
-                  className="underline font-medium"
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              {submit.pdfUrl && (
+                <a
+                  href={submit.pdfUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-700 text-white text-sm font-semibold rounded-lg hover:bg-emerald-800 transition"
                 >
-                  el historial
-                </Link>{" "}
-                en unos segundos.
+                  Descargar PDF
+                  <span aria-hidden="true">↗</span>
+                </a>
+              )}
+              <Link
+                href="/dashboard/historial"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-emerald-300 text-emerald-800 text-sm font-semibold rounded-lg hover:bg-emerald-100 transition"
+              >
+                Ver historial
+              </Link>
+            </div>
+            {!submit.pdfUrl && (
+              <p className="mt-3 text-sm text-emerald-800">
+                El PDF aún se está generando. Revisa el historial en unos segundos.
               </p>
             )}
           </div>
