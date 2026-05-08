@@ -41,8 +41,8 @@ const planes = [
       "Todo lo de Pro +",
       "Vendedores ilimitados",
       "Cotizaciones ilimitadas",
-      "Subdominio personalizado",
-      "Branding propio (logo + colores)",
+      "Subdominio personalizado (próximamente)",
+      "Branding propio (próximamente)",
       "Soporte 24/7 + onboarding",
     ],
   },
@@ -128,6 +128,24 @@ export default function PreciosPage() {
 
       {/* Planes */}
       <section className="max-w-6xl mx-auto px-6 pb-20">
+        {/* Trust signals */}
+        <div className="mb-10 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-xs text-slate-600">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+            Datos en México
+          </span>
+          <span className="text-slate-300">·</span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+            Cifrado en tránsito
+          </span>
+          <span className="text-slate-300">·</span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+            Cancela cuando quieras
+          </span>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {planes.map((p) => (
             <div
@@ -244,6 +262,59 @@ export default function PreciosPage() {
                   ))}
                 </ul>
               </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section className="bg-slate-50 border-t border-slate-200">
+        <div className="max-w-3xl mx-auto px-6 py-20">
+          <div className="text-center mb-10">
+            <div className="inline-block px-4 py-1 mb-4 text-xs font-semibold uppercase tracking-wider text-blue-700 bg-blue-100 rounded-full">
+              Preguntas frecuentes
+            </div>
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900">
+              Lo que más nos preguntan
+            </h2>
+          </div>
+
+          <div className="space-y-4">
+            {[
+              {
+                q: "¿Cómo funciona el pago?",
+                a: "Suscripción mensual, sin compromiso de permanencia. Cancela cuando quieras desde tu cuenta y conservas el acceso hasta el fin del periodo pagado.",
+              },
+              {
+                q: "¿Qué pasa si excedo las cotizaciones del plan?",
+                a: "Te enviamos una notificación al acercarte al límite y otra al alcanzarlo, con la opción de hacer upgrade al siguiente plan en un clic. Nunca te cortamos el servicio sin avisar.",
+              },
+              {
+                q: "¿Mis datos están seguros?",
+                a: "Sí. Servidores en México, cifrado en tránsito (HTTPS), aislamiento por tenant y tu RFC nunca se expone fuera de tu cuenta. No vendemos ni compartimos datos.",
+              },
+              {
+                q: "¿Necesito instalar algo?",
+                a: "No. Funciona directamente en Telegram (bot oficial) y en tu navegador. Sin APKs, sin extensiones, sin VPN.",
+              },
+            ].map((item) => (
+              <details
+                key={item.q}
+                className="group bg-white rounded-xl border border-slate-200 p-5 open:shadow-sm"
+              >
+                <summary className="flex items-center justify-between cursor-pointer list-none font-semibold text-slate-900">
+                  <span>{item.q}</span>
+                  <span
+                    className="text-blue-700 text-xl ml-4 transition-transform group-open:rotate-45"
+                    aria-hidden="true"
+                  >
+                    +
+                  </span>
+                </summary>
+                <p className="text-slate-600 text-sm mt-3 leading-relaxed">
+                  {item.a}
+                </p>
+              </details>
             ))}
           </div>
         </div>

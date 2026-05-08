@@ -21,7 +21,7 @@ export default function Home() {
             href="/login"
             className="inline-flex items-center justify-center px-8 py-3 text-base font-semibold text-white bg-blue-700 rounded-lg hover:bg-blue-800 transition shadow-md"
           >
-            Iniciar sesión →
+            Solicitar acceso →
           </Link>
           <Link
             href="/precios"
@@ -37,6 +37,24 @@ export default function Home() {
           >
             ¿Prefieres Telegram?
           </a>
+        </div>
+
+        {/* Trust signals */}
+        <div className="mt-10 flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-xs text-slate-600">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+            Datos en México
+          </span>
+          <span className="text-slate-300">·</span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+            Cifrado en tránsito
+          </span>
+          <span className="text-slate-300">·</span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+            Cancela cuando quieras
+          </span>
         </div>
 
         <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-6 text-left">

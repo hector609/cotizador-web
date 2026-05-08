@@ -170,7 +170,23 @@ export default function LoginPage() {
           </form>
 
           <p className="text-xs text-slate-500 text-center mt-6">
-            ¿No tienes cuenta? Pídela a tu administrador.
+            ¿Aún no tienes acceso? Solicita una demo en{" "}
+            <a
+              href="mailto:hola@hectoria.mx"
+              className="text-blue-700 font-semibold hover:underline"
+            >
+              hola@hectoria.mx
+            </a>{" "}
+            o por{" "}
+            <a
+              href="https://instagram.com/hectoria.mx"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-700 font-semibold hover:underline"
+            >
+              Instagram
+            </a>
+            .
           </p>
         </div>
       </div>
