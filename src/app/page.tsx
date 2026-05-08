@@ -23,11 +23,17 @@ export default function Home() {
           >
             Iniciar sesión →
           </Link>
+          <Link
+            href="/precios"
+            className="inline-flex items-center justify-center px-8 py-3 text-base font-semibold text-blue-700 bg-white border-2 border-blue-700 rounded-lg hover:bg-blue-50 transition"
+          >
+            Ver planes y precios
+          </Link>
           <a
             href="https://t.me/CMdemobot"
             target="_blank"
             rel="noopener"
-            className="inline-flex items-center justify-center px-8 py-3 text-base font-semibold text-blue-700 bg-white border-2 border-blue-700 rounded-lg hover:bg-blue-50 transition"
+            className="inline-flex items-center justify-center px-6 py-3 text-base font-medium text-slate-600 hover:text-slate-900 transition"
           >
             ¿Prefieres Telegram?
           </a>
