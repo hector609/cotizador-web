@@ -30,15 +30,67 @@ import { useEffect, useRef, useState } from "react";
 import type { CrearCotizacionResponse } from "@/types/cotizacion";
 import { DashboardNav } from "../_nav";
 
+/**
+ * Fases del banner progresivo. Idéntico al patrón en useChatCotizar —
+ * la idea es que el vendedor reciba el mismo lenguaje y los mismos
+ * umbrales sin importar si subió Excel o si chateó.
+ */
+type PollingStage = "normal" | "slow" | "very_slow" | "warning";
+
 type SubmitState =
   | { kind: "idle" }
   | { kind: "loading" }
-  | { kind: "polling"; id: string }
+  | {
+      kind: "polling";
+      id: string;
+      startedAt: number;
+      elapsedMs: number;
+      stage: PollingStage;
+    }
   | { kind: "success"; pdfUrl?: string; id: string }
-  | { kind: "error"; message: string };
+  | { kind: "error"; message: string; timedOut?: boolean; id?: string };
 
 const POLL_INTERVAL_MS = 5_000;
 const POLL_TIMEOUT_MS = 5 * 60 * 1_000;
+const STAGE_TICK_MS = 1_000;
+const STAGE_THRESHOLDS = {
+  slow: 30_000,
+  verySlow: 90_000,
+  warning: 180_000,
+} as const;
+
+function stageFromElapsed(elapsedMs: number): PollingStage {
+  if (elapsedMs >= STAGE_THRESHOLDS.warning) return "warning";
+  if (elapsedMs >= STAGE_THRESHOLDS.verySlow) return "very_slow";
+  if (elapsedMs >= STAGE_THRESHOLDS.slow) return "slow";
+  return "normal";
+}
+
+const STAGE_COPY: Record<
+  PollingStage,
+  { title: string; body: string; tone: "info" | "warn" }
+> = {
+  normal: {
+    title: "Tu cotización está en marcha",
+    body: "Telcel suele tardar 1-4 minutos. Puedes dejar esta pestaña abierta.",
+    tone: "info",
+  },
+  slow: {
+    title: "Trabajando con Telcel…",
+    body: "Estamos verificando el plan y el equipo en el portal del operador.",
+    tone: "info",
+  },
+  very_slow: {
+    title: "Telcel está tardando más de lo normal",
+    body: "Sigue corriendo. El portal a veces se pone lento en horas pico.",
+    tone: "info",
+  },
+  warning: {
+    title: "Telcel está lento hoy",
+    body: "Vamos a esperar máximo 5 min. Puedes seguir trabajando en otra pestaña y te avisamos cuando llegue.",
+    tone: "warn",
+  },
+};
 
 /**
  * Fire-and-forget para telemetría. NUNCA bloquea el flow ni propaga
@@ -76,6 +128,11 @@ export default function CotizarExcelPage() {
   // que cambiar el handle no dispare re-render.
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /**
+   * Interval que actualiza `elapsedMs` y `stage` cada 1s para renderizar
+   * el banner progresivo. Independiente del polling al backend (5s).
+   */
+  const stageIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   function clearPolling() {
     if (pollIntervalRef.current) {
@@ -85,6 +142,10 @@ export default function CotizarExcelPage() {
     if (pollTimeoutRef.current) {
       clearTimeout(pollTimeoutRef.current);
       pollTimeoutRef.current = null;
+    }
+    if (stageIntervalRef.current) {
+      clearInterval(stageIntervalRef.current);
+      stageIntervalRef.current = null;
     }
   }
 
@@ -123,7 +184,14 @@ export default function CotizarExcelPage() {
 
   function startPolling(id: string) {
     clearPolling();
-    setSubmit({ kind: "polling", id });
+    const startedAt = Date.now();
+    setSubmit({
+      kind: "polling",
+      id,
+      startedAt,
+      elapsedMs: 0,
+      stage: "normal",
+    });
 
     const tick = async () => {
       try {
@@ -151,6 +219,7 @@ export default function CotizarExcelPage() {
           clearPolling();
           setSubmit({
             kind: "error",
+            id: cot.id,
             message:
               cot.error || "La cotización falló en el portal del operador.",
           });
@@ -162,14 +231,47 @@ export default function CotizarExcelPage() {
     };
 
     pollIntervalRef.current = setInterval(tick, POLL_INTERVAL_MS);
+    // Stage tick: refresca elapsedMs/stage cada 1s para que el banner se
+    // mueva entre fases sin esperar el siguiente poll al backend.
+    stageIntervalRef.current = setInterval(() => {
+      setSubmit((prev) => {
+        if (prev.kind !== "polling") return prev;
+        const elapsedMs = Date.now() - prev.startedAt;
+        const stage = stageFromElapsed(elapsedMs);
+        if (stage === prev.stage && elapsedMs - prev.elapsedMs < 1000) {
+          return prev;
+        }
+        return { ...prev, elapsedMs, stage };
+      });
+    }, STAGE_TICK_MS);
     pollTimeoutRef.current = setTimeout(() => {
       clearPolling();
       setSubmit({
         kind: "error",
+        id,
+        timedOut: true,
         message:
-          "La cotización está tardando más de lo normal. Revisa el historial en unos minutos o reintenta.",
+          "Telcel no respondió en 5 minutos. Su portal puede estar saturado. La cotización podría seguir corriendo — revisa Historial en unos minutos.",
       });
     }, POLL_TIMEOUT_MS);
+  }
+
+  /**
+   * Cancelación explícita: limpia estado local inmediato (UX no espera
+   * red) y dispara DELETE fire-and-forget al backend. Si falla, no
+   * notificamos — el usuario ya ve el estado idle.
+   */
+  function handleCancel() {
+    if (submit.kind !== "polling") return;
+    const id = submit.id;
+    clearPolling();
+    setSubmit({ kind: "idle" });
+    void fetch(`/api/cotizaciones/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    }).catch(() => {
+      // Silencio: el job sigue corriendo upstream o no — el usuario lo verá
+      // en Historial si llega a completar.
+    });
   }
 
   async function handleSubir() {
@@ -376,32 +478,92 @@ export default function CotizarExcelPage() {
             </div>
           )}
 
-          {submit.kind === "polling" && (
-            <div
-              className="mt-6 rounded-xl border border-blue-200 bg-blue-50 p-5"
-              role="status"
-              aria-live="polite"
-            >
-              <div className="flex items-start gap-3">
-                <span
-                  className="mt-0.5 w-5 h-5 border-2 border-blue-300 border-t-blue-700 rounded-full animate-spin shrink-0"
-                  aria-hidden="true"
-                />
-                <div>
-                  <p className="text-blue-900 font-semibold">
-                    Cotizando en Telcel… esto tarda 2-4 min
-                  </p>
-                  <p className="text-sm text-blue-800 mt-1">
-                    Estamos corriendo la cotización contra el portal del operador.
-                    Puedes dejar esta pantalla abierta — te avisamos cuando termine.
-                  </p>
-                  <p className="text-xs text-blue-700 mt-2">
-                    Folio: <span className="font-mono">{submit.id}</span>
-                  </p>
+          {submit.kind === "polling" && (() => {
+            const copy = STAGE_COPY[submit.stage];
+            const isWarn = copy.tone === "warn";
+            const elapsedS = Math.floor(submit.elapsedMs / 1000);
+            const mins = Math.floor(elapsedS / 60);
+            const secs = elapsedS % 60;
+            const pct = Math.min(
+              100,
+              Math.round((submit.elapsedMs / POLL_TIMEOUT_MS) * 100),
+            );
+            return (
+              <div
+                className={[
+                  "mt-6 rounded-xl border p-5",
+                  isWarn
+                    ? "border-amber-200 bg-amber-50"
+                    : "border-blue-200 bg-blue-50",
+                ].join(" ")}
+                role="status"
+                aria-live="polite"
+              >
+                <div className="flex items-start gap-3">
+                  <span
+                    className={[
+                      "mt-0.5 w-5 h-5 border-2 rounded-full animate-spin shrink-0",
+                      isWarn
+                        ? "border-amber-300 border-t-amber-700"
+                        : "border-blue-300 border-t-blue-700",
+                    ].join(" ")}
+                    aria-hidden="true"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p
+                      className={[
+                        "font-semibold",
+                        isWarn ? "text-amber-900" : "text-blue-900",
+                      ].join(" ")}
+                    >
+                      {copy.title}
+                    </p>
+                    <p
+                      className={[
+                        "text-sm mt-1",
+                        isWarn ? "text-amber-800" : "text-blue-800",
+                      ].join(" ")}
+                    >
+                      {copy.body}
+                    </p>
+                    <div
+                      className={[
+                        "mt-3 h-1.5 w-full rounded-full overflow-hidden",
+                        isWarn ? "bg-amber-200/70" : "bg-blue-100",
+                      ].join(" ")}
+                      aria-hidden="true"
+                    >
+                      <div
+                        className={[
+                          "h-full transition-all duration-500 ease-out",
+                          isWarn ? "bg-amber-500" : "bg-blue-600",
+                        ].join(" ")}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <p
+                      className={[
+                        "text-xs mt-2 tabular-nums",
+                        isWarn ? "text-amber-700" : "text-blue-700",
+                      ].join(" ")}
+                    >
+                      Tiempo: {mins}:{secs.toString().padStart(2, "0")} / 5:00
+                      {" · Folio "}
+                      <span className="font-mono">{submit.id}</span>
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCancel}
+                    className="shrink-0 text-xs text-slate-600 hover:text-red-700 px-2 py-1 rounded hover:bg-red-50 transition self-start"
+                    aria-label="Cancelar la cotización en curso"
+                  >
+                    Cancelar
+                  </button>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {submit.kind === "success" && (
             <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-5">
@@ -445,15 +607,41 @@ export default function CotizarExcelPage() {
 
           {submit.kind === "error" && (
             <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-5">
-              <p className="text-red-900 font-semibold">No pudimos cotizar.</p>
+              <p className="text-red-900 font-semibold">
+                {submit.timedOut ? "Telcel no respondió" : "No pudimos cotizar."}
+              </p>
               <p className="text-sm text-red-800 mt-1">{submit.message}</p>
-              <button
-                type="button"
-                onClick={reset}
-                className="mt-4 px-4 py-2 bg-red-700 text-white text-sm font-semibold rounded-lg hover:bg-red-800 transition"
-              >
-                Reintentar
-              </button>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={reset}
+                  className="inline-flex items-center px-4 py-2 bg-red-700 text-white text-sm font-semibold rounded-lg hover:bg-red-800 transition"
+                >
+                  Reintentar
+                </button>
+                {submit.timedOut && (
+                  <>
+                    <Link
+                      href="/dashboard/historial"
+                      className="inline-flex items-center px-4 py-2 bg-white border border-red-300 text-red-800 text-sm font-semibold rounded-lg hover:bg-red-100 transition"
+                    >
+                      Ver historial
+                    </Link>
+                    <a
+                      href={`mailto:soporte@hectoria.mx?subject=${encodeURIComponent(
+                        "Telcel timeout — cotización Excel",
+                      )}&body=${encodeURIComponent(
+                        `Folio: ${submit.id || "?"}\nHora: ${new Date().toLocaleString(
+                          "es-MX",
+                        )}\n\nAdjunto contexto:`,
+                      )}`}
+                      className="inline-flex items-center px-4 py-2 bg-white border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition"
+                    >
+                      Reportar problema
+                    </a>
+                  </>
+                )}
+              </div>
             </div>
           )}
         </div>

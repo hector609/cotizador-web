@@ -27,7 +27,12 @@ import {
   useRef,
   useState,
 } from "react";
-import { useChatCotizar, type ChatMessage, type JobState } from "@/lib/hooks/useChatCotizar";
+import {
+  useChatCotizar,
+  type ChatMessage,
+  type JobState,
+  type PollingStage,
+} from "@/lib/hooks/useChatCotizar";
 
 const MAX_MESSAGE_LEN = 2000;
 
@@ -245,7 +250,16 @@ export function ChatInterface() {
             />
           )}
 
-          {job.kind === "failed" && (
+          {job.kind === "failed" && job.timedOut && (
+            <TelcelTimeoutCard
+              message={job.message}
+              onRetry={resetChat}
+              rfc={job.rfc}
+              jobId={job.id}
+            />
+          )}
+
+          {job.kind === "failed" && !job.timedOut && (
             <SystemCard
               title="No se pudo completar"
               body={job.message}
@@ -359,31 +373,121 @@ function Dot({ delay }: { delay: number }) {
   );
 }
 
+/**
+ * Copy por fase del polling. Las strings son el corazón del fix de UX:
+ * mientras Telcel tarda, le contamos al vendedor qué pasa para que no
+ * piense que la app se congeló. La progresión está calibrada con los
+ * tiempos observados (mediana 2-3 min, p95 4-5 min) y deja claro que en
+ * la fase final (180s+) Telcel está mal, no nosotros.
+ */
+const STAGE_COPY: Record<
+  PollingStage,
+  { title: string; body: string; tone: "info" | "warn" }
+> = {
+  normal: {
+    title: "Tu cotización está en marcha",
+    body: "Telcel suele tardar 1-4 minutos. Puedes dejar esta pestaña abierta.",
+    tone: "info",
+  },
+  slow: {
+    title: "Trabajando con Telcel…",
+    body: "Estamos verificando el plan y el equipo en el portal del operador.",
+    tone: "info",
+  },
+  very_slow: {
+    title: "Telcel está tardando más de lo normal",
+    body: "Sigue corriendo. El portal a veces se pone lento en horas pico.",
+    tone: "info",
+  },
+  warning: {
+    title: "Telcel está lento hoy",
+    body: "Vamos a esperar máximo 5 min. Puedes seguir trabajando en otra pestaña y te avisamos cuando llegue.",
+    tone: "warn",
+  },
+};
+
 function JobCard({ job, onCancel }: { job: JobState; onCancel: () => void }) {
-  // Si estamos en `polling` usamos el `startedAt` que vino del hook (preciso).
-  // En `starting` aún no hay `startedAt`, así que lo capturamos al montar el
-  // card. `useState` con initializer evita llamar `Date.now()` durante render
-  // (regla `react-hooks/purity` de React 19).
+  // Para `starting` aún no hay `startedAt`, así que lo capturamos al montar
+  // el card. En `polling` usamos el `startedAt` real del hook. useState con
+  // initializer evita llamar Date.now() durante render (regla
+  // `react-hooks/purity` de React 19).
   const [fallbackStart] = useState<number>(() => Date.now());
   const startedAt = job.kind === "polling" ? job.startedAt : fallbackStart;
-  const elapsed = useElapsedSeconds(startedAt, job.kind === "polling" || job.kind === "starting");
+  const stage: PollingStage =
+    job.kind === "polling" ? job.stage : "normal";
+  const elapsed = useElapsedSeconds(
+    startedAt,
+    job.kind === "polling" || job.kind === "starting",
+  );
   const mins = Math.floor(elapsed / 60);
   const secs = elapsed % 60;
+  const copy = STAGE_COPY[stage];
+  const isWarn = copy.tone === "warn";
+  // Barra de progreso indicativa contra el cap de 5 min — útil sobre todo
+  // en las fases tardías para que el vendedor SEPA que el timeout es real
+  // y cuánto le queda.
+  const POLL_CAP_S = 300;
+  const pct = Math.min(100, Math.round((elapsed / POLL_CAP_S) * 100));
   return (
-    <div className="bg-white border border-blue-200 rounded-2xl px-5 py-4 shadow-sm">
+    <div
+      className={[
+        "rounded-2xl px-5 py-4 shadow-sm border",
+        isWarn
+          ? "bg-amber-50 border-amber-200"
+          : "bg-white border-blue-200",
+      ].join(" ")}
+      role="status"
+      aria-live="polite"
+    >
       <div className="flex items-start gap-3">
-        <div className="shrink-0 w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-          <Spinner />
+        <div
+          className={[
+            "shrink-0 w-10 h-10 rounded-full flex items-center justify-center",
+            isWarn ? "bg-amber-100" : "bg-blue-100",
+          ].join(" ")}
+        >
+          <Spinner tone={isWarn ? "warn" : "info"} />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-slate-900">
-            Cotizando contra el portal Telcel
+          <p
+            className={[
+              "text-sm font-semibold",
+              isWarn ? "text-amber-900" : "text-slate-900",
+            ].join(" ")}
+          >
+            {copy.title}
           </p>
-          <p className="text-xs text-slate-600 mt-0.5">
-            Esto tarda entre 3 y 5 minutos. Puedes dejar la pestaña abierta.
+          <p
+            className={[
+              "text-xs mt-0.5",
+              isWarn ? "text-amber-800" : "text-slate-600",
+            ].join(" ")}
+          >
+            {copy.body}
           </p>
-          <p className="text-xs text-slate-400 mt-2 tabular-nums">
-            Tiempo: {mins}:{secs.toString().padStart(2, "0")}
+          {/* Barra de progreso fina contra el cap de 5 min. */}
+          <div
+            className={[
+              "mt-3 h-1.5 w-full rounded-full overflow-hidden",
+              isWarn ? "bg-amber-200/70" : "bg-blue-100",
+            ].join(" ")}
+            aria-hidden="true"
+          >
+            <div
+              className={[
+                "h-full transition-all duration-500 ease-out",
+                isWarn ? "bg-amber-500" : "bg-blue-600",
+              ].join(" ")}
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+          <p
+            className={[
+              "text-xs mt-2 tabular-nums",
+              isWarn ? "text-amber-700" : "text-slate-400",
+            ].join(" ")}
+          >
+            Tiempo: {mins}:{secs.toString().padStart(2, "0")} / 5:00
             {job.kind === "polling" && job.rfc ? ` · RFC ${job.rfc}` : ""}
           </p>
         </div>
@@ -392,10 +496,79 @@ function JobCard({ job, onCancel }: { job: JobState; onCancel: () => void }) {
             type="button"
             onClick={onCancel}
             className="shrink-0 text-xs text-slate-500 hover:text-red-700 px-2 py-1 rounded hover:bg-red-50 transition"
+            aria-label="Cancelar la cotización en curso"
           >
             Cancelar
           </button>
         )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Card específico para timeout de Telcel (5 min sin respuesta). Es
+ * distinto del SystemCard genérico porque ofrece acciones útiles:
+ * reintentar (resetea el chat), reportar (abre mailto al soporte) e
+ * ir al historial (la cotización puede seguir corriendo del lado del
+ * operador y aparecer después).
+ */
+function TelcelTimeoutCard({
+  message,
+  onRetry,
+  rfc,
+  jobId,
+}: {
+  message: string;
+  onRetry: () => void;
+  rfc?: string;
+  jobId?: string;
+}) {
+  const subject = encodeURIComponent("Telcel timeout — cotización web");
+  const body = encodeURIComponent(
+    [
+      "Hola,",
+      "",
+      "La cotización en cotizador.hectoria.mx no completó después de 5 minutos.",
+      rfc ? `RFC: ${rfc}` : null,
+      jobId ? `Folio interno: ${jobId}` : null,
+      `Hora: ${new Date().toLocaleString("es-MX")}`,
+      "",
+      "Adjunto contexto adicional aquí:",
+    ]
+      .filter(Boolean)
+      .join("\n"),
+  );
+  const mailto = `mailto:soporte@hectoria.mx?subject=${subject}&body=${body}`;
+  return (
+    <div className="rounded-2xl px-5 py-4 shadow-sm border bg-red-50 border-red-200">
+      <p className="text-sm font-semibold text-red-900">
+        Telcel no respondió
+      </p>
+      <p className="text-xs text-red-800 mt-1">
+        {message} Tu cotización podría seguir corriendo del lado del operador
+        — revisa Historial en unos minutos.
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={onRetry}
+          className="inline-flex items-center px-3 py-1.5 text-sm font-semibold rounded-lg bg-red-700 text-white hover:bg-red-800 transition"
+        >
+          Reintentar
+        </button>
+        <Link
+          href="/dashboard/historial"
+          className="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-lg bg-white border border-red-300 text-red-800 hover:bg-red-100 transition"
+        >
+          Ver historial
+        </Link>
+        <a
+          href={mailto}
+          className="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-lg bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 transition"
+        >
+          Reportar problema
+        </a>
       </div>
     </div>
   );
@@ -497,10 +670,13 @@ function SystemCard({
   );
 }
 
-function Spinner() {
+function Spinner({ tone = "info" }: { tone?: "info" | "warn" }) {
   return (
     <svg
-      className="animate-spin h-5 w-5 text-blue-700"
+      className={[
+        "animate-spin h-5 w-5",
+        tone === "warn" ? "text-amber-700" : "text-blue-700",
+      ].join(" ")}
       xmlns="http://www.w3.org/2000/svg"
       fill="none"
       viewBox="0 0 24 24"

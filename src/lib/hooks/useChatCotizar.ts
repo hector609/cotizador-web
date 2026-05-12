@@ -30,7 +30,26 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const POLL_INTERVAL_MS = 3_000;
-const POLL_TIMEOUT_MS = 6 * 60 * 1_000;
+/**
+ * Timeout máximo de polling. Lo bajamos de 6→5 min para alinearlo con el
+ * /dashboard/cotizar-excel y con el copy del banner progresivo
+ * ("Vamos a esperar máximo 5 min"). El portal Telcel rara vez tarda más;
+ * cuando lo hace, casi siempre es porque cayó — mejor cortar y ofrecer
+ * acciones que dejar al usuario mirando un spinner sin info.
+ */
+const POLL_TIMEOUT_MS = 5 * 60 * 1_000;
+/**
+ * Tick para refrescar `elapsedMs` / `stage` mientras polleamos. Es
+ * independiente del polling al backend (cada 3s) — aquí solo movemos el
+ * reloj de UI, así que 1s da feedback suave sin pegarle al CPU.
+ */
+const STAGE_TICK_MS = 1_000;
+/** Umbrales (ms) que separan las fases del banner progresivo. */
+const STAGE_THRESHOLDS = {
+  slow: 30_000, // 30s
+  verySlow: 90_000, // 1:30
+  warning: 180_000, // 3:00
+} as const;
 const STORAGE_KEY_CONVERSATION = "chat-cotizar:conversation_id";
 
 /**
@@ -66,12 +85,38 @@ export interface ChatMessage {
   createdAt: number;
 }
 
+/**
+ * Fases del banner progresivo que se muestra mientras polleamos. Las usa
+ * el ChatInterface para elegir el copy + ícono apropiados.
+ *
+ *   normal     →  0-30s  · "Tu cotización está en marcha"
+ *   slow       → 30-90s  · "Trabajando con Telcel…"
+ *   very_slow  → 90-180s · "Telcel está tardando más de lo normal"
+ *   warning    → 180s+   · "Telcel está lento hoy. Esperamos máximo 5 min"
+ *   timeout    →   5min  · "Telcel no respondió" (kind=failed con flag)
+ */
+export type PollingStage = "normal" | "slow" | "very_slow" | "warning";
+
 export type JobState =
   | { kind: "idle" }
   | { kind: "starting"; rfc?: string; reasoning?: string }
-  | { kind: "polling"; id: string; rfc?: string; startedAt: number }
+  | {
+      kind: "polling";
+      id: string;
+      rfc?: string;
+      startedAt: number;
+      elapsedMs: number;
+      stage: PollingStage;
+    }
   | { kind: "completed"; id: string; pdfUrl?: string }
-  | { kind: "failed"; id?: string; message: string };
+  | {
+      kind: "failed";
+      id?: string;
+      message: string;
+      /** true cuando el fallo fue por POLL_TIMEOUT_MS (no por estado=fallida del backend). */
+      timedOut?: boolean;
+      rfc?: string;
+    };
 
 interface ChatAskResponse {
   status: "ask";
@@ -169,6 +214,12 @@ export function useChatCotizar(): UseChatCotizarResult {
   const conversationIdRef = useRef<string | null>(null);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /**
+   * Interval independiente que actualiza `elapsedMs` y `stage` cada
+   * STAGE_TICK_MS. Se separa del polling al backend porque ese corre
+   * cada 3s y queremos UI fluida cada 1s. Limpio en clearPolling().
+   */
+  const stageIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const rateLimitIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Hidratar conversation_id desde sessionStorage al montar.
@@ -186,6 +237,21 @@ export function useChatCotizar(): UseChatCotizarResult {
       clearTimeout(pollTimeoutRef.current);
       pollTimeoutRef.current = null;
     }
+    if (stageIntervalRef.current) {
+      clearInterval(stageIntervalRef.current);
+      stageIntervalRef.current = null;
+    }
+  }, []);
+
+  /**
+   * Mapea ms transcurridos → fase del banner. Mantenerlo puro y sin
+   * dependencias hace trivial testearlo y reusarlo en otros polls.
+   */
+  const stageFromElapsed = useCallback((elapsedMs: number): PollingStage => {
+    if (elapsedMs >= STAGE_THRESHOLDS.warning) return "warning";
+    if (elapsedMs >= STAGE_THRESHOLDS.verySlow) return "very_slow";
+    if (elapsedMs >= STAGE_THRESHOLDS.slow) return "slow";
+    return "normal";
   }, []);
 
   const clearRateLimit = useCallback(() => {
@@ -291,27 +357,51 @@ export function useChatCotizar(): UseChatCotizarResult {
     (jobId: string, rfc?: string) => {
       clearPolling();
       const startedAt = Date.now();
-      setJob({ kind: "polling", id: jobId, rfc, startedAt });
+      setJob({
+        kind: "polling",
+        id: jobId,
+        rfc,
+        startedAt,
+        elapsedMs: 0,
+        stage: "normal",
+      });
       // Primer tick inmediato (no esperar 3s para mostrar feedback).
       void pollJob(jobId);
       pollIntervalRef.current = setInterval(() => {
         void pollJob(jobId);
       }, POLL_INTERVAL_MS);
+      // Stage tick: actualiza elapsedMs/stage cada 1s para que el banner
+      // del ChatInterface pueda re-renderizar con copy progresivo sin
+      // tener que recalcular Date.now() en cada render del componente.
+      stageIntervalRef.current = setInterval(() => {
+        setJob((prev) => {
+          if (prev.kind !== "polling") return prev;
+          const elapsedMs = Date.now() - prev.startedAt;
+          const stage = stageFromElapsed(elapsedMs);
+          if (stage === prev.stage && elapsedMs - prev.elapsedMs < 1000) {
+            // Evitar re-render redundante si nada cambió perceptiblemente.
+            return prev;
+          }
+          return { ...prev, elapsedMs, stage };
+        });
+      }, STAGE_TICK_MS);
       pollTimeoutRef.current = setTimeout(() => {
         clearPolling();
         setJob({
           kind: "failed",
           id: jobId,
+          rfc,
+          timedOut: true,
           message:
-            "La cotización tardó más de 6 minutos. Probablemente sigue corriendo; revisa Historial.",
+            "Telcel no respondió en 5 minutos. Su portal puede estar saturado.",
         });
         appendMessage(
           "agent",
-          "Se acabó el tiempo de espera. La cotización podría seguir corriendo — revisa la sección Historial en unos minutos.",
+          "Telcel no respondió a tiempo. Esto pasa cuando su portal está saturado. La cotización podría seguir corriendo del lado del operador — revisa Historial en unos minutos.",
         );
       }, POLL_TIMEOUT_MS);
     },
-    [appendMessage, clearPolling, pollJob],
+    [appendMessage, clearPolling, pollJob, stageFromElapsed],
   );
 
   const sendMessage = useCallback(
