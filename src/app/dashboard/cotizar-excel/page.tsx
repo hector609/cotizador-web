@@ -28,6 +28,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { CrearCotizacionResponse } from "@/types/cotizacion";
+import { DashboardNav } from "../_nav";
 
 type SubmitState =
   | { kind: "idle" }
@@ -249,30 +250,9 @@ export default function CotizarExcelPage() {
 
   return (
     <main className="min-h-screen bg-slate-50">
-      <header className="bg-white border-b border-slate-200">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
-          <h1 className="text-base sm:text-lg font-bold text-slate-900 truncate">
-            Cotizador — Subir Excel
-          </h1>
-          <nav className="flex items-center gap-3 sm:gap-4 text-xs sm:text-sm">
-            <Link href="/dashboard" className="text-slate-600 hover:text-slate-900">
-              Inicio
-            </Link>
-            <Link
-              href="/dashboard/cotizar"
-              className="text-slate-600 hover:text-slate-900"
-            >
-              Chat
-            </Link>
-            <Link
-              href="/dashboard/historial"
-              className="text-slate-600 hover:text-slate-900"
-            >
-              Historial
-            </Link>
-          </nav>
-        </div>
-      </header>
+      {/* Cotizar-excel es una sub-ruta del flujo Cotizar — resaltamos ese
+          tab en la nav para que el contexto sea claro. */}
+      <DashboardNav active="cotizar" />
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8">
