@@ -13,8 +13,10 @@ import { ChatInterface } from "@/components/chat/ChatInterface";
  *      del dashboard.
  *   3. Monta `<ChatInterface />`.
  *
- * El wizard antiguo sigue disponible en `/dashboard/cotizar-old` (incluido
- * el modo "Subir Excel"). Cuando el chat esté maduro se puede borrar.
+ * La subida de Excel multi-perfil vive en `/dashboard/cotizar-excel` (el
+ * único modo del Wizard antiguo que sobrevivió — el resto se borró cuando
+ * el chat alcanzó paridad). Owner mide chat vs Excel con telemetría
+ * (`/api/telemetry/event`).
  */
 
 export default async function CotizarPage() {

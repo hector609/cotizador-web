@@ -33,6 +33,30 @@ const POLL_INTERVAL_MS = 3_000;
 const POLL_TIMEOUT_MS = 6 * 60 * 1_000;
 const STORAGE_KEY_CONVERSATION = "chat-cotizar:conversation_id";
 
+/**
+ * Fire-and-forget para telemetría (chat vs Excel). El owner quiere validar
+ * con datos reales que el chat reemplazó al Wizard antes de matar
+ * permanentemente el path Excel. NUNCA bloquea el flow ni propaga errores.
+ */
+function fireTelemetry(source: "chat"): void {
+  try {
+    void fetch("/api/telemetry/event", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "cotizacion_iniciada",
+        source,
+        timestamp: new Date().toISOString(),
+      }),
+      keepalive: true,
+    }).catch(() => {
+      // Silencio total: telemetría nunca rompe UX.
+    });
+  } catch {
+    // Algunos navegadores podrían tirar sync; tampoco propagamos.
+  }
+}
+
 export type ChatRole = "user" | "agent" | "system";
 
 export interface ChatMessage {
@@ -373,6 +397,10 @@ export function useChatCotizar(): UseChatCotizarResult {
         }
         if (data.status === "started") {
           // El agente ya tiene todo: arrancar polling.
+          // Antes del polling lanzamos telemetría (fire-and-forget) para
+          // medir "chat vs excel" — si Vercel logs muestra 100% chat / 0%
+          // excel en N días, podemos eliminar el path Excel.
+          fireTelemetry("chat");
           setJob({
             kind: "starting",
             rfc: data.rfc,
