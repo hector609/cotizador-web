@@ -31,6 +31,7 @@ import type { Cotizacion, EstadoCotizacion } from "@/types/cotizacion";
 import { RFC_REGEX } from "@/types/cotizacion";
 import { Section } from "@/components/ui/Section";
 import { Badge } from "@/components/ui/Badge";
+import { DashboardNav } from "../../_nav";
 
 const BOT_API_URL = process.env.BOT_API_URL || "https://cmdemobot.fly.dev";
 const FETCH_LIMIT = 50;
@@ -128,39 +129,10 @@ export default async function ClienteDetallePage({ params }: PageProps) {
 
   return (
     <main className="min-h-screen bg-slate-50">
-      <header className="bg-white border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <h1 className="text-xl font-bold text-slate-900">
-            Cotizador Inteligente para DATS
-          </h1>
-          <nav className="flex items-center gap-4 text-sm">
-            <Link href="/dashboard" className="text-slate-600 hover:text-slate-900">
-              Dashboard
-            </Link>
-            <Link
-              href="/dashboard/clientes"
-              className="text-blue-700 font-medium"
-            >
-              Clientes
-            </Link>
-            <Link
-              href="/dashboard/cotizar"
-              className="text-slate-600 hover:text-slate-900"
-            >
-              Cotizar
-            </Link>
-            <Link
-              href="/dashboard/historial"
-              className="text-slate-600 hover:text-slate-900"
-            >
-              Historial
-            </Link>
-            <Link href="/" className="text-slate-500 hover:text-slate-700 ml-4">
-              Salir
-            </Link>
-          </nav>
-        </div>
-      </header>
+      {/* La página vive conceptualmente dentro de "Clientes" (drill-down
+          al detalle de un RFC); forzamos ese tab activo aunque la URL
+          empiece por /dashboard/cliente/ singular. */}
+      <DashboardNav active="clientes" />
 
       <Section bg="slate" spacing="sm" width="wide">
         {/* Breadcrumb */}

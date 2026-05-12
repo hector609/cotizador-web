@@ -31,6 +31,66 @@ import { useChatCotizar, type ChatMessage, type JobState } from "@/lib/hooks/use
 
 const MAX_MESSAGE_LEN = 2000;
 
+/**
+ * Clave de sessionStorage que `/dashboard/optimizar` usa para pasarnos el
+ * payload con las palancas óptimas (ver `OptimizarPage.handleAplicarYCotizar`).
+ * Leemos UNA sola vez al montar y borramos la entrada para que un refresh
+ * no vuelva a pre-llenar el composer.
+ */
+const OPTIMIZAR_STORAGE_KEY = "optimizar:palancas";
+
+interface OptimizarHandoff {
+  rfc?: string;
+  lineas?: number;
+  plan?: string;
+  plazo?: number;
+  equipo?: string;
+  equipos_qty?: number;
+  palancas?: {
+    aportacion_voluntaria: number;
+    meses_gratis: number;
+    descuento_renta_pct: number;
+    beneficio_megas_pct: number;
+    tasa_negociada_pct: number;
+  };
+  rentabilidad_simulada?: number;
+  razonamiento?: string;
+  createdAt?: number;
+}
+
+/**
+ * Construye el mensaje pre-llenado que el vendedor revisará antes de enviar.
+ * Es deliberadamente verboso para que el agente del backend reciba todo el
+ * contexto en un solo turno y empiece a cotizar de inmediato.
+ */
+function buildOptimizarPrompt(h: OptimizarHandoff): string {
+  const partes: string[] = ["Cotiza con estas palancas aplicadas:"];
+  if (h.rfc) partes.push(`- RFC: ${h.rfc}`);
+  if (typeof h.lineas === "number") partes.push(`- Líneas: ${h.lineas}`);
+  if (h.plan) partes.push(`- Plan: ${h.plan}`);
+  if (typeof h.plazo === "number") partes.push(`- Plazo: ${h.plazo} meses`);
+  if (h.equipo) {
+    const qty =
+      typeof h.equipos_qty === "number" ? ` (${h.equipos_qty} unidades)` : "";
+    partes.push(`- Equipo: ${h.equipo}${qty}`);
+  }
+  const p = h.palancas;
+  if (p) {
+    partes.push("- Palancas:");
+    partes.push(`  · Aportación voluntaria: $${p.aportacion_voluntaria.toLocaleString("es-MX")}`);
+    partes.push(`  · Meses gratis: ${p.meses_gratis}`);
+    partes.push(`  · Descuento renta: ${p.descuento_renta_pct}%`);
+    partes.push(`  · Beneficio megas: ${p.beneficio_megas_pct}%`);
+    partes.push(`  · Tasa negociada: ${p.tasa_negociada_pct}%`);
+  }
+  if (typeof h.rentabilidad_simulada === "number") {
+    partes.push(
+      `(Rentabilidad simulada: ${h.rentabilidad_simulada.toFixed(2)}%)`,
+    );
+  }
+  return partes.join("\n");
+}
+
 export function ChatInterface() {
   const {
     messages,
@@ -46,6 +106,45 @@ export function ChatInterface() {
   const [draft, setDraft] = useState("");
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  /**
+   * Handoff desde /dashboard/optimizar: si el vendedor pulsó "Aplicar y
+   * cotizar", lee las palancas de sessionStorage, arma un prompt verboso
+   * y lo deja en el composer. NO auto-envía — el vendedor ve el texto y
+   * presiona Enter cuando quiera. Esto cumple el contrato de Option A
+   * del UX-audit sin riesgo de disparar una cotización accidental.
+   *
+   * Tanto la lectura de sessionStorage como el setState se difieren a un
+   * micro-task con `queueMicrotask` para mantener la regla
+   * `react-hooks/set-state-in-effect` (no llamar setState síncronamente
+   * dentro del body del effect — evita cascada de renders).
+   */
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (cancelled) return;
+      try {
+        const raw = window.sessionStorage.getItem(OPTIMIZAR_STORAGE_KEY);
+        if (!raw) return;
+        // Consumimos una sola vez (un refresh no debería re-pre-llenar).
+        window.sessionStorage.removeItem(OPTIMIZAR_STORAGE_KEY);
+        const handoff = JSON.parse(raw) as OptimizarHandoff;
+        if (!handoff || typeof handoff !== "object") return;
+        const prompt = buildOptimizarPrompt(handoff);
+        if (prompt) {
+          setDraft(prompt.slice(0, MAX_MESSAGE_LEN));
+          // Foco al textarea para que Enter envíe inmediatamente.
+          setTimeout(() => textareaRef.current?.focus(), 0);
+        }
+      } catch {
+        // sessionStorage deshabilitado o JSON inválido: ignoramos.
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Auto-scroll al final cuando llegan mensajes nuevos o cambia el estado.
   useEffect(() => {

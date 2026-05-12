@@ -15,6 +15,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { DashboardNav } from "../_nav";
 
 interface CredsMeta {
   usuario: string; // enmascarado, ej "j***@empresa.com"
@@ -108,17 +109,7 @@ export default function ConfiguracionPage() {
 
   return (
     <main className="min-h-screen bg-slate-50">
-      <header className="bg-white border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <h1 className="text-xl font-bold text-slate-900">Configuración</h1>
-          <a
-            href="/dashboard"
-            className="text-sm text-slate-600 hover:text-slate-900"
-          >
-            ← Dashboard
-          </a>
-        </div>
-      </header>
+      <DashboardNav />
 
       <div className="max-w-2xl mx-auto px-6 py-10">
         <h2 className="text-2xl font-bold text-slate-900 mb-2">

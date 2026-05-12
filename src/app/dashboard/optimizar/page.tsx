@@ -10,18 +10,18 @@
  *   2. POST /api/optimizar → backend bot → Claude con tool-use iterativo.
  *      Tarda 5-15s (se muestra spinner con texto explicativo).
  *   3. Resultado: tarjeta con 5 palancas + rentabilidad simulada + razonamiento.
- *   4. Botón "Aplicar y cotizar" → redirige a /dashboard/cotizar con los
- *      campos pre-llenados vía sessionStorage (las palancas no las cotiza
- *      directamente la web app todavía — la cotización real con palancas
- *      vive en Telegram. Documentado como TODO abajo).
+ *   4. Botón "Aplicar y cotizar" → guarda las palancas + perfil en
+ *      sessionStorage["optimizar:palancas"] y redirige a /dashboard/cotizar.
+ *      ChatInterface lee esa entrada al montar (una sola vez), arma un
+ *      prompt verboso del tipo "Cotiza con estas palancas aplicadas: ..."
+ *      y lo pre-llena en el composer. El vendedor revisa y presiona Enter
+ *      para enviar al agente Claude, que aplica las palancas en el portal
+ *      Telcel vía el flujo conversacional.
  *
- * Nota arquitectónica: las palancas (aportación, meses gratis, descuento,
- * megas, tasa) NO viajan al endpoint actual /api/cotizaciones — ese flujo
- * web hoy dispara cotizar.js con palancas=0 (cotización limpia). Las
- * palancas se aplican vía Telegram /optimizar → confirmar. Aquí mostramos
- * la propuesta como "preview informativa" + handoff al bot para que el
- * vendedor las aplique. Cuando el endpoint /api/v1/cotizaciones acepte
- * palancas en el body, podemos disparar la re-cotización directo desde aquí.
+ * Antes el botón solo redirigía con `from=optimizar` y las palancas se
+ * perdían (el comentario decía "las palancas no viajan al endpoint actual").
+ * Ahora viajan como parte del mensaje del chat — el endpoint /api/chat/cotizar
+ * extrae los parámetros del texto natural igual que cualquier otra request.
  */
 
 import Link from "next/link";
@@ -30,6 +30,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Section } from "@/components/ui/Section";
 import { Badge } from "@/components/ui/Badge";
 import { RFC_REGEX } from "@/types/cotizacion";
+import { DashboardNav } from "../_nav";
 
 // ────────────────────────────────────────────────────────────────────
 // Tipos del response del backend
@@ -269,30 +270,7 @@ export default function OptimizarPage() {
 
   return (
     <main className="min-h-screen bg-slate-50">
-      <header className="bg-white border-b border-slate-200">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <h1 className="text-xl font-bold text-slate-900">
-            Optimizar palancas
-          </h1>
-          <nav className="flex items-center gap-4 text-sm">
-            <Link href="/dashboard" className="text-slate-600 hover:text-slate-900">
-              Inicio
-            </Link>
-            <Link
-              href="/dashboard/cotizar"
-              className="text-slate-600 hover:text-slate-900"
-            >
-              Cotizar
-            </Link>
-            <Link
-              href="/dashboard/clientes"
-              className="text-slate-600 hover:text-slate-900"
-            >
-              Clientes
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <DashboardNav active="optimizar" />
 
       <Section bg="white" spacing="sm" width="narrow">
         <div>
@@ -612,7 +590,9 @@ function ResultadoCard({
 
       <div className="text-xs text-slate-500 mb-4">
         Esto es la simulación local — los números reales los confirma Telcel
-        cuando se corra la cotización con estas palancas aplicadas.
+        cuando se corra la cotización con estas palancas aplicadas. Al pulsar
+        “Aplicar y cotizar” te llevamos al chat con el prompt listo: solo
+        revisa y presiona Enter para enviar al agente.
       </div>
 
       <div className="flex gap-3 flex-wrap">
