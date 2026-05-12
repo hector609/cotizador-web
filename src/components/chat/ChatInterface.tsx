@@ -99,7 +99,7 @@ export function ChatInterface() {
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <Link
-            href="/dashboard/cotizar-old?mode=excel"
+            href="/dashboard/cotizar-excel"
             className="text-xs sm:text-sm text-slate-600 hover:text-blue-700 underline underline-offset-2 whitespace-nowrap"
             title="Cotizar desde plantilla Excel"
           >
