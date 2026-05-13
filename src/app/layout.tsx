@@ -14,9 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Cotizador Inteligente para DATS — Hectoria",
+  title: "Cotizador Inteligente — Telcel en minutos",
   description:
-    "Cotizador Inteligente para DATS — distribuidores autorizados de telefonía corporativa. Desarrollado por Hectoria.",
+    "Cotizador Inteligente para DATS — distribuidores autorizados Telcel. Cotiza, compara y cierra en minutos. Desarrollado por Hectoria.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -27,10 +27,18 @@ export const metadata: Metadata = {
     icon: "/icons/icon-192.png",
     apple: "/icons/icon-192.png",
   },
+  openGraph: {
+    title: "Cotizador Inteligente — Telcel en minutos",
+    description:
+      "Cotiza Telcel en minutos. Compara planes, equipos y plazos con un agente conversacional.",
+    images: ["/brand/og.png"],
+    type: "website",
+    locale: "es_MX",
+  },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0066b3",
+  themeColor: "#4F46E5",
   width: "device-width",
   initialScale: 1,
 };

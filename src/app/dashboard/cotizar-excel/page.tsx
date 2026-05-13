@@ -3,6 +3,13 @@
 /**
  * /dashboard/cotizar-excel — subida de plantilla Excel multi-perfil.
  *
+ * REDISEÑO LUMINA Light Premium (pivot 2026-05-13). Antes usaba `DashboardNav`
+ * legacy + botones `bg-blue-700` saturados; ahora consume el `Sidebar`
+ * compartido, surfaces `bg-white rounded-2xl shadow-sm`, paleta
+ * indigo-600/cyan-500/emerald-500/rose-500 y pill buttons gradient
+ * indigo→cyan para primary, outline indigo-200 para secondary. Banners
+ * progresivos con framer-motion fade-up; el dropzone también anima en hover.
+ *
  * Es la única vía pre-chat que sobrevive del Wizard antiguo: el vendedor
  * descarga la plantilla (`/api/excel/plantilla`), la llena off-line con N
  * perfiles, la sube aquí, y el backend la procesa (POST
@@ -26,9 +33,23 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Download,
+  Upload,
+  FileSpreadsheet,
+  Loader2,
+  CheckCircle2,
+  AlertTriangle,
+  XCircle,
+  RotateCw,
+  ExternalLink,
+  X,
+  Mail,
+} from "lucide-react";
 import type { CrearCotizacionResponse } from "@/types/cotizacion";
-import { DashboardNav } from "../_nav";
+import { Sidebar, type SidebarKey } from "@/components/admin/Sidebar";
 
 /**
  * Fases del banner progresivo. Idéntico al patrón en useChatCotizar —
@@ -123,6 +144,8 @@ export default function CotizarExcelPage() {
   const [isDragging, setIsDragging] = useState(false);
   const [submit, setSubmit] = useState<SubmitState>({ kind: "idle" });
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const errorId = useId();
 
   // Polling refs (ver patrón en useChatCotizar): refs en lugar de state para
   // que cambiar el handle no dispare re-render.
@@ -350,74 +373,132 @@ export default function CotizarExcelPage() {
     setSubmit({ kind: "idle" });
   }
 
+  // El Sidebar marca "cotizar-excel" en SECONDARY_LINKS — la prop `active`
+  // es tipada como SidebarKey pero el comparador interno usa `===` contra
+  // l.key (que es SidebarKey | string), así que el cast es seguro.
+  const sidebarActive = "cotizar-excel" as SidebarKey;
+
   return (
-    <main className="min-h-screen bg-slate-50">
-      {/* Cotizar-excel es una sub-ruta del flujo Cotizar — resaltamos ese
-          tab en la nav para que el contexto sea claro. */}
-      <DashboardNav active="cotizar" />
+    <div className="min-h-screen bg-slate-50 text-slate-900 antialiased">
+      <Sidebar active={sidebarActive} />
 
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8">
-          <h2 className="text-lg font-semibold text-slate-900">
-            Cotización desde Excel
-          </h2>
-          <p className="text-sm text-slate-600 mt-1">
-            Para cotizaciones multi-perfil (varios equipos en el mismo cliente).
-            Descarga la plantilla, llénala off-line, y súbela aquí. Soporta hasta
-            50 perfiles por cotización.
-          </p>
-
-          <div className="mt-4 flex items-center gap-3 flex-wrap">
-            <a
-              href="/api/excel/plantilla"
-              download
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg transition"
+      <main className="lg:ml-64 pt-14 lg:pt-0 min-h-screen">
+        <div className="max-w-3xl mx-auto px-6 md:px-10 py-10 md:py-12">
+          {/* Breadcrumb */}
+          <div className="flex items-center gap-2 text-sm text-slate-500 mb-6">
+            <Link
+              href="/dashboard"
+              className="hover:text-indigo-600 transition"
             >
-              <span aria-hidden="true">↓</span> Descargar plantilla
-            </a>
-            <span className="text-xs text-slate-500">
-              Llena RFC, Nombre, Trámite, Plazo y una fila por perfil.
-            </span>
+              Inicio
+            </Link>
+            <span className="text-slate-300">/</span>
+            <Link
+              href="/dashboard/cotizar"
+              className="hover:text-indigo-600 transition"
+            >
+              Cotizar
+            </Link>
+            <span className="text-slate-300">/</span>
+            <span className="text-slate-900 font-semibold">Importar Excel</span>
           </div>
 
-          <div
-            onDragEnter={(e) => {
-              e.preventDefault();
-              if (!isBusy) setIsDragging(true);
-            }}
-            onDragOver={(e) => e.preventDefault()}
-            onDragLeave={() => setIsDragging(false)}
-            onDrop={onDrop}
-            onClick={() => !isBusy && inputRef.current?.click()}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if ((e.key === "Enter" || e.key === " ") && !isBusy) {
-                inputRef.current?.click();
-              }
-            }}
-            className={[
-              "mt-6 rounded-2xl border-2 border-dashed p-8 text-center cursor-pointer transition",
-              isBusy
-                ? "border-slate-200 bg-slate-50 cursor-not-allowed opacity-60"
-                : isDragging
-                  ? "border-blue-500 bg-blue-50"
-                  : "border-slate-300 bg-slate-50 hover:bg-slate-100",
-            ].join(" ")}
+          {/* H1 */}
+          <motion.header
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, ease: "easeOut" }}
+            className="mb-8"
           >
-            <input
-              ref={inputRef}
-              type="file"
-              accept=".xlsx,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-              className="hidden"
-              disabled={isBusy}
-              onChange={(e) => pickFile(e.target.files?.[0] || null)}
-            />
-            {file ? (
-              <div>
-                <p className="text-sm font-semibold text-slate-900">{file.name}</p>
-                <p className="text-xs text-slate-500 mt-1">
-                  {(file.size / 1024).toFixed(1)} KB ·{" "}
+            <div className="flex items-center gap-3 mb-3">
+              <span className="inline-flex items-center justify-center w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-cyan-400 text-white shadow-md shadow-indigo-200">
+                <FileSpreadsheet className="w-5 h-5" />
+              </span>
+              <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900">
+                Cotización desde Excel
+              </h1>
+            </div>
+            <p className="text-sm md:text-base text-slate-600 max-w-2xl">
+              Para cotizaciones multi-perfil (varios equipos en el mismo
+              cliente). Descarga la plantilla, llénala off-line y súbela aquí.
+              Soporta hasta{" "}
+              <span className="font-semibold text-slate-800">50 perfiles</span>{" "}
+              por cotización.
+            </p>
+          </motion.header>
+
+          {/* Card principal */}
+          <motion.section
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, ease: "easeOut", delay: 0.05 }}
+            className="rounded-2xl bg-white border border-slate-200 shadow-sm p-6 md:p-8"
+          >
+            {/* Descargar plantilla */}
+            <div className="flex items-center gap-3 flex-wrap mb-6">
+              <a
+                href="/api/excel/plantilla"
+                download
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-indigo-200 text-indigo-700 text-sm font-semibold bg-white hover:bg-indigo-50 hover:border-indigo-300 transition"
+              >
+                <Download className="w-4 h-4" />
+                Descargar plantilla
+              </a>
+              <span className="text-xs text-slate-500">
+                Llena RFC, Nombre, Trámite, Plazo y una fila por perfil.
+              </span>
+            </div>
+
+            {/* Dropzone */}
+            <motion.div
+              onDragEnter={(e) => {
+                e.preventDefault();
+                if (!isBusy) setIsDragging(true);
+              }}
+              onDragOver={(e) => e.preventDefault()}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={onDrop}
+              onClick={() => !isBusy && inputRef.current?.click()}
+              role="button"
+              tabIndex={0}
+              aria-disabled={isBusy}
+              aria-describedby={error ? errorId : undefined}
+              onKeyDown={(e) => {
+                if ((e.key === "Enter" || e.key === " ") && !isBusy) {
+                  e.preventDefault();
+                  inputRef.current?.click();
+                }
+              }}
+              whileHover={!isBusy ? { scale: 1.005 } : undefined}
+              transition={{ duration: 0.15 }}
+              className={[
+                "rounded-2xl border-2 border-dashed p-10 text-center cursor-pointer transition-colors",
+                isBusy
+                  ? "border-slate-200 bg-slate-50 cursor-not-allowed opacity-60"
+                  : isDragging
+                    ? "border-indigo-400 bg-indigo-50"
+                    : "border-slate-300 bg-slate-50 hover:bg-indigo-50/40 hover:border-indigo-300",
+              ].join(" ")}
+            >
+              <input
+                ref={inputRef}
+                type="file"
+                accept=".xlsx,.xlsm,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                className="hidden"
+                disabled={isBusy}
+                onChange={(e) => pickFile(e.target.files?.[0] || null)}
+              />
+              {file ? (
+                <div className="flex flex-col items-center gap-2">
+                  <span className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-400 to-cyan-400 text-white shadow-md shadow-emerald-100">
+                    <FileSpreadsheet className="w-6 h-6" />
+                  </span>
+                  <p className="text-sm font-semibold text-slate-900">
+                    {file.name}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    {(file.size / 1024).toFixed(1)} KB
+                  </p>
                   <button
                     type="button"
                     disabled={isBusy}
@@ -425,227 +506,298 @@ export default function CotizarExcelPage() {
                       e.stopPropagation();
                       pickFile(null);
                     }}
-                    className="underline hover:text-slate-700 disabled:opacity-50"
+                    className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-indigo-600 hover:text-indigo-800 underline disabled:opacity-50"
                   >
-                    Cambiar
-                  </button>
-                </p>
-              </div>
-            ) : (
-              <div>
-                <p className="text-sm font-medium text-slate-700">
-                  Arrastra tu .xlsx aquí o haz clic para seleccionar
-                </p>
-                <p className="text-xs text-slate-500 mt-1">
-                  Solo .xlsx / .xlsm · Máximo 2MB
-                </p>
-              </div>
-            )}
-          </div>
-
-          {error && (
-            <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-              {error}
-            </div>
-          )}
-
-          {submit.kind === "idle" && (
-            <div className="mt-6">
-              <button
-                type="button"
-                onClick={handleSubir}
-                disabled={!file}
-                className="px-6 py-3 bg-blue-700 text-white font-semibold rounded-lg hover:bg-blue-800 disabled:opacity-40 disabled:cursor-not-allowed transition"
-              >
-                Cotizar Excel
-              </button>
-            </div>
-          )}
-
-          {submit.kind === "loading" && (
-            <div className="mt-6">
-              <button
-                type="button"
-                disabled
-                className="px-6 py-3 bg-blue-700 text-white font-semibold rounded-lg opacity-70 cursor-wait inline-flex items-center gap-3"
-              >
-                <span
-                  className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"
-                  aria-hidden="true"
-                />
-                Enviando solicitud…
-              </button>
-            </div>
-          )}
-
-          {submit.kind === "polling" && (() => {
-            const copy = STAGE_COPY[submit.stage];
-            const isWarn = copy.tone === "warn";
-            const elapsedS = Math.floor(submit.elapsedMs / 1000);
-            const mins = Math.floor(elapsedS / 60);
-            const secs = elapsedS % 60;
-            const pct = Math.min(
-              100,
-              Math.round((submit.elapsedMs / POLL_TIMEOUT_MS) * 100),
-            );
-            return (
-              <div
-                className={[
-                  "mt-6 rounded-xl border p-5",
-                  isWarn
-                    ? "border-amber-200 bg-amber-50"
-                    : "border-blue-200 bg-blue-50",
-                ].join(" ")}
-                role="status"
-                aria-live="polite"
-              >
-                <div className="flex items-start gap-3">
-                  <span
-                    className={[
-                      "mt-0.5 w-5 h-5 border-2 rounded-full animate-spin shrink-0",
-                      isWarn
-                        ? "border-amber-300 border-t-amber-700"
-                        : "border-blue-300 border-t-blue-700",
-                    ].join(" ")}
-                    aria-hidden="true"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p
-                      className={[
-                        "font-semibold",
-                        isWarn ? "text-amber-900" : "text-blue-900",
-                      ].join(" ")}
-                    >
-                      {copy.title}
-                    </p>
-                    <p
-                      className={[
-                        "text-sm mt-1",
-                        isWarn ? "text-amber-800" : "text-blue-800",
-                      ].join(" ")}
-                    >
-                      {copy.body}
-                    </p>
-                    <div
-                      className={[
-                        "mt-3 h-1.5 w-full rounded-full overflow-hidden",
-                        isWarn ? "bg-amber-200/70" : "bg-blue-100",
-                      ].join(" ")}
-                      aria-hidden="true"
-                    >
-                      <div
-                        className={[
-                          "h-full transition-all duration-500 ease-out",
-                          isWarn ? "bg-amber-500" : "bg-blue-600",
-                        ].join(" ")}
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                    <p
-                      className={[
-                        "text-xs mt-2 tabular-nums",
-                        isWarn ? "text-amber-700" : "text-blue-700",
-                      ].join(" ")}
-                    >
-                      Tiempo: {mins}:{secs.toString().padStart(2, "0")} / 5:00
-                      {" · Folio "}
-                      <span className="font-mono">{submit.id}</span>
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleCancel}
-                    className="shrink-0 text-xs text-slate-600 hover:text-red-700 px-2 py-1 rounded hover:bg-red-50 transition self-start"
-                    aria-label="Cancelar la cotización en curso"
-                  >
-                    Cancelar
+                    <X className="w-3 h-3" />
+                    Cambiar archivo
                   </button>
                 </div>
-              </div>
-            );
-          })()}
-
-          {submit.kind === "success" && (
-            <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-5">
-              <p className="text-emerald-900 font-semibold">Cotización lista.</p>
-              <p className="text-sm text-emerald-800 mt-1">
-                Folio: <span className="font-mono">{submit.id}</span>
-              </p>
-              <div className="mt-4 flex flex-wrap items-center gap-3">
-                {submit.pdfUrl && (
-                  <a
-                    href={submit.pdfUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-700 text-white text-sm font-semibold rounded-lg hover:bg-emerald-800 transition"
-                  >
-                    Descargar PDF
-                    <span aria-hidden="true">↗</span>
-                  </a>
-                )}
-                <Link
-                  href="/dashboard/historial"
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-emerald-300 text-emerald-800 text-sm font-semibold rounded-lg hover:bg-emerald-100 transition"
-                >
-                  Ver historial
-                </Link>
-                <button
-                  type="button"
-                  onClick={reset}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 text-slate-700 text-sm font-semibold rounded-lg hover:bg-slate-100 transition"
-                >
-                  Subir otra
-                </button>
-              </div>
-              {!submit.pdfUrl && (
-                <p className="mt-3 text-sm text-emerald-800">
-                  El PDF aún se está generando. Revisa el historial en unos segundos.
-                </p>
+              ) : (
+                <div className="flex flex-col items-center gap-2">
+                  <span className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-indigo-100 text-indigo-600">
+                    <Upload className="w-6 h-6" />
+                  </span>
+                  <p className="text-sm font-semibold text-slate-700">
+                    Arrastra tu .xlsx aquí o haz clic para seleccionar
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Solo .xlsx / .xlsm · Máximo 2MB
+                  </p>
+                </div>
               )}
-            </div>
-          )}
+            </motion.div>
 
-          {submit.kind === "error" && (
-            <div className="mt-6 rounded-xl border border-red-200 bg-red-50 p-5">
-              <p className="text-red-900 font-semibold">
-                {submit.timedOut ? "Telcel no respondió" : "No pudimos cotizar."}
-              </p>
-              <p className="text-sm text-red-800 mt-1">{submit.message}</p>
-              <div className="mt-4 flex flex-wrap gap-2">
+            {error && (
+              <div
+                id={errorId}
+                role="alert"
+                className="mt-4 flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800"
+              >
+                <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            {/* Botón cotizar (idle) */}
+            {submit.kind === "idle" && (
+              <div className="mt-6">
+                <motion.button
+                  type="button"
+                  onClick={handleSubir}
+                  disabled={!file}
+                  whileHover={file ? { scale: 1.02 } : undefined}
+                  whileTap={file ? { scale: 0.98 } : undefined}
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-indigo-600 to-cyan-500 text-white font-semibold shadow-md shadow-indigo-200 hover:shadow-lg hover:shadow-indigo-300/60 transition disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none"
+                >
+                  <Upload className="w-4 h-4" />
+                  Cotizar Excel
+                </motion.button>
+              </div>
+            )}
+
+            {submit.kind === "loading" && (
+              <div className="mt-6">
                 <button
                   type="button"
-                  onClick={reset}
-                  className="inline-flex items-center px-4 py-2 bg-red-700 text-white text-sm font-semibold rounded-lg hover:bg-red-800 transition"
+                  disabled
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-indigo-600 to-cyan-500 text-white font-semibold opacity-80 cursor-wait shadow-md shadow-indigo-200"
                 >
-                  Reintentar
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Enviando solicitud…
                 </button>
-                {submit.timedOut && (
-                  <>
-                    <Link
-                      href="/dashboard/historial"
-                      className="inline-flex items-center px-4 py-2 bg-white border border-red-300 text-red-800 text-sm font-semibold rounded-lg hover:bg-red-100 transition"
-                    >
-                      Ver historial
-                    </Link>
-                    <a
-                      href={`mailto:soporte@hectoria.mx?subject=${encodeURIComponent(
-                        "Telcel timeout — cotización Excel",
-                      )}&body=${encodeURIComponent(
-                        `Folio: ${submit.id || "?"}\nHora: ${new Date().toLocaleString(
-                          "es-MX",
-                        )}\n\nAdjunto contexto:`,
-                      )}`}
-                      className="inline-flex items-center px-4 py-2 bg-white border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition"
-                    >
-                      Reportar problema
-                    </a>
-                  </>
-                )}
               </div>
-            </div>
-          )}
+            )}
+
+            <AnimatePresence mode="wait">
+              {submit.kind === "polling" && (() => {
+                const copy = STAGE_COPY[submit.stage];
+                const isWarn = copy.tone === "warn";
+                const elapsedS = Math.floor(submit.elapsedMs / 1000);
+                const mins = Math.floor(elapsedS / 60);
+                const secs = elapsedS % 60;
+                const pct = Math.min(
+                  100,
+                  Math.round((submit.elapsedMs / POLL_TIMEOUT_MS) * 100),
+                );
+                return (
+                  <motion.div
+                    key="polling"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.25, ease: "easeOut" }}
+                    className={[
+                      "mt-6 rounded-2xl border p-5",
+                      isWarn
+                        ? "border-amber-200 bg-amber-50"
+                        : "border-indigo-200 bg-indigo-50/60",
+                    ].join(" ")}
+                    role="status"
+                    aria-live="polite"
+                  >
+                    <div className="flex items-start gap-3">
+                      <span
+                        className={[
+                          "mt-0.5 inline-flex items-center justify-center w-8 h-8 rounded-full shrink-0",
+                          isWarn
+                            ? "bg-amber-100 text-amber-700"
+                            : "bg-indigo-100 text-indigo-700",
+                        ].join(" ")}
+                        aria-hidden="true"
+                      >
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p
+                          className={[
+                            "font-bold",
+                            isWarn ? "text-amber-900" : "text-indigo-900",
+                          ].join(" ")}
+                        >
+                          {copy.title}
+                        </p>
+                        <p
+                          className={[
+                            "text-sm mt-1",
+                            isWarn ? "text-amber-800" : "text-indigo-800",
+                          ].join(" ")}
+                        >
+                          {copy.body}
+                        </p>
+                        <div
+                          className={[
+                            "mt-3 h-1.5 w-full rounded-full overflow-hidden",
+                            isWarn ? "bg-amber-200/70" : "bg-indigo-100",
+                          ].join(" ")}
+                          aria-hidden="true"
+                        >
+                          <motion.div
+                            initial={false}
+                            animate={{ width: `${pct}%` }}
+                            transition={{ duration: 0.5, ease: "easeOut" }}
+                            className={[
+                              "h-full",
+                              isWarn
+                                ? "bg-gradient-to-r from-amber-400 to-amber-500"
+                                : "bg-gradient-to-r from-indigo-500 to-cyan-500",
+                            ].join(" ")}
+                          />
+                        </div>
+                        <p
+                          className={[
+                            "text-xs mt-2 tabular-nums",
+                            isWarn ? "text-amber-700" : "text-indigo-700",
+                          ].join(" ")}
+                        >
+                          Tiempo: {mins}:{secs.toString().padStart(2, "0")} /
+                          5:00
+                          {" · Folio "}
+                          <span className="font-mono">{submit.id}</span>
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleCancel}
+                        className="shrink-0 inline-flex items-center gap-1 text-xs text-slate-600 hover:text-rose-700 px-2.5 py-1.5 rounded-full hover:bg-rose-50 transition self-start"
+                        aria-label="Cancelar la cotización en curso"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                        Cancelar
+                      </button>
+                    </div>
+                  </motion.div>
+                );
+              })()}
+
+              {submit.kind === "success" && (
+                <motion.div
+                  key="success"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.25, ease: "easeOut" }}
+                  className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-5"
+                  role="status"
+                >
+                  <div className="flex items-start gap-3">
+                    <span className="mt-0.5 inline-flex items-center justify-center w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 shrink-0">
+                      <CheckCircle2 className="w-5 h-5" />
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-emerald-900 font-bold">
+                        Cotización lista
+                      </p>
+                      <p className="text-sm text-emerald-800 mt-1">
+                        Folio:{" "}
+                        <span className="font-mono">{submit.id}</span>
+                      </p>
+                      <div className="mt-4 flex flex-wrap items-center gap-2">
+                        {submit.pdfUrl && (
+                          <motion.a
+                            href={submit.pdfUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-gradient-to-r from-emerald-600 to-emerald-500 text-white text-sm font-semibold shadow-md shadow-emerald-200 hover:shadow-lg transition"
+                          >
+                            <Download className="w-4 h-4" />
+                            Descargar PDF
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </motion.a>
+                        )}
+                        <Link
+                          href="/dashboard/historial"
+                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white border border-emerald-300 text-emerald-800 text-sm font-semibold hover:bg-emerald-100 transition"
+                        >
+                          Ver historial
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={reset}
+                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white border border-slate-200 text-slate-700 text-sm font-semibold hover:bg-slate-50 transition"
+                        >
+                          <RotateCw className="w-3.5 h-3.5" />
+                          Subir otra
+                        </button>
+                      </div>
+                      {!submit.pdfUrl && (
+                        <p className="mt-3 text-sm text-emerald-800">
+                          El PDF aún se está generando. Revisa el historial en
+                          unos segundos.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {submit.kind === "error" && (
+                <motion.div
+                  key="error"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.25, ease: "easeOut" }}
+                  className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 p-5"
+                  role="alert"
+                >
+                  <div className="flex items-start gap-3">
+                    <span className="mt-0.5 inline-flex items-center justify-center w-8 h-8 rounded-full bg-rose-100 text-rose-700 shrink-0">
+                      <XCircle className="w-5 h-5" />
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-rose-900 font-bold">
+                        {submit.timedOut
+                          ? "Telcel no respondió"
+                          : "No pudimos cotizar"}
+                      </p>
+                      <p className="text-sm text-rose-800 mt-1">
+                        {submit.message}
+                      </p>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <motion.button
+                          type="button"
+                          onClick={reset}
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-gradient-to-r from-rose-600 to-rose-500 text-white text-sm font-semibold shadow-md shadow-rose-200 hover:shadow-lg transition"
+                        >
+                          <RotateCw className="w-4 h-4" />
+                          Reintentar
+                        </motion.button>
+                        {submit.timedOut && (
+                          <>
+                            <Link
+                              href="/dashboard/historial"
+                              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white border border-rose-300 text-rose-800 text-sm font-semibold hover:bg-rose-100 transition"
+                            >
+                              Ver historial
+                            </Link>
+                            <a
+                              href={`mailto:soporte@hectoria.mx?subject=${encodeURIComponent(
+                                "Telcel timeout — cotización Excel",
+                              )}&body=${encodeURIComponent(
+                                `Folio: ${submit.id || "?"}\nHora: ${new Date().toLocaleString(
+                                  "es-MX",
+                                )}\n\nAdjunto contexto:`,
+                              )}`}
+                              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white border border-slate-200 text-slate-700 text-sm font-medium hover:bg-slate-50 transition"
+                            >
+                              <Mail className="w-3.5 h-3.5" />
+                              Reportar problema
+                            </a>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </motion.section>
         </div>
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }

@@ -42,7 +42,7 @@ import {
 } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import NumberFlow from "@number-flow/react";
-import { Paperclip, Sparkles, SendHorizonal } from "lucide-react";
+import { Paperclip, Sparkles, SendHorizonal, BookOpen, X } from "lucide-react";
 import {
   useChatCotizar,
   type ChatMessage,
@@ -63,6 +63,16 @@ export interface ChatInterfaceApi {
 
 interface ChatInterfaceProps {
   onReady?: (api: ChatInterfaceApi) => void;
+  /**
+   * Estado del drawer del catálogo Telcel (controlado por `CotizarLayout`).
+   * Cuando es `true`, el toggle del topbar muestra el chip "cerrar".
+   */
+  catalogoOpen?: boolean;
+  /**
+   * Callback que alterna la visibilidad del drawer del catálogo Telcel.
+   * Si no se pasa, el toggle no se renderiza (modo standalone).
+   */
+  onToggleCatalogo?: () => void;
 }
 
 /**
@@ -135,7 +145,11 @@ function useAutoResizeTextarea(
   }, [ref, value, minHeight, maxHeight]);
 }
 
-export function ChatInterface({ onReady }: ChatInterfaceProps = {}) {
+export function ChatInterface({
+  onReady,
+  catalogoOpen = false,
+  onToggleCatalogo,
+}: ChatInterfaceProps = {}) {
   const {
     messages,
     sending,
@@ -266,6 +280,39 @@ export function ChatInterface({ onReady }: ChatInterfaceProps = {}) {
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          {/* Toggle del drawer del catálogo Telcel. Pill light por default;
+              chip indigo cuando el drawer está abierto. */}
+          {onToggleCatalogo && (
+            <button
+              type="button"
+              onClick={onToggleCatalogo}
+              aria-label={
+                catalogoOpen
+                  ? "Cerrar catálogo Telcel"
+                  : "Abrir catálogo Telcel"
+              }
+              aria-expanded={catalogoOpen}
+              aria-controls="catalogo-drawer-title"
+              className={[
+                "inline-flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition",
+                catalogoOpen
+                  ? "bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100"
+                  : "bg-white border-slate-200 text-slate-700 hover:border-indigo-200 hover:bg-indigo-50",
+              ].join(" ")}
+            >
+              {catalogoOpen ? (
+                <X className="w-4 h-4" strokeWidth={2} aria-hidden="true" />
+              ) : (
+                <BookOpen
+                  className="w-4 h-4"
+                  strokeWidth={1.8}
+                  aria-hidden="true"
+                />
+              )}
+              <span className="hidden sm:inline">Catálogo Telcel</span>
+            </button>
+          )}
+
           {/* Timer pill cyan glow (decorativo). */}
           <span
             className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-cyan-50 border border-cyan-200 text-cyan-700 text-xs font-mono tabular-nums shadow-sm"

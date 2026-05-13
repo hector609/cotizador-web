@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Cotizador · Wordmark completo (LUMINA, light backgrounds)
+  240x80 viewBox (3:1). Iconmark izquierda (56x56 con 12px padding vertical),
+  wordmark a la derecha en Geist 800 fallback system-ui, color slate-900.
+  Construcción:
+    1. <g id="mark"> — replica del iconmark a 56x56 con rx 14.
+    2. <text>"Cotizador" letter-spacing -0.02em, weight 800.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 80" width="240" height="80" role="img" aria-label="Cotizador">
+  <defs>
+    <linearGradient id="cz-tile-full" x1="0" y1="0" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#4F46E5"/>
+      <stop offset="1" stop-color="#06B6D4"/>
+    </linearGradient>
+  </defs>
+  <g id="mark" transform="translate(12 12)">
+    <rect width="56" height="56" rx="14" ry="14" fill="url(#cz-tile-full)"/>
+    <path d="M38.5 19.25a12.25 12.25 0 1 0 0 17.5" fill="none" stroke="#FFFFFF" stroke-width="4.4" stroke-linecap="round"/>
+    <circle cx="40.25" cy="17.5" r="2.8" fill="#6EE7B7"/>
+    <circle cx="40.25" cy="38.5" r="2.8" fill="#EC4899"/>
+  </g>
+  <text x="84" y="52" fill="#0F172A" font-family="Geist, 'Geist Sans', system-ui, -apple-system, Segoe UI, sans-serif" font-weight="800" font-size="32" letter-spacing="-0.64">Cotizador</text>
+</svg>

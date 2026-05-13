@@ -8,22 +8,18 @@
  * paleta indigo-600 (#4F46E5) + cyan-500 (#06B6D4) + pink-500 (#EC4899).
  * Cero glassmorphism dark, cero `#0b1326`.
  *
- * Layout 3 paneles (desktop lg+):
- *   ┌──────────┬────────────────────────────┬─────────────┐
- *   │ Sidebar  │     ChatInterface          │  Catálogo   │
- *   │ (left)   │     bg-slate-50            │  bg-white   │
- *   │ owned by │     mid pane               │  (w-96)     │
- *   │ parent   │                            │             │
- *   └──────────┴────────────────────────────┴─────────────┘
+ * Layout (pivot 2026-05-13 PM — catálogo como DRAWER):
+ *   ┌──────────┬────────────────────────────────────────────┐
+ *   │ Sidebar  │      ChatInterface (ancho COMPLETO)        │
+ *   │ (left)   │      bg-slate-50                           │
+ *   │ owned by │      composer y mensajes respiran          │
+ *   │ parent   │                                            │
+ *   └──────────┴────────────────────────────────────────────┘
  *
- * Este componente solo monta `[chat | catálogo]`. El Sidebar lo monta el
- * padre Server Component (`page.tsx`) para que TODO el dashboard comparta
- * el mismo shell.
- *
- * Mobile/tablet (< lg):
- *   - ChatInterface ocupa todo el viewport.
- *   - Botón flotante "Catálogo" abajo-derecha abre un drawer que cubre
- *     el viewport con el panel.
+ * El catálogo Telcel YA NO ocupa ancho del layout principal: vive en un
+ * drawer overlay (estilo Stripe Dashboard right panel) que se abre desde
+ * un botón pill en el topbar del chat. Backdrop semi-transparente +
+ * blur. Click backdrop, click X o tecla Escape cierran el drawer.
  *
  * Bridge chat↔catálogo:
  *   - `ChatInterface` expone una API `{append}` vía prop `onReady`.
@@ -31,9 +27,11 @@
  *   - El panel de catálogo recibe un callback `onCopyToChat` que llama
  *     `api.append(text)`. Si el chat aún no publicó la API (race), el
  *     callback es no-op (defensivo).
+ *   - El toggle button del catálogo lo renderiza `ChatInterface` en su
+ *     topbar; el layout le pasa `catalogoOpen` + `onToggleCatalogo`.
  */
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ChatInterface,
@@ -43,7 +41,9 @@ import { CatalogoSidebar } from "@/components/catalogo/CatalogoSidebar";
 
 export function CotizarLayout() {
   const chatApiRef = useRef<ChatInterfaceApi | null>(null);
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [catalogoOpen, setCatalogoOpen] = useState(false);
+  const drawerRef = useRef<HTMLDivElement | null>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
 
   const handleChatReady = useCallback((api: ChatInterfaceApi) => {
     chatApiRef.current = api;
@@ -51,11 +51,56 @@ export function CotizarLayout() {
 
   const handleCopyToChat = useCallback((text: string) => {
     chatApiRef.current?.append(text);
-    setMobileOpen(false);
+    // No cerramos automáticamente: el vendedor puede querer copiar varias
+    // líneas (e.g. plan + equipo) antes de regresar al chat.
   }, []);
 
+  const closeCatalogo = useCallback(() => {
+    setCatalogoOpen(false);
+  }, []);
+
+  const toggleCatalogo = useCallback(() => {
+    setCatalogoOpen((prev) => !prev);
+  }, []);
+
+  // Escape cierra el drawer cuando está abierto.
+  useEffect(() => {
+    if (!catalogoOpen) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        setCatalogoOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [catalogoOpen]);
+
+  // Focus management básico: al abrir, recordamos el foco previo y movemos
+  // foco al drawer. Al cerrar, restauramos al elemento previo (el toggle).
+  useEffect(() => {
+    if (catalogoOpen) {
+      previouslyFocusedRef.current =
+        typeof document !== "undefined"
+          ? (document.activeElement as HTMLElement | null)
+          : null;
+      // Defer al siguiente tick para que motion ya haya montado el div.
+      const id = window.setTimeout(() => {
+        drawerRef.current?.focus();
+      }, 30);
+      return () => window.clearTimeout(id);
+    }
+    // Al cerrar: restaurar foco.
+    const prev = previouslyFocusedRef.current;
+    if (prev && typeof prev.focus === "function") {
+      // Pequeño defer para evitar pelearse con AnimatePresence.
+      const id = window.setTimeout(() => prev.focus(), 0);
+      return () => window.clearTimeout(id);
+    }
+  }, [catalogoOpen]);
+
   return (
-    <div className="flex-1 min-h-0 flex flex-col lg:flex-row relative bg-slate-50">
+    <div className="flex-1 min-h-0 flex flex-col relative bg-slate-50">
       {/* Mouse-follow-style decorative gradient (21st "Animated AI Chat"
           inspiration). Soft indigo→cyan radial top-right en mid-pane; un
           spot pink-500/8 bottom-left. Pointer-events:none, fixed atrás. */}
@@ -68,58 +113,58 @@ export function CotizarLayout() {
         }}
       />
 
-      {/* Chat (middle pane, siempre presente). */}
+      {/* Chat ocupa el ancho COMPLETO del shell. El catálogo vive en un
+          drawer overlay y no resta ancho del layout principal. */}
       <div className="relative z-10 flex-1 min-h-0 flex flex-col">
-        <ChatInterface onReady={handleChatReady} />
+        <ChatInterface
+          onReady={handleChatReady}
+          catalogoOpen={catalogoOpen}
+          onToggleCatalogo={toggleCatalogo}
+        />
       </div>
 
-      {/* Catálogo desktop (lg+) inline a la derecha. CatalogoSidebar ya es
-          light internamente — solo aseguramos el wrapper coincida. */}
-      <div className="relative z-10 hidden lg:flex lg:flex-col lg:w-96 xl:w-[400px] lg:shrink-0 lg:min-h-0 lg:border-l lg:border-slate-200 lg:bg-white">
-        <CatalogoSidebar onCopyToChat={handleCopyToChat} />
-      </div>
-
-      {/* FAB para abrir catálogo en mobile/tablet. Pill gradient indigo→cyan
-          con scale-on-hover, mismo lenguaje que el send button del composer. */}
-      <button
-        type="button"
-        onClick={() => setMobileOpen(true)}
-        className="lg:hidden fixed bottom-24 right-4 z-30 inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-xs font-bold text-white bg-gradient-to-br from-indigo-600 to-cyan-500 border border-white/30 shadow-lg shadow-indigo-300/40 hover:shadow-indigo-400/60 hover:scale-105 transition"
-        aria-label="Abrir catálogo Telcel"
-      >
-        <svg
-          className="w-4 h-4"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={1.8}
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M4 4.5A2.5 2.5 0 016.5 2H20v15H6.5a2.5 2.5 0 010-5H20" />
-        </svg>
-        Catálogo
-      </button>
-
-      {/* Drawer mobile/tablet con AnimatePresence (slide-in desde la derecha). */}
+      {/* Drawer overlay: backdrop con fade + panel slide-in desde la derecha.
+          Aplica en TODO viewport (mobile, tablet, desktop) — el catálogo
+          siempre vive en un drawer que no interfiere con el chat. */}
       <AnimatePresence>
-        {mobileOpen && (
-          <motion.div
-            initial={{ x: "100%", opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: "100%", opacity: 0 }}
-            transition={{ type: "tween", ease: "easeOut", duration: 0.25 }}
-            className="lg:hidden fixed inset-0 z-40 flex flex-col bg-white"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Catálogo Telcel"
-          >
-            <CatalogoSidebar
-              onCopyToChat={handleCopyToChat}
-              onClose={() => setMobileOpen(false)}
+        {catalogoOpen && (
+          <>
+            <motion.div
+              key="catalogo-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              onClick={closeCatalogo}
+              className="fixed inset-0 z-40 bg-slate-900/30 backdrop-blur-sm"
+              aria-hidden="true"
             />
-          </motion.div>
+            <motion.div
+              key="catalogo-drawer"
+              ref={drawerRef}
+              tabIndex={-1}
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "tween", ease: "easeOut", duration: 0.28 }}
+              className="fixed top-0 right-0 bottom-0 z-50 flex flex-col w-full sm:w-96 bg-white shadow-2xl shadow-slate-900/10 border-l border-slate-200 focus:outline-none"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="catalogo-drawer-title"
+            >
+              {/* Reaprovechamos el header interno de CatalogoSidebar (h2 +
+                  close button). El h2 ya tiene texto "Catálogo Telcel"; le
+                  pasamos id implícito a través de su markup — aquí inyectamos
+                  un wrapper con id para que aria-labelledby ancle. */}
+              <div id="catalogo-drawer-title" className="sr-only">
+                Catálogo Telcel
+              </div>
+              <CatalogoSidebar
+                onCopyToChat={handleCopyToChat}
+                onClose={closeCatalogo}
+              />
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
     </div>

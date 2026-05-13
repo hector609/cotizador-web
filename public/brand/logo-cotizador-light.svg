@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Cotizador · Wordmark invertido (LUMINA, dark / gradient backgrounds)
+  240x80 viewBox (3:1). Iconmark = glass tile (white/10 fill + white/30 stroke),
+  símbolo "C" en gradient cyan → white. Wordmark blanco puro.
+  Construcción:
+    1. <rect> glass: fill rgba(255,255,255,0.10) + stroke rgba(255,255,255,0.30).
+    2. Arc con gradient #06B6D4 → #FFFFFF.
+    3. Dots: cyan-200 #A5F3FC + pink-300 #F9A8D4 (pastel para legibilidad en oscuro).
+    4. Wordmark blanco.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 80" width="240" height="80" role="img" aria-label="Cotizador">
+  <defs>
+    <linearGradient id="cz-arc-light" x1="20" y1="14" x2="44" y2="42" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#06B6D4"/>
+      <stop offset="1" stop-color="#FFFFFF"/>
+    </linearGradient>
+  </defs>
+  <g id="mark-light" transform="translate(12 12)">
+    <rect x="0.75" y="0.75" width="54.5" height="54.5" rx="14" ry="14" fill="rgba(255,255,255,0.10)" stroke="rgba(255,255,255,0.30)" stroke-width="1.5"/>
+    <path d="M38.5 19.25a12.25 12.25 0 1 0 0 17.5" fill="none" stroke="url(#cz-arc-light)" stroke-width="4.4" stroke-linecap="round"/>
+    <circle cx="40.25" cy="17.5" r="2.8" fill="#A5F3FC"/>
+    <circle cx="40.25" cy="38.5" r="2.8" fill="#F9A8D4"/>
+  </g>
+  <text x="84" y="52" fill="#FFFFFF" font-family="Geist, 'Geist Sans', system-ui, -apple-system, Segoe UI, sans-serif" font-weight="800" font-size="32" letter-spacing="-0.64">Cotizador</text>
+</svg>

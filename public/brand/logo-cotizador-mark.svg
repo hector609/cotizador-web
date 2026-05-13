@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Cotizador · Iconmark (LUMINA)
+  64x64 rounded-2xl tile, indigo-600 → cyan-500 gradient.
+  Construcción:
+    1. <rect> tile fondo con linearGradient diagonal (#4F46E5 → #06B6D4).
+    2. Arco abierto blanco = "C" estilizada (stroke-linecap round).
+    3. Dot mint #6EE7B7 (esquina superior derecha del arco).
+    4. Dot pink #EC4899 (esquina inferior derecha del arco, "pop").
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Cotizador">
+  <defs>
+    <linearGradient id="cz-tile" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#4F46E5"/>
+      <stop offset="1" stop-color="#06B6D4"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" ry="16" fill="url(#cz-tile)"/>
+  <path d="M44 22a14 14 0 1 0 0 20" fill="none" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="46" cy="20" r="3.2" fill="#6EE7B7"/>
+  <circle cx="46" cy="44" r="3.2" fill="#EC4899"/>
+</svg>
