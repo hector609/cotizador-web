@@ -37,6 +37,29 @@ import {
 const MAX_MESSAGE_LEN = 2000;
 
 /**
+ * API expuesta a través del prop `onReady` para que el padre (e.g. el panel
+ * de catálogo) pueda escribir al composer SIN auto-enviar. Solo `append` por
+ * ahora — agregar más métodos requiere extender este contrato.
+ */
+export interface ChatInterfaceApi {
+  /**
+   * Inserta texto al final del draft del composer. Si el draft tiene
+   * contenido, antepone newline para que cada copia quede en su propia
+   * línea. Hace foco al textarea al final.
+   */
+  append: (text: string) => void;
+}
+
+interface ChatInterfaceProps {
+  /**
+   * Callback opcional invocado UNA VEZ al montar, recibiendo la API del
+   * chat. Diseñado para que el panel de catálogo lateral pueda empujar
+   * texto al composer (Copiar al chat) sin acoplar componentes.
+   */
+  onReady?: (api: ChatInterfaceApi) => void;
+}
+
+/**
  * Clave de sessionStorage que `/dashboard/optimizar` usa para pasarnos el
  * payload con las palancas óptimas (ver `OptimizarPage.handleAplicarYCotizar`).
  * Leemos UNA sola vez al montar y borramos la entrada para que un refresh
@@ -96,7 +119,7 @@ function buildOptimizarPrompt(h: OptimizarHandoff): string {
   return partes.join("\n");
 }
 
-export function ChatInterface() {
+export function ChatInterface({ onReady }: ChatInterfaceProps = {}) {
   const {
     messages,
     sending,
@@ -111,6 +134,32 @@ export function ChatInterface() {
   const [draft, setDraft] = useState("");
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  /**
+   * Expone la API al padre una sola vez (StrictMode-safe: el ref `notified`
+   * evita doble registro en doble-mount de desarrollo). El `setDraft` es
+   * estable de React, y construimos `append` inline cada vez pero sólo
+   * llamamos a `onReady` una vez — el padre guarda la función y nuestras
+   * referencias internas (`setDraft`, `textareaRef`) son válidas durante
+   * todo el ciclo de vida del componente, así no necesitamos re-publicar.
+   */
+  const apiPublishedRef = useRef(false);
+  useEffect(() => {
+    if (!onReady || apiPublishedRef.current) return;
+    apiPublishedRef.current = true;
+    onReady({
+      append: (text: string) => {
+        if (!text) return;
+        setDraft((prev) => {
+          const sep = prev.trim().length > 0 ? "\n" : "";
+          const next = `${prev}${sep}${text}`;
+          return next.slice(0, MAX_MESSAGE_LEN);
+        });
+        // Foco al textarea para que el siguiente Enter envíe.
+        setTimeout(() => textareaRef.current?.focus(), 0);
+      },
+    });
+  }, [onReady]);
 
   /**
    * Handoff desde /dashboard/optimizar: si el vendedor pulsó "Aplicar y

@@ -1,16 +1,23 @@
 import { getSession } from "@/lib/auth";
-import { ChatInterface } from "@/components/chat/ChatInterface";
+import { CotizarLayout } from "@/components/chat/CotizarLayout";
 import { DashboardNav } from "../_nav";
 
 /**
- * /dashboard/cotizar — chat UI conversacional.
+ * /dashboard/cotizar — chat UI conversacional + panel lateral de catálogo.
  *
  * Reemplaza el wizard multi-paso anterior (que el owner detesta) por una
  * conversación con el agente Claude. Toda la lógica vive en client-side; este
  * Server Component solo:
  *   1. Verifica la sesión (redirige a /login si no hay).
  *   2. Renderiza la nav unificada del dashboard.
- *   3. Monta `<ChatInterface />`.
+ *   3. Monta `<CotizarLayout />` (chat + catálogo Telcel al lado).
+ *
+ * El panel lateral muestra el catálogo REAL (planes y equipos) con filtros
+ * encadenados, para que el vendedor copie nombres exactos al composer en vez
+ * de inventar combos imposibles (e.g. PORTABILIDAD + EMPRESA 9 + 24m +
+ * ARRENDAMIENTO) que reventarían la cotización. La validación server-side
+ * sigue siendo el escudo final, pero el panel evita que el usuario llegue a
+ * armar combinaciones que no existen.
  *
  * El H1 corporativo no se repite aquí (lo deja el dashboard home): el header
  * propio del chat ("Nueva cotización") es suficiente.
@@ -30,9 +37,7 @@ export default async function CotizarPage() {
   return (
     <main className="h-screen bg-slate-50 flex flex-col overflow-hidden">
       <DashboardNav active="cotizar" />
-      <div className="flex-1 min-h-0 flex flex-col">
-        <ChatInterface />
-      </div>
+      <CotizarLayout />
     </main>
   );
 }
