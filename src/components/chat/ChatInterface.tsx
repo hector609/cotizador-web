@@ -368,6 +368,44 @@ export function ChatInterface({
     };
   }, []);
 
+  // Handoff desde /dashboard/cliente/[rfc] — query param `?rfc=...` indica
+  // que el vendedor pulsó "Cotizar para este cliente". Pre-llenamos el draft
+  // con "Cotiza para mi cliente <RFC>: " para que la IA ya conozca el cliente
+  // sin re-preguntar. El vendedor solo añade equipos/plan. Validamos formato
+  // RFC (12 PM o 13 PF chars alfanuméricos) y limpiamos el query param para
+  // que un back/refresh no vuelva a disparar el prefill.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const raw = params.get("rfc");
+      if (!raw) return;
+      const rfc = raw.trim().toUpperCase();
+      // Validar formato (PM 12 chars o PF 13 chars, solo alfanumérico)
+      if (!/^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/.test(rfc)) return;
+      // Limpiar query string sin recargar la página
+      const url = new URL(window.location.href);
+      url.searchParams.delete("rfc");
+      window.history.replaceState({}, "", url.toString());
+      // Prefill solo si el draft está vacío (no pisar texto del usuario)
+      setDraft((cur) => {
+        if (cur && cur.trim().length > 0) return cur;
+        return `Cotiza para mi cliente ${rfc}: `;
+      });
+      setTimeout(() => {
+        const ta = textareaRef.current;
+        if (ta) {
+          ta.focus();
+          // Mover cursor al final para que el vendedor escriba a continuación
+          const len = ta.value.length;
+          ta.setSelectionRange(len, len);
+        }
+      }, 0);
+    } catch {
+      // URLSearchParams o regex errors — ignorar silente.
+    }
+  }, []);
+
   // Auto-scroll al final.
   useEffect(() => {
     const el = scrollRef.current;
