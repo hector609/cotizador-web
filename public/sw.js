@@ -2,7 +2,7 @@
 // Estrategia: app-shell con cache estático + network-first para API.
 // Versión: bump CACHE_NAME cuando se cambien assets estáticos para forzar refresh.
 
-const CACHE_NAME = 'cotizador-hectoria-v1';
+const CACHE_NAME = 'cotizador-hectoria-v2-2026-05-13-rediseno';
 const STATIC_ASSETS = [
   '/',
   '/manifest.json',
