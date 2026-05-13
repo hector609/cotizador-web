@@ -18,6 +18,7 @@ import {
   ServerStackIcon,
   UsersIcon,
 } from "@/components/icons";
+import { ConciergeWidget } from "@/components/concierge/ConciergeWidget";
 
 /* ---------------------------------------------------------------------- */
 /* LUMINA Light Premium — framer-motion + Recharts + NumberFlow            */
@@ -114,6 +115,7 @@ export default function Home() {
       <PricingTeaser />
       <FinalCTA />
       <Footer />
+      <ConciergeWidget />
     </main>
   );
 }

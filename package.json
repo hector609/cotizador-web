@@ -6,9 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.96.0",
     "@number-flow/react": "^0.6.0",
     "clsx": "^2.1.1",
     "framer-motion": "^12.38.0",
@@ -21,7 +24,9 @@
     "tailwind-merge": "^3.6.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@tailwindcss/postcss": "^4",
+    "@types/dom-speech-recognition": "^0.0.11",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

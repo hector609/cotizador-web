@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ServiceWorkerRegister } from "./sw-register";
+import { Toaster } from "@/components/toast/Toaster";
+import { CommandPalette } from "@/components/command-palette/CommandPalette";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -56,6 +58,8 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         {children}
         <ServiceWorkerRegister />
+        <Toaster />
+        <CommandPalette />
       </body>
     </html>
   );

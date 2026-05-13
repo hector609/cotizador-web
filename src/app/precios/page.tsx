@@ -14,6 +14,7 @@ import {
   MapPinIcon,
   ServerStackIcon,
 } from "@/components/icons";
+import { ConciergeWidget } from "@/components/concierge/ConciergeWidget";
 
 /* ---------------------------------------------------------------------- */
 /* Precios — LUMINA Light Premium                                          */
@@ -220,6 +221,7 @@ export default function PreciosPage() {
       <FaqSection />
       <FinalCTA />
       <Footer />
+      <ConciergeWidget />
     </main>
   );
 }

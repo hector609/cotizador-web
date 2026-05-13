@@ -1,0 +1,77 @@
+name: E2E (Playwright)
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    name: Playwright chromium
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install deps
+        run: npm ci
+
+      # `--with-deps` instala apt packages (libnss3, libatk, etc) que el
+      # binario de chromium necesita. Solo chromium para reducir el download.
+      - name: Install Playwright browsers
+        run: npx playwright install chromium --with-deps
+
+      - name: Build Next.js
+        run: npm run build
+        env:
+          # Build-time stubs — el SESSION_SECRET real solo aplica a runtime
+          # del dashboard, pero Next.js durante el build evalua los module-
+          # loads de /lib/auth.ts. `getSessionSecret()` es lazy así que un
+          # placeholder vacío basta para `next build`.
+          SESSION_SECRET: ci-e2e-placeholder-32-chars-min-aaaaa
+          # No queremos que el build trate de hablar con Anthropic ni con el
+          # backend real durante CI.
+          ANTHROPIC_API_KEY: ci-placeholder
+          BACKEND_URL: http://localhost:9999
+          BACKEND_HMAC_SECRET: ci-e2e-placeholder
+
+      - name: Start Next.js
+        run: npm start &
+        env:
+          SESSION_SECRET: ci-e2e-placeholder-32-chars-min-aaaaa
+          ANTHROPIC_API_KEY: ci-placeholder
+          BACKEND_URL: http://localhost:9999
+          BACKEND_HMAC_SECRET: ci-e2e-placeholder
+
+      - name: Wait for server
+        run: npx wait-on http://localhost:3000 --timeout 60000
+
+      - name: Run Playwright tests
+        run: npx playwright test
+        env:
+          BASE_URL: http://localhost:3000
+          CI: "true"
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Upload test traces / screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results
+          path: e2e-results/
+          retention-days: 7

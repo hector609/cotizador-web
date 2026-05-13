@@ -35,6 +35,7 @@ import {
   Save,
 } from "lucide-react";
 import { Sidebar, type SidebarKey } from "@/components/admin/Sidebar";
+import { toast } from "@/components/toast/useToast";
 
 interface CredsMeta {
   usuario: string; // enmascarado, ej "j***@empresa.com"
@@ -105,6 +106,10 @@ export default function ConfiguracionPage() {
     }
 
     setSubmitting(true);
+    // Demo de uso del sistema de toasts LUMINA: loading mientras submit
+    // corre, success/error al cerrar. La UI inline (submitError/submitOk)
+    // se mantiene como hasta ahora.
+    const loadingId = toast.loading("Guardando credenciales…");
     try {
       const res = await fetch("/api/tenant/credentials", {
         method: "POST",
@@ -112,19 +117,25 @@ export default function ConfiguracionPage() {
         body: JSON.stringify({ usuario: u, password }),
       });
       if (res.status === 401) {
+        toast.dismiss(loadingId);
         window.location.href = "/login";
         return;
       }
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
-        setSubmitError(data.error || "No se pudieron guardar las credenciales.");
+        const msg = data.error || "No se pudieron guardar las credenciales.";
+        setSubmitError(msg);
+        toast.error(msg, { id: loadingId });
         return;
       }
       setSubmitOk(true);
       setPassword(""); // borrar password del estado tras éxito.
+      toast.success("Credenciales guardadas y cifradas.", { id: loadingId });
       await loadMeta();
     } catch {
-      setSubmitError("Error de red al guardar.");
+      const msg = "Error de red al guardar.";
+      setSubmitError(msg);
+      toast.error(msg, { id: loadingId });
     } finally {
       setSubmitting(false);
     }

@@ -49,6 +49,11 @@ import {
   type JobState,
   type PollingStage,
 } from "@/lib/hooks/useChatCotizar";
+import {
+  useAriaCoPilot,
+  type AriaSuggestion,
+} from "@/lib/hooks/useAriaCoPilot";
+import { AriaCoPilot } from "./AriaCoPilot";
 import { DocumentTextIcon, PhotoIcon } from "@/components/icons";
 
 const MAX_MESSAGE_LEN = 2000;
@@ -166,6 +171,154 @@ export function ChatInterface({
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   useAutoResizeTextarea(textareaRef, draft);
+
+  // --- Aria CoPilot state (side-panel) ---
+  // Aria observa el state del chat sin tocar el hook useChatCotizar. Aquí
+  // hacemos un parse defensivo del draft para extraer RFC/plan/tramite/plazo
+  // sin esperar a que el backend nos los devuelva. Si el campo aparece en el
+  // draft Aria puede reaccionar EN VIVO mientras el vendedor escribe; si no,
+  // confiamos en el resultado del agente cuando llegue.
+  const [ariaOpen, setAriaOpen] = useState(false);
+  // ms del último cambio en el draft — para detectar idle de 3min.
+  const [draftLastChangeAt, setDraftLastChangeAt] = useState<number>(() =>
+    Date.now(),
+  );
+  const [idleMs, setIdleMs] = useState(0);
+
+  // Reloj de idle: refresca cada 30s. Solo "tiquea" mientras hay draft no
+  // enviado, para no malgastar cómputo cuando el composer está vacío o se
+  // completó una cotización.
+  useEffect(() => {
+    if (draft.trim().length === 0) {
+      setIdleMs(0);
+      return;
+    }
+    const tick = () => setIdleMs(Date.now() - draftLastChangeAt);
+    tick();
+    const id = setInterval(tick, 30_000);
+    return () => clearInterval(id);
+  }, [draft, draftLastChangeAt]);
+
+  // Snapshot del estado actual para Aria. Parseo defensivo del draft —
+  // best-effort, NO bloquea el flow si falla.
+  const ariaSnapshot = useMemo(() => {
+    const text = draft.toUpperCase();
+    const rfcMatch = text.match(/\b[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}\b/);
+    const plazoMatch = text.match(/(\d{1,2})\s*MESES?/);
+    let tramite: string | undefined;
+    if (/CAMBIO\s*PLAN/.test(text)) tramite = "CAMBIO PLAN";
+    else if (/RENOVACION/.test(text)) tramite = "RENOVACION";
+    else if (/ACTIVACION/.test(text)) tramite = "ACTIVACION";
+    let plan: string | undefined;
+    const planMatch = text.match(/PLAN\s+([A-Z0-9 ]{3,40})/);
+    if (planMatch) plan = planMatch[1].trim().split(/\s{2,}|,|\./)[0].slice(0, 50);
+    if (/VPN/.test(text) && !plan) plan = "VPN";
+
+    // lastABResult: intentamos extraerlo de la última respuesta del agente
+    // que mencione "A/B X%" o "rentabilidad X%". Si no la encontramos, null.
+    let lastAB: number | null = null;
+    if (job.kind === "completed") {
+      for (let i = messages.length - 1; i >= 0; i--) {
+        const m = messages[i];
+        if (m.role !== "agent") continue;
+        const abMatch =
+          m.text.match(/A\/B[^\d]{0,8}(\d{1,3}(?:[.,]\d+)?)\s*%/i) ||
+          m.text.match(/rentabilidad[^\d]{0,12}(\d{1,3}(?:[.,]\d+)?)\s*%/i);
+        if (abMatch) {
+          const v = Number(abMatch[1].replace(",", "."));
+          if (Number.isFinite(v) && v >= 0 && v <= 100) lastAB = v;
+          break;
+        }
+      }
+    }
+
+    return {
+      rfc: rfcMatch ? rfcMatch[0] : undefined,
+      plan,
+      tramite,
+      plazo: plazoMatch ? Number(plazoMatch[1]) : undefined,
+      draft,
+      lastABResult: lastAB,
+      idleMs,
+    };
+  }, [draft, idleMs, job.kind, messages]);
+
+  // Handler de "apply" — el callback_id define cómo mutar el draft o navegar.
+  // NO toca useChatCotizar; solo manipulamos `draft` vía setDraft.
+  const handleAriaApply = useCallback((s: AriaSuggestion) => {
+    if (!s.action) return;
+    const { callback_id, params = {} } = s.action;
+    if (callback_id === "set_tramite") {
+      const nuevo = String(params.tramite || "").trim();
+      if (!nuevo) return;
+      setDraft((prev) => {
+        // Reemplaza el trámite existente o agrega línea nueva.
+        const upper = prev.toUpperCase();
+        if (
+          /ACTIVACION|RENOVACION|CAMBIO\s*PLAN/.test(upper)
+        ) {
+          return prev.replace(
+            /ACTIVACION|RENOVACION|CAMBIO\s*PLAN/gi,
+            nuevo,
+          );
+        }
+        const sep = prev.trim().length > 0 ? "\n" : "";
+        return `${prev}${sep}Trámite: ${nuevo}`.slice(0, MAX_MESSAGE_LEN);
+      });
+      setTimeout(() => textareaRef.current?.focus(), 0);
+      return;
+    }
+    if (callback_id === "compose_template") {
+      const tpl =
+        typeof params.text === "string"
+          ? params.text
+          : "RFC: \nLíneas: \nPlan: \nEquipo: ";
+      setDraft((prev) => (prev.trim().length > 0 ? prev : tpl).slice(0, MAX_MESSAGE_LEN));
+      setTimeout(() => textareaRef.current?.focus(), 0);
+      return;
+    }
+    if (callback_id === "compose_multiperfil") {
+      const extra = Number(params.lineas_extra) || 2;
+      setDraft((prev) => {
+        const sep = prev.trim().length > 0 ? "\n" : "";
+        return `${prev}${sep}Agrega ${extra} líneas adicionales para mejorar rentabilidad (multi-perfil).`.slice(
+          0,
+          MAX_MESSAGE_LEN,
+        );
+      });
+      setTimeout(() => textareaRef.current?.focus(), 0);
+      return;
+    }
+    if (callback_id === "navigate" && typeof params.path === "string") {
+      window.location.href = params.path;
+      return;
+    }
+    if (callback_id === "apply_palanca") {
+      // Re-emitimos a /optimizar con los params como sessionStorage handoff
+      // inverso. El owner ya tiene flujo desde /optimizar → /cotizar; aquí
+      // solo navegamos.
+      window.location.href = "/dashboard/optimizar";
+      return;
+    }
+  }, []);
+
+  const aria = useAriaCoPilot(ariaSnapshot, handleAriaApply);
+
+  // Auto-abre Aria cuando llega una sugerencia de alta prioridad y el panel
+  // está colapsado. NO se reabre si el usuario la cerró manualmente para el
+  // mismo set de sugerencias (rastreamos `lastAutoOpenedKey`).
+  const lastAutoOpenedKeyRef = useRef<string>("");
+  useEffect(() => {
+    if (aria.suggestions.length === 0) return;
+    const hasHighPriority = aria.suggestions.some(
+      (s) => s.level === "warn" || s.level === "action",
+    );
+    if (!hasHighPriority) return;
+    const key = aria.suggestions.map((s) => s.id).join("|");
+    if (key === lastAutoOpenedKeyRef.current) return;
+    lastAutoOpenedKeyRef.current = key;
+    setAriaOpen(true);
+  }, [aria.suggestions]);
 
   // Reloj global de la sesión.
   const [sessionStart] = useState<number>(() => Date.now());
@@ -473,7 +626,10 @@ export function ChatInterface({
             <textarea
               ref={textareaRef}
               value={draft}
-              onChange={(e) => setDraft(e.target.value.slice(0, MAX_MESSAGE_LEN))}
+              onChange={(e) => {
+                setDraft(e.target.value.slice(0, MAX_MESSAGE_LEN));
+                setDraftLastChangeAt(Date.now());
+              }}
               onKeyDown={handleKeyDown}
               placeholder={placeholder}
               disabled={inputDisabled}
@@ -546,6 +702,18 @@ export function ChatInterface({
           </div>
         </div>
       </form>
+
+      {/* Aria CoPilot side-panel — fixed top-right, debajo del topbar.
+          Collapsable; NO afecta layout del chat. z-30 < drawer catálogo z-40. */}
+      <AriaCoPilot
+        suggestions={aria.suggestions}
+        loading={aria.loading}
+        open={ariaOpen}
+        onToggle={() => setAriaOpen((v) => !v)}
+        onClose={() => setAriaOpen(false)}
+        onApply={aria.apply}
+        onDismiss={aria.dismiss}
+      />
     </div>
   );
 }
