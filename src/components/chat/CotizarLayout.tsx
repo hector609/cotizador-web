@@ -56,26 +56,38 @@ export function CotizarLayout() {
         <ChatInterface onReady={handleChatReady} />
       </div>
 
-      {/* Catálogo: desktop inline (md+), mobile drawer */}
-      <div className="hidden md:flex md:flex-col md:w-[360px] lg:w-[400px] md:shrink-0 md:min-h-0">
+      {/* Catálogo: desktop inline (lg+, audit B6 — antes md+ ahogaba el chat
+          en tablet), mobile/tablet drawer flotante. */}
+      <div className="hidden lg:flex lg:flex-col lg:w-[360px] xl:w-[400px] lg:shrink-0 lg:min-h-0 lg:border-l lg:border-slate-200 lg:bg-white">
         <CatalogoSidebar onCopyToChat={handleCopyToChat} />
       </div>
 
-      {/* Mobile FAB para abrir catálogo */}
+      {/* FAB para abrir catálogo (mobile + tablet) */}
       <button
         type="button"
         onClick={() => setMobileOpen(true)}
-        className="md:hidden fixed bottom-20 right-4 z-30 bg-blue-700 text-white text-xs font-semibold rounded-full shadow-lg px-4 py-2.5 hover:bg-blue-800 transition flex items-center gap-1.5"
+        className="lg:hidden fixed bottom-24 right-4 z-30 bg-blue-700 text-white text-xs font-semibold rounded-full shadow-md px-4 py-2.5 hover:bg-blue-800 transition inline-flex items-center gap-2"
         aria-label="Abrir catálogo Telcel"
       >
-        <span aria-hidden="true">📋</span>
+        <svg
+          className="w-4 h-4"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.8}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M4 4.5A2.5 2.5 0 016.5 2H20v15H6.5a2.5 2.5 0 010-5H20" />
+        </svg>
         Catálogo
       </button>
 
-      {/* Mobile drawer */}
+      {/* Drawer mobile/tablet */}
       {mobileOpen && (
         <div
-          className="md:hidden fixed inset-0 z-40 flex flex-col bg-white"
+          className="lg:hidden fixed inset-0 z-40 flex flex-col bg-white"
           role="dialog"
           aria-modal="true"
           aria-label="Catálogo Telcel"

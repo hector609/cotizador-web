@@ -16,6 +16,7 @@
  */
 
 import type {
+  Cotizacion,
   CrearCotizacionInput,
   CrearCotizacionResponse,
   ListarCotizacionesResponse,
@@ -23,6 +24,58 @@ import type {
 import { signBackendRequest } from "@/lib/backend-auth";
 
 const BOT_API_URL = process.env.BOT_API_URL || "https://cmdemobot.fly.dev";
+
+/**
+ * El backend (v120, ver backend audit 2026-05-13) devuelve `pdf_url` /
+ * `pdf_url_interno` como paths RELATIVOS al upstream del bot:
+ *   "/api/v1/cotizaciones/<folio>/pdf"
+ *   "/api/v1/cotizaciones/<folio>/pdf?formato=interno"
+ *
+ * Si los usáramos tal cual en `<a href>` desde el browser, el browser los
+ * resolvería contra el host del frontend (cotizador.hectoria.mx) que no
+ * sirve esas rutas — el link rompe. Reescribimos al proxy del frontend
+ * (`/api/cotizaciones/<folio>/pdf?formato=...`) que streamea desde el bot
+ * con autenticación X-Auth firmada server-side (ver pdf/route.ts).
+ *
+ * `cotId` en el listing es el folio Telcel (alfanumérico) o un hash sintético;
+ * el proxy /pdf acepta ambos via `ID_REGEX = /^[A-Za-z0-9_-]{1,64}$/`.
+ */
+const BACKEND_PDF_PATH_RE =
+  /^\/api\/v1\/cotizaciones\/([A-Za-z0-9_-]{1,64})\/pdf(?:\?formato=(cliente|interno))?$/;
+
+function rewritePdfUrl(
+  raw: unknown,
+  cotId: string,
+  defaultFormato: "cliente" | "interno"
+): string | undefined {
+  if (typeof raw !== "string" || !raw) return undefined;
+  const m = BACKEND_PDF_PATH_RE.exec(raw);
+  if (!m) return undefined;
+  const pathId = m[1];
+  if (pathId !== cotId) return undefined;
+  const formato = m[2] || defaultFormato;
+  return `/api/cotizaciones/${encodeURIComponent(cotId)}/pdf?formato=${formato}`;
+}
+
+/**
+ * Reescribe los `pdf_url`/`pdf_url_interno` de cada cotización del listing al
+ * path del proxy frontend. Si el campo no matchea el patrón conocido, lo
+ * descartamos (no inventamos URLs, mismo principio que [id]/route.ts).
+ */
+function rewriteListing(
+  data: ListarCotizacionesResponse
+): ListarCotizacionesResponse {
+  const cotizaciones = data.cotizaciones.map((c): Cotizacion => {
+    const pdfUrl = rewritePdfUrl(c.pdf_url, c.id, "cliente");
+    const pdfUrlInterno = rewritePdfUrl(c.pdf_url_interno, c.id, "interno");
+    return {
+      ...c,
+      pdf_url: pdfUrl,
+      pdf_url_interno: pdfUrlInterno,
+    };
+  });
+  return { ...data, cotizaciones };
+}
 
 export interface ListarCotizacionesParams {
   limit?: number;
@@ -107,7 +160,7 @@ export async function listarCotizaciones(
   }
   try {
     const data = (await upstream.json()) as ListarCotizacionesResponse;
-    return { ok: true, data };
+    return { ok: true, data: rewriteListing(data) };
   } catch (e) {
     console.error("[listarCotizaciones] json parse", e);
     return { ok: false, status: 502, message: "Respuesta inválida del backend" };

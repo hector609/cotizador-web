@@ -33,6 +33,11 @@ import {
   type JobState,
   type PollingStage,
 } from "@/lib/hooks/useChatCotizar";
+import {
+  ArrowUpTrayIcon,
+  PaperAirplaneIcon,
+  DocumentTextIcon,
+} from "@/components/icons";
 
 const MAX_MESSAGE_LEN = 2000;
 
@@ -240,33 +245,25 @@ export function ChatInterface({ onReady }: ChatInterfaceProps = {}) {
 
   return (
     <div className="flex flex-col flex-1 min-h-0 bg-slate-50">
-      {/* Header */}
-      <header className="bg-white border-b border-slate-200 px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
+      {/* Header del chat — H1 propio (audit A1: cada página dashboard debe
+          tener H1). El topbar global ya está montado por el padre. */}
+      <header className="bg-white border-b border-slate-200 px-4 sm:px-6 py-4 flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="text-base sm:text-lg font-semibold text-slate-900 truncate">
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900">
             Nueva cotización
           </h1>
-          <p className="text-xs text-slate-500 hidden sm:block">
+          <p className="mt-0.5 text-sm text-slate-600 hidden sm:block">
             Conversa con el asistente hasta tener todo. Genera el PDF oficial.
           </p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <Link
-            href="/dashboard/cotizar-excel"
-            className="text-xs sm:text-sm text-slate-600 hover:text-blue-700 underline underline-offset-2 whitespace-nowrap"
-            title="Cotizar desde plantilla Excel"
-          >
-            Subir Excel →
-          </Link>
-          <button
-            type="button"
-            onClick={resetChat}
-            className="text-xs sm:text-sm text-slate-500 hover:text-slate-900 px-2 py-1 rounded hover:bg-slate-100 transition"
-            title="Reiniciar conversación"
-          >
-            Reiniciar
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={resetChat}
+          className="text-xs sm:text-sm text-slate-600 hover:text-slate-900 px-3 py-1.5 rounded-md hover:bg-slate-100 transition shrink-0"
+          title="Reiniciar conversación"
+        >
+          Reiniciar
+        </button>
       </header>
 
       {/* Mensajes */}
@@ -276,6 +273,10 @@ export function ChatInterface({ onReady }: ChatInterfaceProps = {}) {
         aria-live="polite"
       >
         <div className="max-w-3xl mx-auto space-y-4">
+          {messages.length === 0 && !sending && job.kind === "idle" && (
+            <ChatEmptyState />
+          )}
+
           {messages.map((m) => (
             <MessageBubble key={m.id} message={m} />
           ))}
@@ -287,7 +288,11 @@ export function ChatInterface({ onReady }: ChatInterfaceProps = {}) {
           )}
 
           {job.kind === "completed" && job.pdfUrl && (
-            <CompletedCard pdfUrl={job.pdfUrl} onReset={resetChat} />
+            <CompletedCard
+              pdfUrl={job.pdfUrl}
+              folio={job.id}
+              onReset={resetChat}
+            />
           )}
 
           {job.kind === "completed" && !job.pdfUrl && (
@@ -325,34 +330,73 @@ export function ChatInterface({ onReady }: ChatInterfaceProps = {}) {
         onSubmit={handleSubmit}
         className="bg-white border-t border-slate-200 px-3 sm:px-6 py-3"
       >
-        <div className="max-w-3xl mx-auto flex items-end gap-2">
-          <textarea
-            ref={textareaRef}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value.slice(0, MAX_MESSAGE_LEN))}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder}
-            disabled={inputDisabled}
-            rows={1}
-            maxLength={MAX_MESSAGE_LEN}
-            className="flex-1 resize-none rounded-xl border border-slate-300 px-4 py-2.5 text-sm leading-6 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed"
-            aria-label="Mensaje al asistente"
-          />
-          <button
-            type="submit"
-            disabled={inputDisabled || draft.trim().length === 0}
-            className="shrink-0 px-4 py-2.5 bg-blue-700 text-white text-sm font-semibold rounded-xl hover:bg-blue-800 disabled:opacity-40 disabled:cursor-not-allowed transition"
-            aria-label="Enviar mensaje"
-          >
-            {sending ? "…" : "Enviar"}
-          </button>
+        <div className="max-w-3xl mx-auto">
+          <div className="flex items-end gap-2">
+            <Link
+              href="/dashboard/cotizar-excel"
+              className="shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-lg border border-slate-300 text-slate-600 hover:text-blue-700 hover:border-blue-400 hover:bg-blue-50 transition"
+              title="Cotizar desde plantilla Excel"
+              aria-label="Adjuntar Excel"
+            >
+              <ArrowUpTrayIcon className="w-5 h-5" />
+            </Link>
+            <textarea
+              ref={textareaRef}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value.slice(0, MAX_MESSAGE_LEN))}
+              onKeyDown={handleKeyDown}
+              placeholder={placeholder}
+              disabled={inputDisabled}
+              rows={1}
+              maxLength={MAX_MESSAGE_LEN}
+              className="flex-1 resize-none rounded-lg border border-slate-300 px-4 py-2.5 text-sm leading-6 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed"
+              aria-label="Mensaje al asistente"
+            />
+            <button
+              type="submit"
+              disabled={inputDisabled || draft.trim().length === 0}
+              className="shrink-0 inline-flex items-center gap-1.5 px-4 h-10 bg-blue-700 text-white text-sm font-semibold rounded-lg hover:bg-blue-800 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-md"
+              aria-label="Enviar mensaje"
+            >
+              <span className="hidden sm:inline">{sending ? "…" : "Enviar"}</span>
+              <PaperAirplaneIcon className="w-4 h-4 sm:hidden" />
+            </button>
+          </div>
+          <div className="mt-1.5 flex items-center justify-between text-xs text-slate-400">
+            <span>Enter para enviar · Shift+Enter para nueva línea</span>
+            {draft.length > MAX_MESSAGE_LEN - 200 && (
+              <span className="tabular-nums">
+                {draft.length} / {MAX_MESSAGE_LEN}
+              </span>
+            )}
+          </div>
         </div>
-        {draft.length > MAX_MESSAGE_LEN - 100 && (
-          <p className="max-w-3xl mx-auto mt-1 text-xs text-slate-400">
-            {draft.length} / {MAX_MESSAGE_LEN}
-          </p>
-        )}
       </form>
+    </div>
+  );
+}
+
+/**
+ * Estado vacío del chat (sin mensajes aún). Reduce la "sábana blanca" inicial
+ * y le da al vendedor 3 ejemplos concretos de cómo arrancar — copy directo,
+ * sin emojis (style-guide §5.1).
+ */
+function ChatEmptyState() {
+  return (
+    <div className="text-center py-8">
+      <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-50 mb-4">
+        <DocumentTextIcon className="w-6 h-6 text-blue-700" />
+      </div>
+      <h2 className="text-base font-semibold text-slate-900">
+        Cuéntale al asistente qué necesitas cotizar
+      </h2>
+      <p className="mt-1.5 text-sm text-slate-600 max-w-md mx-auto leading-relaxed">
+        RFC del cliente, número de líneas, plan y equipo si aplica. El
+        asistente pregunta lo que falte y devuelve el PDF en 3-5 minutos.
+      </p>
+      <p className="mt-4 text-xs text-slate-500">
+        Ejemplo: <span className="font-mono text-slate-700">XAXX010101000, 25 líneas, plan EMPRESA 500, iPhone 15</span>
+      </p>
     </div>
   );
 }
@@ -375,10 +419,10 @@ function MessageBubble({ message }: { message: ChatMessage }) {
       {!isUser && <AgentAvatar />}
       <div
         className={[
-          "max-w-[85%] sm:max-w-[75%] rounded-2xl px-4 py-2.5 text-sm leading-6 whitespace-pre-wrap break-words",
+          "max-w-[85%] sm:max-w-md rounded-2xl px-4 py-2.5 text-sm leading-6 whitespace-pre-wrap break-words",
           isUser
             ? "bg-blue-700 text-white rounded-br-sm"
-            : "bg-white border border-slate-200 text-slate-900 rounded-bl-sm shadow-sm",
+            : "bg-slate-50 border border-slate-200 text-slate-900 rounded-bl-sm",
         ].join(" ")}
       >
         {message.text}
@@ -388,10 +432,13 @@ function MessageBubble({ message }: { message: ChatMessage }) {
 }
 
 function AgentAvatar() {
+  // Avatar plano (style-guide §5.2 prohíbe gradientes saturados/multi-stop
+  // y §5.5 prohíbe sombras de color). Mantenemos blue-100/blue-700 — mismo
+  // sistema que badges primary y el dot de RecienteRow.
   return (
     <div
       aria-hidden="true"
-      className="shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-blue-800 text-white flex items-center justify-center text-xs font-bold shadow-sm"
+      className="shrink-0 w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-semibold"
     >
       AI
     </div>
@@ -402,11 +449,11 @@ function ThinkingIndicator() {
   return (
     <div className="flex gap-2 justify-start">
       <AgentAvatar />
-      <div className="bg-white border border-slate-200 rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm">
-        <span className="inline-flex gap-1" aria-label="El agente está pensando">
+      <div className="bg-slate-50 border border-slate-200 rounded-2xl rounded-bl-sm px-4 py-3">
+        <span className="inline-flex gap-1.5 items-center" aria-label="El agente está pensando">
           <Dot delay={0} />
-          <Dot delay={150} />
-          <Dot delay={300} />
+          <Dot delay={200} />
+          <Dot delay={400} />
         </span>
       </div>
     </div>
@@ -414,9 +461,13 @@ function ThinkingIndicator() {
 }
 
 function Dot({ delay }: { delay: number }) {
+  // animate-pulse es la única animación decorativa permitida por el
+  // style-guide (§5.4 "solo en skeletons de loading"). Se usa aquí como
+  // skeleton del próximo mensaje. animation-delay escalonado da el efecto
+  // típico de "escribiendo…" sin recurrir a animate-bounce (prohibido).
   return (
     <span
-      className="block w-1.5 h-1.5 rounded-full bg-slate-400 animate-bounce"
+      className="block w-1.5 h-1.5 rounded-full bg-slate-400 animate-pulse"
       style={{ animationDelay: `${delay}ms` }}
     />
   );
@@ -625,45 +676,77 @@ function TelcelTimeoutCard({
 
 function CompletedCard({
   pdfUrl,
+  folio,
   onReset,
 }: {
   pdfUrl: string;
+  folio: string;
   onReset: () => void;
 }) {
+  // Heurística para mostrar el PDF interno: el proxy del frontend acepta
+  // `?formato=interno` y el job.id ya está validado por el regex de pdf/
+  // route.ts. Si el bot no generó el PDF interno (no aplica al caso), el
+  // proxy responderá 404 y el navegador mostrará una página de error
+  // estándar. Aceptable: el botón sigue siendo opt-in.
+  const isProxyPath = /^\/api\/cotizaciones\//.test(pdfUrl);
+  const pdfInternoUrl = isProxyPath
+    ? `/api/cotizaciones/${encodeURIComponent(folio)}/pdf?formato=interno`
+    : null;
+
   return (
-    <div className="bg-gradient-to-br from-blue-50 to-white border border-blue-200 rounded-2xl px-5 py-5 shadow-sm">
-      <div className="flex items-start gap-3">
-        <div
-          aria-hidden="true"
-          className="shrink-0 w-12 h-12 rounded-full bg-blue-600 text-white flex items-center justify-center text-xl shadow-sm"
+    <div
+      className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+      role="status"
+    >
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">
+            Cotización lista
+          </p>
+          <p className="mt-2 font-mono text-sm text-slate-900">
+            Folio {folio}
+          </p>
+        </div>
+        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-700">
+          <span
+            className="w-1.5 h-1.5 rounded-full bg-green-600"
+            aria-hidden="true"
+          />
+          Generada por Telcel
+        </span>
+      </div>
+      <p className="mt-4 text-sm text-slate-600 leading-relaxed">
+        Descarga el PDF oficial generado por el portal del operador. El interno
+        incluye el desglose de rentabilidad para tu equipo.
+      </p>
+      <div className="mt-5 flex flex-wrap gap-2">
+        <a
+          href={pdfUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-700 text-white text-sm font-semibold rounded-lg hover:bg-blue-800 transition shadow-md"
         >
-          PDF
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-base font-semibold text-slate-900">
-            Tu cotización está lista
-          </p>
-          <p className="text-xs text-slate-600 mt-1">
-            Descarga el PDF oficial generado por el portal del operador.
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <a
-              href={pdfUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-700 text-white text-sm font-semibold rounded-lg hover:bg-blue-800 transition"
-            >
-              Descargar PDF
-            </a>
-            <button
-              type="button"
-              onClick={onReset}
-              className="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition"
-            >
-              Empezar otra
-            </button>
-          </div>
-        </div>
+          <DocumentTextIcon className="w-4 h-4" />
+          PDF Cliente
+        </a>
+        {pdfInternoUrl && (
+          <a
+            href={pdfInternoUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition"
+          >
+            <DocumentTextIcon className="w-4 h-4" />
+            PDF Interno
+          </a>
+        )}
+        <button
+          type="button"
+          onClick={onReset}
+          className="inline-flex items-center gap-1.5 px-4 py-2 text-slate-600 text-sm font-medium rounded-lg hover:bg-slate-50 transition"
+        >
+          Empezar otra
+        </button>
       </div>
     </div>
   );

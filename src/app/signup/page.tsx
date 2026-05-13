@@ -19,8 +19,13 @@
  */
 
 import Link from "next/link";
-import { useState } from "react";
-import { ArrowRightIcon } from "@/components/icons";
+import { useId, useState } from "react";
+import {
+  ArrowRightIcon,
+  CheckCircleIcon,
+  LockClosedIcon,
+  MapPinIcon,
+} from "@/components/icons";
 
 const RFC_REGEX = /^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -66,9 +71,13 @@ function validate(state: FormState): string | null {
 
 export default function SignupPage() {
   const [state, setState] = useState<FormState>(INITIAL);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+
+  const errorId = useId();
+  const termsId = useId();
 
   function update<K extends keyof FormState>(key: K, value: string) {
     setState((s) => ({ ...s, [key]: value }));
@@ -77,6 +86,13 @@ export default function SignupPage() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    if (!acceptedTerms) {
+      setError(
+        "Debes aceptar los términos de servicio antes de enviar la solicitud.",
+      );
+      return;
+    }
 
     const err = validate(state);
     if (err) {
@@ -113,11 +129,14 @@ export default function SignupPage() {
   if (done) {
     return (
       <main className="min-h-screen flex flex-col items-center justify-center px-6 bg-gradient-to-br from-slate-50 to-blue-50">
-        <div className="max-w-lg w-full bg-white rounded-2xl border border-slate-200 shadow-sm p-10 text-center">
-          <h1 className="text-2xl font-bold text-slate-900 mb-3">
+        <div className="max-w-lg w-full bg-white rounded-2xl border border-slate-200 shadow-sm p-8 sm:p-10 text-center">
+          <div className="inline-flex w-12 h-12 items-center justify-center rounded-full bg-blue-100 mb-5">
+            <CheckCircleIcon className="w-6 h-6 text-blue-700" aria-hidden />
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 mb-3">
             Solicitud enviada
           </h1>
-          <p className="text-slate-600 mb-6">
+          <p className="text-slate-600 leading-relaxed mb-6">
             Recibimos tu solicitud. Validamos cada cuenta a mano para evitar
             abusos del portal Telcel — te avisamos en menos de 24h hábiles
             por correo y/o Telegram con tus credenciales de acceso.
@@ -134,95 +153,212 @@ export default function SignupPage() {
   }
 
   return (
-    <main className="min-h-screen px-6 py-10 bg-gradient-to-br from-slate-50 to-blue-50">
-      <div className="max-w-xl mx-auto">
-        <div className="mb-6">
-          <Link href="/" className="text-sm text-slate-600 hover:text-slate-900">
-            ← Volver
+    <main className="min-h-screen grid grid-cols-1 lg:grid-cols-2 bg-white">
+      {/* Columna izquierda: formulario */}
+      <section className="flex flex-col px-6 py-10 sm:px-10 lg:px-16 lg:py-14">
+        <div className="mb-8">
+          <Link
+            href="/"
+            className="inline-flex items-center text-sm text-slate-500 hover:text-slate-700 transition"
+          >
+            <ArrowRightIcon className="w-4 h-4 rotate-180 mr-1.5" aria-hidden />
+            Volver al inicio
           </Link>
         </div>
 
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8 md:p-10">
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">
-            Pide tu acceso
-          </h1>
-          <p className="text-slate-600 mb-8">
-            Distribuidor autorizado Telcel. Validamos cada cuenta a mano y
-            respondemos en menos de 24h hábiles.
+        <div className="flex-1 flex items-center">
+          <div className="w-full max-w-md mx-auto">
+            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900">
+              Pide tu acceso.
+            </h1>
+            <p className="text-slate-600 mt-3 leading-relaxed">
+              Distribuidor autorizado Telcel. Validamos cada cuenta a mano y
+              respondemos en menos de 24h hábiles.
+            </p>
+
+            <form
+              onSubmit={onSubmit}
+              className="space-y-5 mt-8"
+              noValidate
+              aria-describedby={error ? errorId : undefined}
+            >
+              <Field
+                label="Email de contacto"
+                type="email"
+                autoComplete="email"
+                value={state.email}
+                onChange={(v) => update("email", v)}
+                placeholder="tu@empresa.com"
+                required
+                hasError={!!error}
+                errorId={errorId}
+              />
+              <Field
+                label="RFC de la empresa"
+                value={state.rfc_empresa}
+                onChange={(v) => update("rfc_empresa", v.toUpperCase())}
+                placeholder="ABC123456XY7"
+                maxLength={13}
+                required
+                hint="RFC con homoclave (12 o 13 caracteres)."
+                hasError={!!error}
+                errorId={errorId}
+              />
+              <Field
+                label="Nombre del distribuidor"
+                value={state.nombre_distribuidor}
+                onChange={(v) => update("nombre_distribuidor", v)}
+                placeholder="Distribuidores Huvasi SA de CV"
+                maxLength={80}
+                required
+                hasError={!!error}
+                errorId={errorId}
+              />
+              <Field
+                label="Teléfono"
+                type="tel"
+                inputMode="numeric"
+                autoComplete="tel"
+                value={state.telefono}
+                onChange={(v) => update("telefono", v.replace(/\D/g, ""))}
+                placeholder="5512345678"
+                maxLength={10}
+                required
+                hint="10 dígitos sin espacios ni guiones."
+                hasError={!!error}
+                errorId={errorId}
+              />
+              <Field
+                label="Usuario de Telegram (opcional)"
+                value={state.telegram_username}
+                onChange={(v) => update("telegram_username", v)}
+                placeholder="@tuusuario"
+                hint="Si lo das, te avisamos por Telegram cuando aprobemos."
+                hasError={!!error}
+                errorId={errorId}
+              />
+
+              <div className="flex items-start gap-3 pt-1">
+                <input
+                  id={termsId}
+                  type="checkbox"
+                  checked={acceptedTerms}
+                  onChange={(e) => setAcceptedTerms(e.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-700 focus:ring-2 focus:ring-blue-700/20"
+                  aria-describedby={error ? errorId : undefined}
+                />
+                <label
+                  htmlFor={termsId}
+                  className="text-sm text-slate-700 leading-relaxed"
+                >
+                  Acepto los{" "}
+                  <Link
+                    href="/terminos"
+                    className="text-blue-700 font-semibold hover:underline"
+                  >
+                    términos de servicio
+                  </Link>{" "}
+                  y autorizo el tratamiento de datos para validar mi cuenta.
+                </label>
+              </div>
+
+              {error && (
+                <p
+                  id={errorId}
+                  role="alert"
+                  className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2.5"
+                >
+                  {error}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                disabled={submitting}
+                className="w-full inline-flex items-center justify-center gap-2 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-lg py-2.5 transition shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {submitting ? "Enviando..." : "Enviar solicitud"}
+                {!submitting && (
+                  <ArrowRightIcon className="w-4 h-4" aria-hidden />
+                )}
+              </button>
+            </form>
+
+            <p className="text-xs text-slate-500 text-center mt-6">
+              ¿Ya tienes cuenta?{" "}
+              <Link
+                href="/login"
+                className="text-blue-700 font-semibold hover:underline"
+              >
+                Entrar al dashboard
+              </Link>
+              .
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Columna derecha: por qué confiar + trust signals */}
+      <aside className="hidden lg:flex flex-col justify-center bg-gradient-to-br from-slate-50 to-blue-50 px-12 py-14 border-l border-slate-200">
+        <div className="max-w-md">
+          <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">
+            Distribuidores Telcel
+          </p>
+          <h2 className="text-2xl font-bold tracking-tight text-slate-900 mt-3">
+            Cotiza en menos de un minuto.
+          </h2>
+          <p className="text-slate-600 mt-3 leading-relaxed">
+            La misma cotización que tomas 15 minutos en el portal — automatizada,
+            con historial por cliente y descarga directa de PDF interno + cliente.
           </p>
 
-          <form onSubmit={onSubmit} className="space-y-5">
-            <Field
-              label="Email de contacto"
-              type="email"
-              autoComplete="email"
-              value={state.email}
-              onChange={(v) => update("email", v)}
-              placeholder="tu@empresa.com"
-              required
-            />
-            <Field
-              label="RFC de la empresa"
-              value={state.rfc_empresa}
-              onChange={(v) => update("rfc_empresa", v.toUpperCase())}
-              placeholder="ABC123456XY7"
-              maxLength={13}
-              required
-              hint="RFC con homoclave (12 o 13 caracteres)."
-            />
-            <Field
-              label="Nombre del distribuidor"
-              value={state.nombre_distribuidor}
-              onChange={(v) => update("nombre_distribuidor", v)}
-              placeholder="Distribuidores Huvasi SA de CV"
-              maxLength={80}
-              required
-            />
-            <Field
-              label="Teléfono"
-              type="tel"
-              inputMode="numeric"
-              autoComplete="tel"
-              value={state.telefono}
-              onChange={(v) => update("telefono", v.replace(/\D/g, ""))}
-              placeholder="5512345678"
-              maxLength={10}
-              required
-              hint="10 dígitos sin espacios ni guiones."
-            />
-            <Field
-              label="Usuario de Telegram (opcional)"
-              value={state.telegram_username}
-              onChange={(v) => update("telegram_username", v)}
-              placeholder="@tuusuario"
-              hint="Si lo das, te avisamos por Telegram cuando aprobemos."
-            />
-
-            {error && (
-              <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-                {error}
+          <ul className="mt-8 space-y-4">
+            <li className="flex items-start gap-3">
+              <CheckCircleIcon
+                className="w-5 h-5 text-blue-700 mt-0.5 shrink-0"
+                aria-hidden
+              />
+              <div>
+                <p className="text-sm font-medium text-slate-900">
+                  Validación manual de cada alta
+                </p>
+                <p className="text-xs text-slate-500">
+                  Confirmamos RFC contra el padrón Telcel para evitar abuso del
+                  portal.
+                </p>
               </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold text-white bg-blue-700 rounded-lg hover:bg-blue-800 transition shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              {submitting ? "Enviando…" : "Enviar solicitud"}
-              {!submitting && <ArrowRightIcon className="w-4 h-4" />}
-            </button>
-          </form>
+            </li>
+            <li className="flex items-start gap-3">
+              <MapPinIcon
+                className="w-5 h-5 text-blue-700 mt-0.5 shrink-0"
+                aria-hidden
+              />
+              <div>
+                <p className="text-sm font-medium text-slate-900">
+                  Datos en México
+                </p>
+                <p className="text-xs text-slate-500">
+                  Tu cartera fiscal y la de tus clientes nunca sale del país.
+                </p>
+              </div>
+            </li>
+            <li className="flex items-start gap-3">
+              <LockClosedIcon
+                className="w-5 h-5 text-blue-700 mt-0.5 shrink-0"
+                aria-hidden
+              />
+              <div>
+                <p className="text-sm font-medium text-slate-900">
+                  Cifrado y aislado por tenant
+                </p>
+                <p className="text-xs text-slate-500">
+                  TLS 1.3 en tránsito y separación lógica por distribuidor.
+                </p>
+              </div>
+            </li>
+          </ul>
         </div>
-
-        <p className="text-xs text-slate-500 text-center mt-6">
-          ¿Ya tienes cuenta?{" "}
-          <Link href="/login" className="underline hover:text-slate-700">
-            Entrar al dashboard
-          </Link>
-          .
-        </p>
-      </div>
+      </aside>
     </main>
   );
 }
@@ -238,16 +374,33 @@ interface FieldProps {
   hint?: string;
   autoComplete?: string;
   inputMode?: "text" | "numeric" | "tel" | "email" | "url";
+  hasError?: boolean;
+  errorId?: string;
 }
 
 function Field(props: FieldProps) {
+  const inputId = useId();
+  const hintId = useId();
+  const describedBy =
+    [props.hint ? hintId : null, props.hasError ? props.errorId : null]
+      .filter(Boolean)
+      .join(" ") || undefined;
+
   return (
-    <label className="block">
-      <span className="block text-sm font-medium text-slate-700 mb-1">
+    <div>
+      <label
+        htmlFor={inputId}
+        className="block text-sm font-medium text-slate-700 mb-1.5"
+      >
         {props.label}
-        {props.required && <span className="text-red-600 ml-0.5">*</span>}
-      </span>
+        {props.required && (
+          <span className="text-red-600 ml-0.5" aria-hidden>
+            *
+          </span>
+        )}
+      </label>
       <input
+        id={inputId}
         type={props.type || "text"}
         value={props.value}
         onChange={(e) => props.onChange(e.target.value)}
@@ -256,11 +409,15 @@ function Field(props: FieldProps) {
         maxLength={props.maxLength}
         autoComplete={props.autoComplete}
         inputMode={props.inputMode}
-        className="block w-full rounded-lg border border-slate-300 px-3 py-2 text-slate-900 placeholder:text-slate-400 focus:border-blue-600 focus:ring-1 focus:ring-blue-600 outline-none transition"
+        aria-invalid={props.hasError || undefined}
+        aria-describedby={describedBy}
+        className="block w-full rounded-lg border border-slate-200 px-3 py-2.5 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-700/20 transition"
       />
       {props.hint && (
-        <span className="block text-xs text-slate-500 mt-1">{props.hint}</span>
+        <p id={hintId} className="text-xs text-slate-500 mt-1.5">
+          {props.hint}
+        </p>
       )}
-    </label>
+    </div>
   );
 }

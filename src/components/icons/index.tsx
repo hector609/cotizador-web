@@ -198,3 +198,133 @@ export function SparklesIcon({ className = "w-6 h-6", title, ...rest }: IconProp
     </svg>
   );
 }
+
+export function PaperClipIcon({ className = "w-6 h-6", title, ...rest }: IconProps) {
+  return (
+    <svg {...baseProps(className, title)} {...rest}>
+      {title ? <title>{title}</title> : null}
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13"
+      />
+    </svg>
+  );
+}
+
+export function ArrowUpTrayIcon({ className = "w-6 h-6", title, ...rest }: IconProps) {
+  return (
+    <svg {...baseProps(className, title)} {...rest}>
+      {title ? <title>{title}</title> : null}
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 7.5m0 0L7.5 12m4.5-4.5v12"
+      />
+    </svg>
+  );
+}
+
+export function BookOpenIcon({ className = "w-6 h-6", title, ...rest }: IconProps) {
+  return (
+    <svg {...baseProps(className, title)} {...rest}>
+      {title ? <title>{title}</title> : null}
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"
+      />
+    </svg>
+  );
+}
+
+export function ChatBubbleLeftRightIcon({ className = "w-6 h-6", title, ...rest }: IconProps) {
+  return (
+    <svg {...baseProps(className, title)} {...rest}>
+      {title ? <title>{title}</title> : null}
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 01-.825-.242m9.345-8.334a2.126 2.126 0 00-.476-.095 48.64 48.64 0 00-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0011.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155"
+      />
+    </svg>
+  );
+}
+
+export function Bars3Icon({ className = "w-6 h-6", title, ...rest }: IconProps) {
+  return (
+    <svg {...baseProps(className, title)} {...rest}>
+      {title ? <title>{title}</title> : null}
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"
+      />
+    </svg>
+  );
+}
+
+export function XMarkIcon({ className = "w-6 h-6", title, ...rest }: IconProps) {
+  return (
+    <svg {...baseProps(className, title)} {...rest}>
+      {title ? <title>{title}</title> : null}
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M6 18L18 6M6 6l12 12"
+      />
+    </svg>
+  );
+}
+
+export function ArrowTrendingUpIcon({ className = "w-6 h-6", title, ...rest }: IconProps) {
+  return (
+    <svg {...baseProps(className, title)} {...rest}>
+      {title ? <title>{title}</title> : null}
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M2.25 18L9 11.25l4.306 4.306a11.95 11.95 0 015.814-5.518l2.74-1.22m0 0l-5.94-2.281m5.94 2.28l-2.28 5.941"
+      />
+    </svg>
+  );
+}
+
+export function CurrencyDollarIcon({ className = "w-6 h-6", title, ...rest }: IconProps) {
+  return (
+    <svg {...baseProps(className, title)} {...rest}>
+      {title ? <title>{title}</title> : null}
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4M12 4.5v15"
+      />
+    </svg>
+  );
+}
+
+export function ClockIcon({ className = "w-6 h-6", title, ...rest }: IconProps) {
+  return (
+    <svg {...baseProps(className, title)} {...rest}>
+      {title ? <title>{title}</title> : null}
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"
+      />
+    </svg>
+  );
+}
+
+export function PaperAirplaneIcon({ className = "w-6 h-6", title, ...rest }: IconProps) {
+  return (
+    <svg {...baseProps(className, title)} {...rest}>
+      {title ? <title>{title}</title> : null}
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5"
+      />
+    </svg>
+  );
+}

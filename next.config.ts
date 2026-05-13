@@ -1,5 +1,11 @@
 import type { NextConfig } from "next";
 
+// React dev-mode (Next.js dev / Turbopack HMR) usa eval() para reconstruir
+// stack traces y soportar fast refresh. En producción NO lo usa. Sólo aflojamos
+// la CSP en dev para que no rompa el console + hot reload.
+const isDev = process.env.NODE_ENV !== "production";
+const scriptSrcExtra = isDev ? " 'unsafe-eval'" : "";
+
 const securityHeaders = [
   {
     key: "Strict-Transport-Security",
@@ -16,7 +22,7 @@ const securityHeaders = [
     key: "Content-Security-Policy",
     value:
       "default-src 'self'; " +
-      "script-src 'self' 'unsafe-inline' https://telegram.org; " +
+      `script-src 'self' 'unsafe-inline'${scriptSrcExtra} https://telegram.org; ` +
       "style-src 'self' 'unsafe-inline'; " +
       "img-src 'self' data: https://t.me https://*.telegram.org; " +
       "connect-src 'self' https://cmdemobot.fly.dev https://*.fly.dev; " +

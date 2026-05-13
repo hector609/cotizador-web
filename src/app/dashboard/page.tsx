@@ -1,117 +1,501 @@
+/**
+ * /dashboard — home post-login del DAT.
+ *
+ * Capa de presentación premium B2B (estilo Vercel/Linear/Plausible): topbar
+ * unificada + H1 propio + grid de 4 KPIs + sección "Cotizaciones recientes"
+ * + grid de 4 acciones rápidas. NO toca lógica ni endpoints — los KPIs se
+ * derivan server-side del listing existente (`listarCotizaciones`) que ya
+ * usa la página /historial.
+ *
+ * Por qué Server Component: la home se renderiza una vez al entrar y el
+ * cálculo (count, sum, unique RFCs) cabe en milisegundos. Cero JS de
+ * cliente para esta vista hace que el TTFB del dashboard sea casi
+ * instantáneo en 4G mexicana — clave para "confiabilidad bancaria".
+ */
+
 import Link from "next/link";
+import { getSession } from "@/lib/auth";
+import { listarCotizaciones, maskRfc } from "@/lib/cotizaciones";
+import type { Cotizacion } from "@/types/cotizacion";
 import {
   ArrowRightIcon,
+  ArrowUpTrayIcon,
+  BookOpenIcon,
+  ChatBubbleLeftRightIcon,
+  CurrencyDollarIcon,
   DocumentTextIcon,
+  ClockIcon,
   UsersIcon,
 } from "@/components/icons";
 import { DashboardNav } from "./_nav";
 
-// Handle del bot en Telegram — se mantiene como puerta secundaria. La web
-// es ahora el cotizador principal (chat conversacional en /dashboard/cotizar);
-// quien prefiera el bot lo encuentra como fallback discreto.
+// El bot de Telegram sigue activo como puerta secundaria — lo mostramos
+// como link discreto en el footer, no como CTA principal.
 const TELEGRAM_BOT_URL = "https://t.me/CotizadorInteligenteBot";
 
-export default function DashboardPage() {
+// Buffer suficiente para calcular "este mes" y "promedio ticket" sin
+// segundo round-trip al backend. El listing devuelve hasta 100 por página;
+// para mes corriente con 1-2 cotizaciones/día este límite es generoso.
+const KPI_LIMIT = 100;
+
+interface DashboardKPIs {
+  cotizacionesMes: number;
+  montoMes: number;
+  ticketPromedio: number;
+  clientesActivos: number;
+  recientes: Cotizacion[];
+}
+
+function calcularKpis(rows: Cotizacion[]): DashboardKPIs {
+  const ahora = new Date();
+  const mesActual = ahora.getUTCMonth();
+  const anioActual = ahora.getUTCFullYear();
+
+  // Filtramos a "completadas del mes en curso" — es lo que cuenta como
+  // ingreso comprometido. Las pendientes/fallidas no inflan métricas.
+  const delMes = rows.filter((c) => {
+    if (c.estado !== "completada") return false;
+    const d = new Date(c.created_at);
+    if (Number.isNaN(d.getTime())) return false;
+    return d.getUTCMonth() === mesActual && d.getUTCFullYear() === anioActual;
+  });
+
+  const montoMes = delMes.reduce((sum, c) => {
+    // `plan` es el plan mensual MXN por línea (single-perfil). En multi
+    // el campo `plan` viene como 0/undefined y el monto real vive en el
+    // PDF — para una métrica de "monto cotizado" del DAT, usar
+    // `plan * lineas` como aproximación legible es suficiente.
+    const lineas = Number.isFinite(c.lineas) ? c.lineas : 0;
+    const plan = Number.isFinite(c.plan) ? c.plan : 0;
+    return sum + plan * lineas;
+  }, 0);
+
+  const ticketPromedio =
+    delMes.length > 0 ? Math.round(montoMes / delMes.length) : 0;
+
+  // Clientes activos = RFCs únicos con al menos una cotización en el
+  // listing (rolling window de hasta 100). Las cotizaciones "sin base"
+  // (sin RFC) no cuentan.
+  const rfcSet = new Set<string>();
+  for (const c of rows) {
+    if (c.rfc && c.rfc.length > 0) rfcSet.add(c.rfc);
+  }
+
+  // Recientes = top 5 por fecha desc (el backend ya ordena así).
+  const recientes = rows.slice(0, 5);
+
+  return {
+    cotizacionesMes: delMes.length,
+    montoMes,
+    ticketPromedio,
+    clientesActivos: rfcSet.size,
+    recientes,
+  };
+}
+
+export default async function DashboardPage() {
+  const session = await getSession();
+  const result = await listarCotizaciones(session.tenant_id, {
+    limit: KPI_LIMIT,
+    offset: 0,
+  });
+  const rows = result.ok ? result.data.cotizaciones : [];
+  const kpis = calcularKpis(rows);
+
   return (
     <main className="min-h-screen bg-slate-50">
-      <DashboardNav active="inicio" showHomeTitle />
+      <DashboardNav active="inicio" />
 
-      <div className="max-w-5xl mx-auto px-6 py-12">
-        <div className="mb-8">
-          <h2 className="text-2xl font-bold text-slate-900">
-            Listo. Tu cotizador está activo.
-          </h2>
-          <p className="text-slate-600">
-            Genera cotizaciones desde el chat de aquí en menos de 5 minutos.
-            Tus PDFs, cartera y métricas viven en este panel.
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 md:py-12">
+        {/* Hero / saludo. H1 explícito (audit A1). */}
+        <header className="mb-10">
+          <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-slate-900">
+            Tu cotizador
+          </h1>
+          <p className="mt-2 text-slate-600 max-w-2xl">
+            Genera cotizaciones oficiales sin abrir el portal Telcel. Toda tu
+            cartera, métricas y PDFs viven en este panel.
           </p>
-        </div>
+        </header>
 
-        <div className="bg-gradient-to-br from-blue-700 to-blue-900 text-white rounded-2xl shadow-lg p-10 md:p-14 text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-white/10 mb-6">
-            {/* Chat bubble — la web es ahora el cotizador principal. */}
-            <svg
-              className="w-8 h-8"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={1.8}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-            </svg>
-          </div>
-          <h3 className="text-3xl md:text-4xl font-bold mb-4">
-            Cotiza desde aquí, sin abrir el portal Telcel.
-          </h3>
-          <div className="text-blue-100 text-lg max-w-xl mx-auto mb-8 space-y-4">
-            <p>
-              Cuéntale al asistente qué necesitas (RFC, líneas, equipo, plan)
-              y te devuelve el PDF oficial en 3-5 minutos. Sin formularios
-              multi-paso, sin abrir varias pestañas.
-            </p>
-            <p>
-              Aquí mismo encuentras tu cartera de clientes, métricas de uso y
-              el historial de PDFs generados por tu equipo.
-            </p>
-          </div>
-          <Link
-            href="/dashboard/cotizar"
-            className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-white text-blue-700 font-bold rounded-lg hover:bg-blue-50 transition shadow-lg"
+        {/* KPI grid */}
+        <section
+          aria-labelledby="kpis-heading"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+        >
+          <h2 id="kpis-heading" className="sr-only">
+            Métricas del mes
+          </h2>
+          <KpiCard
+            label="Cotizaciones del mes"
+            value={kpis.cotizacionesMes.toLocaleString("es-MX")}
+            icon={<DocumentTextIcon className="w-5 h-5 text-blue-700" />}
+            empty={!result.ok}
+          />
+          <KpiCard
+            label="Monto cotizado (mes)"
+            value={
+              kpis.montoMes > 0
+                ? formatMxn(kpis.montoMes)
+                : kpis.cotizacionesMes > 0
+                  ? "—"
+                  : "$0"
+            }
+            hint={kpis.montoMes > 0 ? "Plan mensual × líneas" : undefined}
+            icon={<CurrencyDollarIcon className="w-5 h-5 text-blue-700" />}
+            empty={!result.ok}
+          />
+          <KpiCard
+            label="Ticket promedio"
+            value={
+              kpis.ticketPromedio > 0
+                ? formatMxn(kpis.ticketPromedio)
+                : "—"
+            }
+            hint={
+              kpis.cotizacionesMes > 0
+                ? `${kpis.cotizacionesMes} cotización${kpis.cotizacionesMes === 1 ? "" : "es"} este mes`
+                : undefined
+            }
+            icon={<ChatBubbleLeftRightIcon className="w-5 h-5 text-blue-700" />}
+            empty={!result.ok}
+          />
+          <KpiCard
+            label="Clientes activos"
+            value={kpis.clientesActivos.toLocaleString("es-MX")}
+            hint={kpis.clientesActivos > 0 ? "RFCs únicos" : undefined}
+            icon={<UsersIcon className="w-5 h-5 text-blue-700" />}
+            empty={!result.ok}
+          />
+        </section>
+
+        {/* Acciones rápidas */}
+        <section
+          aria-labelledby="acciones-heading"
+          className="mt-12"
+        >
+          <h2
+            id="acciones-heading"
+            className="text-xl font-bold text-slate-900"
           >
-            Abrir chat de cotización
-            <ArrowRightIcon className="w-4 h-4" />
-          </Link>
-          <p className="text-blue-200 text-xs mt-6">
+            Acciones rápidas
+          </h2>
+          <p className="mt-1 text-sm text-slate-600">
+            Las cuatro cosas que más vas a hacer cada día.
+          </p>
+          <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <ActionTile
+              href="/dashboard/cotizar"
+              title="Nueva cotización"
+              body="Conversa con el asistente y obtén el PDF en 3-5 minutos."
+              icon={<ChatBubbleLeftRightIcon className="w-8 h-8 text-blue-700" />}
+              primary
+            />
+            <ActionTile
+              href="/dashboard/cotizar-excel"
+              title="Subir Excel"
+              body="Carga la plantilla multi-perfil para cotizaciones a granel."
+              icon={<ArrowUpTrayIcon className="w-8 h-8 text-blue-700" />}
+            />
+            <ActionTile
+              href="/dashboard/clientes"
+              title="Mis clientes"
+              body="Cartera sincronizada con el operador. Busca por RFC."
+              icon={<UsersIcon className="w-8 h-8 text-blue-700" />}
+            />
+            <ActionTile
+              href="/dashboard/catalogos"
+              title="Catálogo"
+              body="Planes y equipos vigentes con filtros encadenados."
+              icon={<BookOpenIcon className="w-8 h-8 text-blue-700" />}
+            />
+          </div>
+        </section>
+
+        {/* Cotizaciones recientes */}
+        <section
+          aria-labelledby="recientes-heading"
+          className="mt-12"
+        >
+          <div className="flex items-end justify-between gap-3 mb-4">
+            <div>
+              <h2
+                id="recientes-heading"
+                className="text-xl font-bold text-slate-900"
+              >
+                Cotizaciones recientes
+              </h2>
+              <p className="mt-1 text-sm text-slate-600">
+                Las últimas 5 generadas desde web o Telegram.
+              </p>
+            </div>
+            <Link
+              href="/dashboard/historial"
+              className="text-sm font-medium text-blue-700 hover:text-blue-800 whitespace-nowrap inline-flex items-center gap-1"
+            >
+              Ver historial
+              <ArrowRightIcon className="w-4 h-4" />
+            </Link>
+          </div>
+
+          {!result.ok ? (
+            <div className="rounded-xl border border-red-200 bg-red-50 p-6">
+              <p className="text-sm font-semibold text-red-900">
+                No pudimos cargar tus cotizaciones recientes.
+              </p>
+              <p className="text-xs text-red-700 mt-1">{result.message}</p>
+            </div>
+          ) : kpis.recientes.length === 0 ? (
+            <EmptyRecientes />
+          ) : (
+            <RecientesTable rows={kpis.recientes} />
+          )}
+        </section>
+
+        {/* Footer discreto: bot Telegram + soporte */}
+        <footer className="mt-16 pt-8 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
+          <p>
             ¿Prefieres Telegram? El bot sigue activo —{" "}
             <a
               href={TELEGRAM_BOT_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="underline hover:text-white"
+              className="text-blue-700 hover:text-blue-800 underline underline-offset-2"
             >
               abrir bot
             </a>
-            . Soporte:{" "}
+            .
+          </p>
+          <p>
+            Soporte:{" "}
             <a
               href="https://instagram.com/hectoria.mx"
               target="_blank"
               rel="noopener noreferrer"
-              className="underline hover:text-white"
+              className="text-blue-700 hover:text-blue-800 underline underline-offset-2"
             >
               @hectoria.mx
             </a>
-            .
           </p>
-        </div>
-
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Link
-            href="/dashboard/clientes"
-            className="bg-white rounded-xl border border-slate-200 p-6 hover:border-blue-400 hover:shadow-sm transition"
-          >
-            <UsersIcon className="w-6 h-6 text-blue-700 mb-2" />
-            <h4 className="font-semibold text-slate-900 mb-1">Mis clientes</h4>
-            <p className="text-sm text-slate-600">
-              Tu cartera de clientes corporativos sincronizada con el portal del
-              operador. Busca por RFC, razón social o expediente.
-            </p>
-          </Link>
-          <Link
-            href="/dashboard/cotizar"
-            className="bg-white rounded-xl border border-slate-200 p-6 hover:border-blue-400 hover:shadow-sm transition"
-          >
-            <DocumentTextIcon className="w-6 h-6 text-blue-700 mb-2" />
-            <h4 className="font-semibold text-slate-900 mb-1">Cotizar ahora</h4>
-            <p className="text-sm text-slate-600">
-              Abre el chat y arranca una cotización. El primer plan listo para
-              enviar al cliente toma 2 minutos.
-            </p>
-          </Link>
-        </div>
+        </footer>
       </div>
     </main>
+  );
+}
+
+/* ---------- Sub-componentes ---------- */
+
+function formatMxn(value: number): string {
+  // Tickets corporativos: no necesitamos centavos visibles.
+  return `$${Math.round(value).toLocaleString("es-MX")}`;
+}
+
+interface KpiCardProps {
+  label: string;
+  value: string;
+  hint?: string;
+  icon: React.ReactNode;
+  empty?: boolean;
+}
+
+function KpiCard({ label, value, hint, icon, empty = false }: KpiCardProps) {
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 p-5">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm font-medium text-slate-600">{label}</p>
+        <span aria-hidden="true">{icon}</span>
+      </div>
+      <p
+        className={[
+          "mt-3 text-3xl font-bold tracking-tight tabular-nums",
+          empty ? "text-slate-300" : "text-slate-900",
+        ].join(" ")}
+      >
+        {empty ? "—" : value}
+      </p>
+      {hint && (
+        <p className="mt-1 text-xs text-slate-500">{hint}</p>
+      )}
+    </div>
+  );
+}
+
+interface ActionTileProps {
+  href: string;
+  title: string;
+  body: string;
+  icon: React.ReactNode;
+  primary?: boolean;
+}
+
+function ActionTile({ href, title, body, icon, primary = false }: ActionTileProps) {
+  // El tile primario lleva un anillo sutil para guiar la primera acción
+  // del DAT sin recurrir a gradientes saturados. Resto: outline neutro.
+  return (
+    <Link
+      href={href}
+      className={[
+        "group rounded-xl border p-6 transition bg-white",
+        "hover:border-blue-400 hover:shadow-sm",
+        primary
+          ? "border-blue-200 ring-1 ring-blue-100"
+          : "border-slate-200",
+      ].join(" ")}
+    >
+      <span aria-hidden="true" className="inline-flex">
+        {icon}
+      </span>
+      <h3 className="mt-4 font-semibold text-slate-900">{title}</h3>
+      <p className="mt-1 text-sm text-slate-600 leading-relaxed">{body}</p>
+      <span className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-blue-700 group-hover:text-blue-800">
+        Abrir
+        <ArrowRightIcon className="w-3.5 h-3.5" />
+      </span>
+    </Link>
+  );
+}
+
+function RecientesTable({ rows }: { rows: Cotizacion[] }) {
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="bg-slate-50 text-slate-600">
+            <tr>
+              <th className="text-left px-4 py-3 font-medium">Fecha</th>
+              <th className="text-left px-4 py-3 font-medium">Cliente</th>
+              <th className="text-right px-4 py-3 font-medium">Líneas</th>
+              <th className="text-left px-4 py-3 font-medium">Estado</th>
+              <th className="text-right px-4 py-3 font-medium">PDF</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((c) => (
+              <RecienteRow key={c.id} c={c} />
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function RecienteRow({ c }: { c: Cotizacion }) {
+  const fecha = new Date(c.created_at);
+  const fechaStr = Number.isNaN(fecha.getTime())
+    ? c.created_at
+    : fecha.toLocaleString("es-MX", {
+        month: "short",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+
+  return (
+    <tr className="border-t border-slate-100 hover:bg-slate-50">
+      <td className="px-4 py-3 text-slate-700 whitespace-nowrap tabular-nums">
+        {fechaStr}
+      </td>
+      <td className="px-4 py-3 font-mono text-slate-900 whitespace-nowrap">
+        {maskRfc(c.rfc)}
+      </td>
+      <td className="px-4 py-3 text-right text-slate-700 tabular-nums">
+        {c.lineas}
+      </td>
+      <td className="px-4 py-3">
+        <EstadoBadge estado={c.estado} />
+      </td>
+      <td className="px-4 py-3 text-right whitespace-nowrap">
+        <div className="inline-flex items-center gap-1.5">
+          {c.estado === "completada" && c.pdf_url && (
+            <a
+              href={c.pdf_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center px-2.5 py-1 bg-blue-700 text-white text-xs font-medium rounded-md hover:bg-blue-800 transition"
+              title="PDF cliente"
+            >
+              Cliente
+            </a>
+          )}
+          {c.estado === "completada" && c.pdf_url_interno && (
+            <a
+              href={c.pdf_url_interno}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center px-2.5 py-1 bg-white border border-slate-300 text-slate-700 text-xs font-medium rounded-md hover:bg-slate-50 transition"
+              title="PDF interno (rentabilidad)"
+            >
+              Interno
+            </a>
+          )}
+          {c.estado === "completada" && !c.pdf_url && (
+            <span className="text-xs text-slate-400">Sin enlace</span>
+          )}
+          {c.estado === "pendiente" && (
+            <span className="inline-flex items-center gap-1 text-xs text-slate-500">
+              <ClockIcon className="w-3.5 h-3.5" />
+              En curso
+            </span>
+          )}
+          {c.estado === "fallida" && (
+            <Link
+              href={`/dashboard/cotizar${c.rfc ? `?rfc=${encodeURIComponent(c.rfc)}` : ""}`}
+              className="inline-flex items-center px-2.5 py-1 bg-white border border-slate-300 text-slate-700 text-xs font-medium rounded-md hover:bg-slate-50 transition"
+            >
+              Reintentar
+            </Link>
+          )}
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+function EstadoBadge({ estado }: { estado: Cotizacion["estado"] }) {
+  // Sin emojis (style-guide §5.1). Dot de color + label.
+  if (estado === "completada") {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-700">
+        <span className="w-1.5 h-1.5 rounded-full bg-green-600" aria-hidden="true" />
+        Completada
+      </span>
+    );
+  }
+  if (estado === "pendiente") {
+    return (
+      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-700">
+        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" aria-hidden="true" />
+        En curso
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-700">
+      <span className="w-1.5 h-1.5 rounded-full bg-red-600" aria-hidden="true" />
+      Falló
+    </span>
+  );
+}
+
+function EmptyRecientes() {
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 p-10 text-center">
+      <DocumentTextIcon className="w-8 h-8 text-blue-700 mx-auto" />
+      <h3 className="mt-4 font-semibold text-slate-900">
+        Aún no tienes cotizaciones
+      </h3>
+      <p className="mt-1 text-sm text-slate-600 max-w-sm mx-auto">
+        Genera la primera desde el chat. Toma 3-5 minutos y el PDF oficial queda
+        guardado aquí.
+      </p>
+      <Link
+        href="/dashboard/cotizar"
+        className="mt-5 inline-flex items-center gap-1.5 px-4 py-2 bg-blue-700 text-white text-sm font-semibold rounded-lg hover:bg-blue-800 transition"
+      >
+        Crear primera cotización
+        <ArrowRightIcon className="w-4 h-4" />
+      </Link>
+    </div>
   );
 }
