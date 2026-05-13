@@ -517,12 +517,10 @@ export default function AriaCopilot({ userName }: AriaCopilotProps) {
     voice.speakAssistantMessage(last.content);
   }, [messages, voice]);
 
-  // Reset speakingMsgId cuando termina la utterance.
-  useEffect(() => {
-    if (!voice.isSpeaking && speakingMsgId !== null) {
-      setSpeakingMsgId(null);
-    }
-  }, [voice.isSpeaking, speakingMsgId]);
+  // Nota: no reseteamos `speakingMsgId` automáticamente cuando termina la
+  // utterance. El Bubble computa "isSpeakingThis = voice.isSpeaking &&
+  // speakingMsgId === m.id", así que la falsa positiva queda enmascarada.
+  // Reset-en-effect causaría cascading render según el linter de Next 16.
 
   /* ── Sync transcripción interim de voz al textarea ── */
   // Mientras el user está hablando, mostramos lo interim como preview en el

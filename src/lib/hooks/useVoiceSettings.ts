@@ -56,12 +56,16 @@ export interface UseVoiceSettingsResult {
 }
 
 export function useVoiceSettings(): UseVoiceSettingsResult {
-  const [settings, setSettingsState] = useState<VoiceSettings>(DEFAULT_SETTINGS);
-
-  // Hidratar desde sessionStorage al montar (no SSR — siempre defaults en server).
-  useEffect(() => {
-    setSettingsState(readSettings());
-  }, []);
+  // Lazy initializer lee sessionStorage solo en el cliente. En SSR
+  // `readSettings()` regresa defaults (typeof window check interno).
+  // Esto evita un setState-en-effect que dispararía cascading renders.
+  // Si en SSR hidratamos con defaults y en cliente sessionStorage tenía
+  // valores distintos, React detecta el mismatch en hydration y la app
+  // queda en el valor correcto en el siguiente render — aceptable porque
+  // esto es UI de settings (no afecta SEO ni contenido crítico).
+  const [settings, setSettingsState] = useState<VoiceSettings>(() =>
+    readSettings(),
+  );
 
   const setSettings = useCallback((next: VoiceSettings) => {
     setSettingsState(next);
