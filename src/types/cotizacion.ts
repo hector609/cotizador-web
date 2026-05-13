@@ -37,8 +37,19 @@ export interface Cotizacion {
   equipos_qty: number;
   /** Estado del job de Playwright en backend. */
   estado: EstadoCotizacion;
-  /** URL al PDF cuando completada. Puede ser firmada o pública según backend. */
+  /**
+   * URL al PDF cliente cuando completada. El proxy `/api/cotizaciones/[id]`
+   * reescribe el path relativo del backend (`/api/v1/cotizaciones/<id>/pdf`)
+   * a un path del frontend (`/api/cotizaciones/<id>/pdf?formato=cliente`)
+   * que streamea el binario vía el route handler `pdf/route.ts`.
+   */
   pdf_url?: string;
+  /**
+   * URL al PDF interno (rentabilidad) cuando completada y disponible.
+   * Mismo esquema de reescritura que `pdf_url`, con `?formato=interno`.
+   * Solo presente si el bot generó este PDF en el run (no siempre aplica).
+   */
+  pdf_url_interno?: string;
   /** Mensaje legible si falló (no exponer stacktraces). */
   error?: string;
   /** ISO-8601 UTC. */
