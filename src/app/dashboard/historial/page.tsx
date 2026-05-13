@@ -1,20 +1,22 @@
 /**
  * /dashboard/historial — Server Component que lista las cotizaciones del DAT.
  *
- * Por qué Server Component: la página es fundamentalmente lectura de un
- * recurso server-side, sin estado interactivo más allá de filtros. Los
- * filtros se modelan como query params (`?estado=`, `?from=`, `?to=`,
- * `?rfc=`, `?offset=`) para que sea bookmarkable y se pueda renderizar SSR
- * sin spinner en el primer paint.
+ * REDISEÑO LUMINA Light Premium (pivot definitivo desde dark glassmorphism).
  *
- * Auth: `getSession()` redirige a /login si no hay sesión válida, así que
- * el handler nunca tiene que defenderse contra session=null.
+ *  - Surface bg-slate-50 + cards bg-white rounded-2xl shadow-sm.
+ *  - Primario INDIGO #4F46E5, accent CYAN #06B6D4, pop PINK #EC4899.
+ *  - Pills rounded-full en filtros + outline "Exportar Excel".
+ *  - Tabla desktop con motion.tr hover bg-indigo-50/30; cards mobile con
+ *    motion.div whileHover.
+ *  - Empty state SVG ilustración + CTA indigo.
  *
- * REDISEÑO "REVENTAR mode" (dark glassmorphism premium tipo Linear/Vercel).
- * Hooks y data fetching INTACTOS — solo JSX + Tailwind.
+ * Server Component: la página es lectura pura del listing del DAT. Los
+ * filtros son query params (?estado=, ?from=, ?to=, ?rfc=, ?offset=) para
+ * bookmarkability + SSR sin spinner. Los pedacitos interactivos (hover de
+ * fila / hover de card / empty illustration motion) son Client Components
+ * pequeños — el data fetching sigue siendo server.
  *
- * Layout responsive (B1/B9): tabla `hidden md:table` con todas las columnas
- * + cards stacked `md:hidden` en mobile.
+ * Hooks y fetching INTACTOS.
  */
 
 import Link from "next/link";
@@ -22,6 +24,17 @@ import { getSession } from "@/lib/auth";
 import { listarCotizaciones, maskRfc } from "@/lib/cotizaciones";
 import type { Cotizacion, EstadoCotizacion } from "@/types/cotizacion";
 import { Sidebar } from "@/components/admin/Sidebar";
+import {
+  Download,
+  RotateCw,
+  Image as ImageIcon,
+  ArrowRight,
+  ChevronLeft,
+  ChevronRight,
+  Inbox,
+  FileText,
+} from "lucide-react";
+import { MotionRow, MotionCard, MotionEmpty } from "./_motion";
 
 const PAGE_SIZE = 25;
 
@@ -92,14 +105,14 @@ export default async function HistorialPage({ searchParams }: PageProps) {
   const userSubtitle = `Distribuidor ${session.tenant_id}`;
 
   // Promedio Ahorro-vs-base (A/B%) — el listing no expone "base" por
-  // cotización; usamos un proxy estable: ratio plan vs ticket promedio
-  // global. Visualmente es solo una micro-bar — sigue lectura, no decisión.
+  // cotización; usamos un proxy estable: porcentaje del monto vs el monto
+  // máximo de la página. Visualmente es solo una micro-bar de lectura.
   const completadas = rows.filter((c) => c.estado === "completada");
   const montos = completadas.map((c) => c.lineas * c.plan).filter((v) => v > 0);
   const montoMax = montos.length > 0 ? Math.max(...montos) : 0;
 
   return (
-    <div className="min-h-screen bg-[#0b1326] text-slate-200 antialiased">
+    <div className="min-h-screen bg-slate-50 text-slate-900 antialiased">
       <Sidebar
         active="historial"
         initials={initials}
@@ -107,60 +120,42 @@ export default async function HistorialPage({ searchParams }: PageProps) {
         userSubtitle={userSubtitle}
       />
 
-      <main className="relative lg:ml-64 pt-14 lg:pt-0 min-h-screen overflow-hidden">
-        {/* Mesh top-right + grid hairline (mismo lenguaje que /dashboard). */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 z-0"
-          style={{
-            backgroundImage:
-              "radial-gradient(circle at 85% 15%, rgba(29, 78, 216, 0.18) 0%, transparent 45%), radial-gradient(circle at 95% 5%, rgba(76, 215, 246, 0.12) 0%, transparent 35%)",
-          }}
-        />
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 z-0 opacity-[0.04]"
-          style={{
-            backgroundImage:
-              "linear-gradient(to right, rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,1) 1px, transparent 1px)",
-            backgroundSize: "64px 64px",
-          }}
-        />
-
-        <div className="relative z-10 max-w-7xl mx-auto px-6 md:px-10 py-10 md:py-12">
+      <main className="lg:ml-64 pt-14 lg:pt-0 min-h-screen">
+        <div className="max-w-7xl mx-auto px-6 md:px-10 py-10 md:py-12">
           {/* Breadcrumb */}
-          <div className="flex justify-between items-center mb-8">
-            <div className="flex items-center gap-2 text-sm text-slate-400">
-              <Link href="/dashboard" className="hover:text-white transition">
-                Inicio
-              </Link>
-              <span className="text-slate-600">/</span>
-              <span className="text-white">Historial</span>
-            </div>
+          <div className="flex items-center gap-2 text-sm text-slate-500 mb-6">
+            <Link
+              href="/dashboard"
+              className="hover:text-indigo-600 transition"
+            >
+              Inicio
+            </Link>
+            <span className="text-slate-300">/</span>
+            <span className="text-slate-900 font-semibold">Historial</span>
           </div>
 
           {/* H1 + acciones */}
           <header className="mb-8 flex flex-col lg:flex-row lg:items-end justify-between gap-6">
             <div>
-              <h1 className="text-4xl md:text-5xl font-black tracking-tight text-white">
+              <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900">
                 Historial de cotizaciones
               </h1>
-              <p className="mt-3 text-sm md:text-base text-slate-400 max-w-2xl">
+              <p className="mt-3 text-sm md:text-base text-slate-600 max-w-2xl">
                 Todas las cotizaciones que has generado desde web o Telegram.
               </p>
             </div>
-            <div className="flex items-center gap-3 shrink-0">
+            <div className="flex items-center gap-3 shrink-0 flex-wrap">
               <a
                 href="/api/cotizaciones/export?format=xlsx"
-                className="inline-flex items-center gap-1.5 px-4 py-2 border border-cyan-400/40 text-cyan-300 text-sm font-semibold rounded-lg hover:bg-cyan-400/10 hover:border-cyan-400/60 transition"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-indigo-200 text-indigo-700 text-sm font-semibold bg-white hover:bg-indigo-50 hover:border-indigo-300 transition"
                 title="Descarga todas las cotizaciones del periodo seleccionado en Excel"
               >
-                <DownloadIcon className="w-4 h-4" />
+                <Download className="w-4 h-4" />
                 Exportar Excel
               </a>
               <Link
                 href="/dashboard/cotizar"
-                className="px-4 py-2 bg-gradient-to-br from-blue-600 to-cyan-500 text-white text-sm font-semibold rounded-lg shadow-[0_0_20px_rgba(29,78,216,0.3)] hover:shadow-[0_0_30px_rgba(29,78,216,0.5)] transition"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-gradient-to-r from-indigo-600 to-indigo-500 text-white text-sm font-semibold shadow-md shadow-indigo-200 hover:shadow-lg hover:shadow-indigo-300/60 transition"
               >
                 Nueva cotización
               </Link>
@@ -170,11 +165,14 @@ export default async function HistorialPage({ searchParams }: PageProps) {
           <Filtros estado={estado} from={from} to={to} rfc={rfcFilter} />
 
           {!result.ok ? (
-            <div className="mt-6 rounded-xl border border-red-400/30 bg-red-500/10 backdrop-blur-[12px] p-6">
-              <p className="text-red-200 font-semibold">
+            <div
+              role="alert"
+              className="mt-6 rounded-2xl border border-rose-200 bg-rose-50 p-6"
+            >
+              <p className="text-rose-700 font-semibold">
                 No pudimos cargar el historial.
               </p>
-              <p className="text-sm text-red-300/80 mt-1">{result.message}</p>
+              <p className="text-sm text-rose-600 mt-1">{result.message}</p>
             </div>
           ) : rows.length === 0 ? (
             <EmptyState filtered={filtersActive} />
@@ -200,7 +198,7 @@ export default async function HistorialPage({ searchParams }: PageProps) {
   );
 }
 
-/* ---------- Filtros (pills glassmorphism) ---------- */
+/* ---------- Filtros ---------- */
 
 function Filtros({
   estado,
@@ -213,11 +211,11 @@ function Filtros({
   to?: string;
   rfc?: string;
 }) {
-  // GET form para que los filtros queden en la URL y sean bookmarkables.
+  // GET form para que los filtros queden en la URL (bookmarkable / SSR).
   return (
     <form
       method="GET"
-      className="mt-2 mb-6 rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-white/10 p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end"
+      className="mt-2 mb-6 rounded-2xl bg-white border border-slate-200 shadow-sm p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end"
     >
       <div>
         <label
@@ -230,12 +228,12 @@ function Filtros({
           id="estado"
           name="estado"
           defaultValue={estado || ""}
-          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-full text-sm text-white focus:outline-none focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/30 transition"
+          className="w-full px-4 py-2 bg-slate-100 border border-transparent rounded-full text-sm text-slate-900 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/20 focus:bg-white transition"
         >
-          <option value="" className="bg-[#0b1326]">Todos</option>
-          <option value="completada" className="bg-[#0b1326]">Completada</option>
-          <option value="pendiente" className="bg-[#0b1326]">Pendiente</option>
-          <option value="fallida" className="bg-[#0b1326]">Fallida</option>
+          <option value="">Todos</option>
+          <option value="completada">Completada</option>
+          <option value="pendiente">Pendiente</option>
+          <option value="fallida">Fallida</option>
         </select>
       </div>
       <div>
@@ -253,7 +251,7 @@ function Filtros({
           autoComplete="off"
           defaultValue={rfc || ""}
           placeholder="ABC123456XYZ"
-          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-full text-sm font-mono uppercase text-white placeholder:text-slate-500 placeholder:font-sans placeholder:normal-case focus:outline-none focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/30 transition"
+          className="w-full px-4 py-2 bg-slate-100 border border-transparent rounded-full text-sm font-mono uppercase text-slate-900 placeholder:text-slate-400 placeholder:font-sans placeholder:normal-case focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/20 focus:bg-white transition"
         />
       </div>
       <div>
@@ -268,7 +266,7 @@ function Filtros({
           name="from"
           type="date"
           defaultValue={from || ""}
-          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-full text-sm text-white focus:outline-none focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/30 transition [color-scheme:dark]"
+          className="w-full px-4 py-2 bg-slate-100 border border-transparent rounded-full text-sm text-slate-900 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/20 focus:bg-white transition"
         />
       </div>
       <div>
@@ -283,19 +281,19 @@ function Filtros({
           name="to"
           type="date"
           defaultValue={to || ""}
-          className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-full text-sm text-white focus:outline-none focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/30 transition [color-scheme:dark]"
+          className="w-full px-4 py-2 bg-slate-100 border border-transparent rounded-full text-sm text-slate-900 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/20 focus:bg-white transition"
         />
       </div>
       <div className="flex gap-2">
         <button
           type="submit"
-          className="flex-1 md:flex-none px-4 py-2 bg-gradient-to-br from-blue-600 to-cyan-500 text-white text-sm font-semibold rounded-lg shadow-[0_0_18px_rgba(29,78,216,0.25)] hover:shadow-[0_0_28px_rgba(29,78,216,0.45)] transition"
+          className="flex-1 md:flex-none px-4 py-2 rounded-full bg-gradient-to-r from-indigo-600 to-indigo-500 text-white text-sm font-semibold shadow-md shadow-indigo-200 hover:shadow-lg hover:shadow-indigo-300/60 transition"
         >
           Aplicar
         </button>
         <Link
           href="/dashboard/historial"
-          className="px-3 py-2 text-sm font-medium text-slate-400 hover:text-white transition inline-flex items-center"
+          className="px-3 py-2 text-sm font-medium text-slate-500 hover:text-indigo-600 transition inline-flex items-center"
         >
           Limpiar
         </Link>
@@ -309,23 +307,23 @@ function Filtros({
 function EstadoBadge({ estado }: { estado: EstadoCotizacion }) {
   if (estado === "completada") {
     return (
-      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-400/10 text-emerald-300 border border-emerald-400/30 uppercase tracking-wider whitespace-nowrap">
-        <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 shadow-[0_0_6px_rgba(52,211,153,0.8)]" />
+      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 uppercase tracking-wider whitespace-nowrap">
+        <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1.5" />
         Completada
       </span>
     );
   }
   if (estado === "pendiente") {
     return (
-      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-400/10 text-amber-300 border border-amber-400/30 uppercase tracking-wider whitespace-nowrap">
-        <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400 mr-1.5 shadow-[0_0_6px_rgba(251,191,36,0.8)]" />
+      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 uppercase tracking-wider whitespace-nowrap">
+        <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500 mr-1.5" />
         Pendiente
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-red-400/10 text-red-300 border border-red-400/30 uppercase tracking-wider whitespace-nowrap">
-      <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-400 mr-1.5 shadow-[0_0_6px_rgba(248,113,113,0.8)]" />
+    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 uppercase tracking-wider whitespace-nowrap">
+      <span className="inline-block w-1.5 h-1.5 rounded-full bg-rose-500 mr-1.5" />
       Falló
     </span>
   );
@@ -341,13 +339,13 @@ function TablaDesktop({
   montoMax: number;
 }) {
   return (
-    <div className="hidden md:block rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-white/10 overflow-hidden">
+    <div className="hidden md:block rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
       <table className="w-full text-sm">
         <caption className="sr-only">
           Lista de cotizaciones del distribuidor con folio, fecha, RFC, líneas,
           monto, estatus y acciones de descarga.
         </caption>
-        <thead className="bg-white/[0.02] text-slate-500 uppercase text-[10px] tracking-widest font-bold border-b border-white/10">
+        <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-widest font-bold border-b border-slate-200">
           <tr>
             <th scope="col" className="text-left px-5 py-3">Folio</th>
             <th scope="col" className="text-left px-5 py-3">Fecha</th>
@@ -364,9 +362,14 @@ function TablaDesktop({
             </th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-white/5">
-          {rows.map((c) => (
-            <FilaDesktop key={c.id} c={c} montoMax={montoMax} />
+        <tbody className="divide-y divide-slate-100">
+          {rows.map((c, idx) => (
+            <FilaDesktop
+              key={c.id}
+              c={c}
+              montoMax={montoMax}
+              delayIndex={idx}
+            />
           ))}
         </tbody>
       </table>
@@ -377,9 +380,11 @@ function TablaDesktop({
 function FilaDesktop({
   c,
   montoMax,
+  delayIndex,
 }: {
   c: Cotizacion;
   montoMax: number;
+  delayIndex: number;
 }) {
   const fecha = new Date(c.created_at);
   const fechaStr = isNaN(fecha.getTime())
@@ -392,7 +397,7 @@ function FilaDesktop({
         minute: "2-digit",
       });
 
-  // Folio compacto — UUID head en mono cyan.
+  // Folio compacto — UUID head en mono cyan-600.
   const folio = c.id.length > 8 ? c.id.slice(0, 8).toUpperCase() : c.id;
 
   // Monto y micro-bar A/B (proxy: porcentaje del monto vs máximo de la página).
@@ -403,43 +408,43 @@ function FilaDesktop({
       : 0;
 
   return (
-    <tr className="hover:bg-white/[0.03] transition-colors group">
-      <td className="px-5 py-3.5 font-mono text-xs text-cyan-300 whitespace-nowrap">
+    <MotionRow delayIndex={delayIndex}>
+      <td className="px-5 py-3.5 font-mono text-xs text-cyan-600 font-semibold whitespace-nowrap max-w-[8rem] truncate">
         {folio}
       </td>
-      <td className="px-5 py-3.5 text-slate-400 whitespace-nowrap tabular-nums">
+      <td className="px-5 py-3.5 text-slate-500 whitespace-nowrap tabular-nums">
         {fechaStr}
       </td>
-      <td className="px-5 py-3.5 font-mono text-xs text-slate-300">
+      <td className="px-5 py-3.5 font-mono text-xs text-slate-700">
         {maskRfc(c.rfc)}
       </td>
-      <td className="px-5 py-3.5 text-white font-medium whitespace-nowrap max-w-[14rem] truncate">
+      <td className="px-5 py-3.5 text-slate-900 font-semibold whitespace-nowrap max-w-[14rem] truncate">
         {c.equipo || (
-          <span className="text-slate-500 italic font-normal">Sin equipo</span>
+          <span className="text-slate-400 italic font-normal">Sin equipo</span>
         )}
       </td>
-      <td className="px-5 py-3.5 text-right text-slate-300 tabular-nums">
+      <td className="px-5 py-3.5 text-right text-slate-700 tabular-nums">
         {c.lineas}
       </td>
-      <td className="px-5 py-3.5 text-right text-white font-semibold tabular-nums whitespace-nowrap">
+      <td className="px-5 py-3.5 text-right text-slate-900 font-bold tabular-nums whitespace-nowrap">
         {fmtMxn(monto)}
       </td>
       <td className="px-5 py-3.5 hidden lg:table-cell">
         {ratio > 0 ? (
           <div className="flex items-center gap-2 w-28">
-            <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
+            <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-cyan-400 to-blue-500 rounded-full shadow-[0_0_8px_rgba(34,211,238,0.5)]"
+                className="h-full bg-gradient-to-r from-cyan-400 to-cyan-500 rounded-full"
                 style={{ width: `${ratio}%` }}
                 aria-hidden="true"
               />
             </div>
-            <span className="text-[10px] text-slate-400 tabular-nums w-8 text-right">
+            <span className="text-[10px] text-slate-500 tabular-nums w-8 text-right font-semibold">
               {ratio}%
             </span>
           </div>
         ) : (
-          <span className="text-xs text-slate-600">—</span>
+          <span className="text-xs text-slate-300">—</span>
         )}
       </td>
       <td className="px-5 py-3.5">
@@ -448,7 +453,7 @@ function FilaDesktop({
       <td className="px-5 py-3.5">
         <AccionesRow c={c} align="right" />
       </td>
-    </tr>
+    </MotionRow>
   );
 }
 
@@ -457,43 +462,42 @@ function FilaDesktop({
 function CardsMobile({ rows }: { rows: Cotizacion[] }) {
   return (
     <ul className="md:hidden space-y-3" aria-label="Cotizaciones">
-      {rows.map((c) => (
-        <li
-          key={c.id}
-          className="rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-white/10 p-4"
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <p className="font-mono text-xs text-cyan-300 truncate">
-                {c.id.length > 8 ? c.id.slice(0, 8).toUpperCase() : c.id}
-              </p>
-              <p className="text-2xl font-black text-white tabular-nums mt-1">
-                {fmtMxn(c.lineas * c.plan)}
-              </p>
-              <p className="text-xs text-slate-400 mt-1">
-                {c.lineas} {c.lineas === 1 ? "línea" : "líneas"} ·{" "}
-                {new Date(c.created_at).toLocaleDateString("es-MX", {
-                  day: "2-digit",
-                  month: "short",
-                  year: "numeric",
-                })}
-              </p>
-              <p className="font-mono text-xs text-slate-300 mt-1">
-                {maskRfc(c.rfc)}
-              </p>
+      {rows.map((c, idx) => (
+        <li key={c.id}>
+          <MotionCard delayIndex={idx}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="font-mono text-xs text-cyan-600 font-semibold truncate">
+                  {c.id.length > 8 ? c.id.slice(0, 8).toUpperCase() : c.id}
+                </p>
+                <p className="text-2xl font-extrabold text-slate-900 tabular-nums mt-1">
+                  {fmtMxn(c.lineas * c.plan)}
+                </p>
+                <p className="text-xs text-slate-500 mt-1">
+                  {c.lineas} {c.lineas === 1 ? "línea" : "líneas"} ·{" "}
+                  {new Date(c.created_at).toLocaleDateString("es-MX", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                  })}
+                </p>
+                <p className="font-mono text-xs text-slate-600 mt-1">
+                  {maskRfc(c.rfc)}
+                </p>
+              </div>
+              <EstadoBadge estado={c.estado} />
             </div>
-            <EstadoBadge estado={c.estado} />
-          </div>
-          <div className="mt-3 pt-3 border-t border-white/5">
-            <AccionesRow c={c} align="left" />
-          </div>
+            <div className="mt-3 pt-3 border-t border-slate-100">
+              <AccionesRow c={c} align="left" />
+            </div>
+          </MotionCard>
         </li>
       ))}
     </ul>
   );
 }
 
-/* ---------- Acciones (icon buttons PDF Cliente + PDF Interno) ---------- */
+/* ---------- Acciones ---------- */
 
 function AccionesRow({
   c,
@@ -507,7 +511,7 @@ function AccionesRow({
   if (c.estado === "pendiente") {
     return (
       <div className={`flex items-center gap-2 ${justify}`}>
-        <span className="text-xs text-amber-300 italic">En proceso…</span>
+        <span className="text-xs text-amber-600 italic">En proceso…</span>
       </div>
     );
   }
@@ -517,9 +521,9 @@ function AccionesRow({
       <div className={`flex items-center gap-2 ${justify}`}>
         <Link
           href={`/dashboard/cotizar${c.rfc ? `?rfc=${encodeURIComponent(c.rfc)}` : ""}`}
-          className="inline-flex items-center gap-1 px-2.5 py-1 bg-white/5 border border-white/10 text-slate-200 text-xs font-medium rounded-md hover:bg-white/10 transition"
+          className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-50 border border-slate-200 text-slate-700 text-xs font-medium rounded-full hover:bg-slate-100 hover:border-slate-300 transition"
         >
-          <RetryIcon className="w-3.5 h-3.5" />
+          <RotateCw className="w-3.5 h-3.5" />
           Reintentar
         </Link>
       </div>
@@ -534,7 +538,7 @@ function AccionesRow({
   if (!hasCliente && !hasInterno && !hasScreenshot) {
     return (
       <div className={`flex items-center gap-2 ${justify}`}>
-        <span className="text-xs text-slate-500">Sin enlace</span>
+        <span className="text-xs text-slate-400">Sin enlace</span>
       </div>
     );
   }
@@ -555,8 +559,7 @@ function AccionesRow({
       />
       {/* Borradores (sin RFC): el portal Telcel no emite PDF oficial. El bot
           guarda una captura del resumen como evidencia descargable. Solo
-          mostramos este botón si no hay PDF cliente (cuando hay PDF, el
-          screenshot es redundante). */}
+          mostramos este botón si no hay PDF cliente. */}
       {!hasCliente && hasScreenshot && (
         <ScreenshotLink href={c.screenshot_url!} />
       )}
@@ -565,20 +568,16 @@ function AccionesRow({
 }
 
 function ScreenshotLink({ href }: { href: string }) {
-  const base =
-    "inline-flex items-center justify-center w-8 h-8 rounded-lg transition";
-  const styles =
-    "bg-cyan-500/15 border border-cyan-400/30 text-cyan-300 hover:bg-cyan-500/25 hover:border-cyan-400/50";
   return (
     <a
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className={`${base} ${styles}`}
+      className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-cyan-50 border border-cyan-200 text-cyan-700 hover:bg-cyan-100 hover:border-cyan-300 transition"
       aria-label="Ver captura del resumen (borrador sin PDF)"
       title="Ver captura del resumen (borrador sin PDF)"
     >
-      <PhotoIcon className="w-4 h-4" />
+      <ImageIcon className="w-4 h-4" />
     </a>
   );
 }
@@ -594,36 +593,33 @@ function IconLinkOrDisabled({
   label: string;
   variant: "cliente" | "interno";
 }) {
-  const base =
-    "inline-flex items-center justify-center w-8 h-8 rounded-lg transition";
-
   if (!enabled || !href) {
     return (
       <span
-        className={`${base} text-slate-600 opacity-40 cursor-not-allowed border border-white/5`}
+        className="inline-flex items-center justify-center w-8 h-8 rounded-full text-slate-300 opacity-60 cursor-not-allowed border border-slate-100"
         aria-label={`${label} (no disponible)`}
         title={`${label} (no disponible)`}
       >
-        <DownloadIcon className="w-4 h-4" />
+        <Download className="w-4 h-4" />
       </span>
     );
   }
 
   const styles =
     variant === "cliente"
-      ? "bg-cyan-500/15 border border-cyan-400/30 text-cyan-300 hover:bg-cyan-500/25 hover:border-cyan-400/50"
-      : "bg-white/5 border border-white/10 text-slate-300 hover:bg-white/10 hover:text-white";
+      ? "bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100 hover:border-indigo-300"
+      : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 hover:border-slate-300";
 
   return (
     <a
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className={`${base} ${styles}`}
+      className={`inline-flex items-center justify-center w-8 h-8 rounded-full border transition ${styles}`}
       aria-label={label}
       title={label}
     >
-      <DownloadIcon className="w-4 h-4" />
+      <Download className="w-4 h-4" />
     </a>
   );
 }
@@ -632,38 +628,44 @@ function IconLinkOrDisabled({
 
 function EmptyState({ filtered }: { filtered: boolean }) {
   return (
-    <div className="rounded-2xl bg-white/[0.04] backdrop-blur-[12px] border border-white/10 p-10 md:p-14 text-center">
-      <div className="mx-auto w-16 h-16 rounded-full bg-cyan-500/10 border border-cyan-400/30 flex items-center justify-center">
-        <FolderEmptyIcon className="w-8 h-8 text-cyan-300" />
-      </div>
-      <h2 className="mt-5 text-xl font-bold text-white">
-        {filtered
-          ? "Sin cotizaciones que coincidan"
-          : "Aún no tienes cotizaciones"}
-      </h2>
-      <p className="mt-2 text-slate-400 max-w-md mx-auto text-sm leading-relaxed">
-        {filtered
-          ? "Ajusta los filtros o limpia la búsqueda para ver todas tus cotizaciones."
-          : "Genera tu primera cotización en menos de un minuto. El PDF queda guardado aquí cuando termine."}
-      </p>
-      <div className="mt-6 flex items-center justify-center gap-3 flex-wrap">
-        <Link
-          href="/dashboard/cotizar"
-          className="px-5 py-2.5 bg-gradient-to-br from-blue-600 to-cyan-500 text-white text-sm font-semibold rounded-lg shadow-[0_0_20px_rgba(29,78,216,0.3)] hover:shadow-[0_0_30px_rgba(29,78,216,0.5)] transition inline-flex items-center gap-2"
-        >
-          Empieza una nueva
-          <ArrowRightIcon className="w-4 h-4" />
-        </Link>
-        {filtered && (
+    <MotionEmpty>
+      <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-10 md:p-14 text-center">
+        <div className="mx-auto w-20 h-20 rounded-full bg-gradient-to-br from-indigo-100 to-cyan-100 flex items-center justify-center ring-8 ring-indigo-50/50">
+          {filtered ? (
+            <Inbox className="w-10 h-10 text-indigo-500" />
+          ) : (
+            <FileText className="w-10 h-10 text-indigo-500" />
+          )}
+        </div>
+        <h2 className="mt-6 text-2xl font-extrabold text-slate-900 tracking-tight">
+          {filtered
+            ? "Sin cotizaciones que coincidan"
+            : "Aún no tienes cotizaciones"}
+        </h2>
+        <p className="mt-2 text-slate-600 max-w-md mx-auto text-sm leading-relaxed">
+          {filtered
+            ? "Ajusta los filtros o limpia la búsqueda para ver todas tus cotizaciones."
+            : "Genera tu primera cotización en menos de un minuto. El PDF queda guardado aquí cuando termine."}
+        </p>
+        <div className="mt-6 flex items-center justify-center gap-3 flex-wrap">
           <Link
-            href="/dashboard/historial"
-            className="px-5 py-2.5 text-sm font-medium text-slate-400 hover:text-white transition"
+            href="/dashboard/cotizar"
+            className="px-5 py-2.5 rounded-full bg-gradient-to-r from-indigo-600 to-indigo-500 text-white text-sm font-semibold shadow-md shadow-indigo-200 hover:shadow-lg hover:shadow-indigo-300/60 transition inline-flex items-center gap-2"
           >
-            Limpiar filtros
+            Empezar nueva
+            <ArrowRight className="w-4 h-4" />
           </Link>
-        )}
+          {filtered && (
+            <Link
+              href="/dashboard/historial"
+              className="px-5 py-2.5 text-sm font-medium text-slate-500 hover:text-indigo-600 transition"
+            >
+              Limpiar filtros
+            </Link>
+          )}
+        </div>
       </div>
-    </div>
+    </MotionEmpty>
   );
 }
 
@@ -705,141 +707,44 @@ function Paginacion({
   return (
     <nav
       aria-label="Paginación"
-      className="mt-4 flex items-center justify-between text-sm text-slate-400 flex-wrap gap-3"
+      className="mt-5 flex items-center justify-between text-sm text-slate-500 flex-wrap gap-3"
     >
       <span>
-        Mostrando <strong className="text-white tabular-nums">{start}</strong>–
-        <strong className="text-white tabular-nums">{end}</strong> de{" "}
-        <strong className="text-white tabular-nums">{total}</strong>
+        Mostrando{" "}
+        <strong className="text-slate-900 tabular-nums">{start}</strong>–
+        <strong className="text-slate-900 tabular-nums">{end}</strong> de{" "}
+        <strong className="text-slate-900 tabular-nums">{total}</strong>
       </span>
       <div className="flex items-center gap-2">
         {hasPrev ? (
           <Link
             href={buildHref(prevOffset)}
-            className="px-3 py-1.5 border border-white/10 bg-white/5 rounded-lg hover:bg-white/10 hover:border-white/20 text-slate-200 transition"
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 text-slate-700 transition"
           >
-            ← Anterior
+            <ChevronLeft className="w-4 h-4" />
+            Anterior
           </Link>
         ) : (
-          <span className="px-3 py-1.5 border border-white/5 rounded-lg text-slate-600">
-            ← Anterior
+          <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-slate-100 text-slate-300">
+            <ChevronLeft className="w-4 h-4" />
+            Anterior
           </span>
         )}
         {hasNext ? (
           <Link
             href={buildHref(nextOffset)}
-            className="px-3 py-1.5 border border-white/10 bg-white/5 rounded-lg hover:bg-white/10 hover:border-white/20 text-slate-200 transition"
+            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-white border border-slate-200 hover:bg-slate-50 hover:border-slate-300 text-slate-700 transition"
           >
-            Siguiente →
+            Siguiente
+            <ChevronRight className="w-4 h-4" />
           </Link>
         ) : (
-          <span className="px-3 py-1.5 border border-white/5 rounded-lg text-slate-600">
-            Siguiente →
+          <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-slate-100 text-slate-300">
+            Siguiente
+            <ChevronRight className="w-4 h-4" />
           </span>
         )}
       </div>
     </nav>
-  );
-}
-
-/* ---------- Iconos ---------- */
-
-function DownloadIcon({ className = "w-5 h-5" }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      fill="none"
-      viewBox="0 0 24 24"
-      strokeWidth={1.8}
-      stroke="currentColor"
-      className={className}
-      aria-hidden="true"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3"
-      />
-    </svg>
-  );
-}
-
-function RetryIcon({ className = "w-5 h-5" }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      fill="none"
-      viewBox="0 0 24 24"
-      strokeWidth={1.8}
-      stroke="currentColor"
-      className={className}
-      aria-hidden="true"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"
-      />
-    </svg>
-  );
-}
-
-function FolderEmptyIcon({ className = "w-8 h-8" }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      fill="none"
-      viewBox="0 0 24 24"
-      strokeWidth={1.5}
-      stroke="currentColor"
-      className={className}
-      aria-hidden="true"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 0 0-1.883 2.542l.857 6a2.25 2.25 0 0 0 2.227 1.932H19.05a2.25 2.25 0 0 0 2.227-1.932l.857-6a2.25 2.25 0 0 0-1.883-2.542m-16.5 0V6A2.25 2.25 0 0 1 6 3.75h3.879a1.5 1.5 0 0 1 1.06.44l2.122 2.12a1.5 1.5 0 0 0 1.06.44H18A2.25 2.25 0 0 1 20.25 9v.776"
-      />
-    </svg>
-  );
-}
-
-function ArrowRightIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      className={className}
-      aria-hidden="true"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"
-      />
-    </svg>
-  );
-}
-
-function PhotoIcon({ className = "w-4 h-4" }: { className?: string }) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      fill="none"
-      viewBox="0 0 24 24"
-      strokeWidth={1.8}
-      stroke="currentColor"
-      className={className}
-      aria-hidden="true"
-    >
-      <path
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"
-      />
-    </svg>
   );
 }

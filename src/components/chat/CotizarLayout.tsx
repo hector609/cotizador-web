@@ -3,16 +3,22 @@
 /**
  * CotizarLayout — composición client-side de la página /dashboard/cotizar.
  *
- * REDISEÑO "REVENTAR mode": dark glassmorphism premium. El padre Server
- * Component renderiza Sidebar fijo izquierdo dark + este componente para el
- * resto del viewport. Aquí montamos el chat al centro (con mesh radial top-
- * right de fondo) y el catálogo Telcel a la derecha en `lg+`.
+ * REDISEÑO LUMINA Light Premium (pivot 2026-05-13). Shell light tipo Linear
+ * cuando rediseñaron a fondo: `bg-slate-50` global, surfaces `bg-white`,
+ * paleta indigo-600 (#4F46E5) + cyan-500 (#06B6D4) + pink-500 (#EC4899).
+ * Cero glassmorphism dark, cero `#0b1326`.
  *
- * Layout split (>= lg):
- *   ┌─────────────────────────────────┬─────────────┐
- *   │     ChatInterface (center)      │  Catálogo   │
- *   │     mesh gradient + glow        │  (w-96)     │
- *   └─────────────────────────────────┴─────────────┘
+ * Layout 3 paneles (desktop lg+):
+ *   ┌──────────┬────────────────────────────┬─────────────┐
+ *   │ Sidebar  │     ChatInterface          │  Catálogo   │
+ *   │ (left)   │     bg-slate-50            │  bg-white   │
+ *   │ owned by │     mid pane               │  (w-96)     │
+ *   │ parent   │                            │             │
+ *   └──────────┴────────────────────────────┴─────────────┘
+ *
+ * Este componente solo monta `[chat | catálogo]`. El Sidebar lo monta el
+ * padre Server Component (`page.tsx`) para que TODO el dashboard comparta
+ * el mismo shell.
  *
  * Mobile/tablet (< lg):
  *   - ChatInterface ocupa todo el viewport.
@@ -28,6 +34,7 @@
  */
 
 import { useCallback, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   ChatInterface,
   type ChatInterfaceApi,
@@ -44,53 +51,40 @@ export function CotizarLayout() {
 
   const handleCopyToChat = useCallback((text: string) => {
     chatApiRef.current?.append(text);
-    // En mobile cerramos el drawer tras copiar para que el vendedor vea
-    // el texto en el composer y pueda editarlo/enviarlo.
     setMobileOpen(false);
   }, []);
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col lg:flex-row relative">
-      {/* Mesh radial top-right (blue/cyan) + faint grid hairline. Capa fija
-          detrás del contenido — pointer-events:none para no interferir.
-          Vive aquí (no en el chat) para que el patrón se extienda también
-          debajo del catálogo y mantenga la continuidad visual del shell. */}
+    <div className="flex-1 min-h-0 flex flex-col lg:flex-row relative bg-slate-50">
+      {/* Mouse-follow-style decorative gradient (21st "Animated AI Chat"
+          inspiration). Soft indigo→cyan radial top-right en mid-pane; un
+          spot pink-500/8 bottom-left. Pointer-events:none, fixed atrás. */}
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 z-0"
         style={{
           backgroundImage:
-            "radial-gradient(circle at 85% 15%, rgba(29, 78, 216, 0.18) 0%, transparent 45%), radial-gradient(circle at 95% 5%, rgba(76, 215, 246, 0.12) 0%, transparent 35%)",
-        }}
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 z-0 opacity-[0.04]"
-        style={{
-          backgroundImage:
-            "linear-gradient(to right, rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,1) 1px, transparent 1px)",
-          backgroundSize: "64px 64px",
+            "radial-gradient(circle at 80% 10%, rgba(79, 70, 229, 0.07) 0%, transparent 50%), radial-gradient(circle at 20% 90%, rgba(236, 72, 153, 0.05) 0%, transparent 45%), radial-gradient(circle at 95% 50%, rgba(6, 182, 212, 0.06) 0%, transparent 40%)",
         }}
       />
 
-      {/* Chat (siempre presente) */}
+      {/* Chat (middle pane, siempre presente). */}
       <div className="relative z-10 flex-1 min-h-0 flex flex-col">
         <ChatInterface onReady={handleChatReady} />
       </div>
 
-      {/* Catálogo: desktop inline (lg+, audit B6 — antes md+ ahogaba el chat
-          en tablet), mobile/tablet drawer flotante. El wrapper aplica el
-          shell dark del REVENTAR mode; el componente interno mantiene su
-          propia estructura (tabs + listas) que ya fue diseñada compacta. */}
-      <div className="relative z-10 hidden lg:flex lg:flex-col lg:w-96 xl:w-[400px] lg:shrink-0 lg:min-h-0 lg:border-l lg:border-white/10 lg:bg-[#060e20]">
+      {/* Catálogo desktop (lg+) inline a la derecha. CatalogoSidebar ya es
+          light internamente — solo aseguramos el wrapper coincida. */}
+      <div className="relative z-10 hidden lg:flex lg:flex-col lg:w-96 xl:w-[400px] lg:shrink-0 lg:min-h-0 lg:border-l lg:border-slate-200 lg:bg-white">
         <CatalogoSidebar onCopyToChat={handleCopyToChat} />
       </div>
 
-      {/* FAB para abrir catálogo (mobile + tablet) */}
+      {/* FAB para abrir catálogo en mobile/tablet. Pill gradient indigo→cyan
+          con scale-on-hover, mismo lenguaje que el send button del composer. */}
       <button
         type="button"
         onClick={() => setMobileOpen(true)}
-        className="lg:hidden fixed bottom-24 right-4 z-30 inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-xs font-bold text-white bg-gradient-to-br from-blue-600 to-cyan-500 border border-white/15 shadow-[0_0_24px_rgba(29,78,216,0.45)] hover:scale-105 transition"
+        className="lg:hidden fixed bottom-24 right-4 z-30 inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-xs font-bold text-white bg-gradient-to-br from-indigo-600 to-cyan-500 border border-white/30 shadow-lg shadow-indigo-300/40 hover:shadow-indigo-400/60 hover:scale-105 transition"
         aria-label="Abrir catálogo Telcel"
       >
         <svg
@@ -108,20 +102,26 @@ export function CotizarLayout() {
         Catálogo
       </button>
 
-      {/* Drawer mobile/tablet */}
-      {mobileOpen && (
-        <div
-          className="lg:hidden fixed inset-0 z-40 flex flex-col bg-[#060e20]"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Catálogo Telcel"
-        >
-          <CatalogoSidebar
-            onCopyToChat={handleCopyToChat}
-            onClose={() => setMobileOpen(false)}
-          />
-        </div>
-      )}
+      {/* Drawer mobile/tablet con AnimatePresence (slide-in desde la derecha). */}
+      <AnimatePresence>
+        {mobileOpen && (
+          <motion.div
+            initial={{ x: "100%", opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: "100%", opacity: 0 }}
+            transition={{ type: "tween", ease: "easeOut", duration: 0.25 }}
+            className="lg:hidden fixed inset-0 z-40 flex flex-col bg-white"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Catálogo Telcel"
+          >
+            <CatalogoSidebar
+              onCopyToChat={handleCopyToChat}
+              onClose={() => setMobileOpen(false)}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

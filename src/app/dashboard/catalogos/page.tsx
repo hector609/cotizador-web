@@ -3,17 +3,18 @@
 /**
  * /dashboard/catalogos — explorador de catálogo (equipos + planes) para DATs.
  *
- * Equivalente web del flujo /catalogos del bot: el DAT puede navegar marcas,
- * modelos y planes corporativos sin abrir Telegram. Desde la tabla de
- * equipos puede saltar directo a /dashboard/cotizar?equipo=<modelo>.
+ * REDISEÑO LUMINA Light Premium.
  *
- * REDISEÑO "REVENTAR mode" — dark glassmorphism premium. Hooks y data
- * fetching INTACTOS; capa visual nueva.
- *
- * Layouts (audit B2):
- *  - Equipos: grid de cards con typography grande marca + modelo.
+ *  - Surface bg-slate-50 + cards bg-white rounded-2xl shadow-sm.
+ *  - Tabs pill segmented rounded-full con motion `layoutId` indicator
+ *    gradient indigo→cyan.
+ *  - Equipos: grid de cards con typography grande marca + modelo + filtros
+ *    pill (marca dropdown / buscar / precio máx).
  *  - Planes: tabla densa md+ con columnas progresivamente ocultas
- *    (hidden lg:table-cell, xl:table-cell) + búsqueda clave/nombre.
+ *    (hidden lg:table-cell, xl:table-cell) + búsqueda local.
+ *  - framer-motion whileHover en cards + filas.
+ *
+ * Hooks y fetching INTACTOS.
  */
 
 import { useRouter } from "next/navigation";
@@ -25,6 +26,13 @@ import {
   useMemo,
   useState,
 } from "react";
+import { motion } from "framer-motion";
+import {
+  ChevronLeft,
+  ChevronRight,
+  AlertCircle,
+  Inbox,
+} from "lucide-react";
 import { Sidebar } from "@/components/admin/Sidebar";
 
 /* ---------- Tipos ---------- */
@@ -107,86 +115,54 @@ export default function CatalogosPage() {
   const [tab, setTab] = useState<Tab>("equipos");
 
   return (
-    <div className="min-h-screen bg-[#0b1326] text-slate-200 antialiased">
+    <div className="min-h-screen bg-slate-50 text-slate-900 antialiased">
       <Sidebar active="catalogos" />
 
-      <main className="relative lg:ml-64 pt-14 lg:pt-0 min-h-screen overflow-hidden">
-        {/* Mesh + grid */}
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 z-0"
-          style={{
-            backgroundImage:
-              "radial-gradient(circle at 85% 15%, rgba(29, 78, 216, 0.18) 0%, transparent 45%), radial-gradient(circle at 95% 5%, rgba(76, 215, 246, 0.12) 0%, transparent 35%)",
-          }}
-        />
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 z-0 opacity-[0.04]"
-          style={{
-            backgroundImage:
-              "linear-gradient(to right, rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,1) 1px, transparent 1px)",
-            backgroundSize: "64px 64px",
-          }}
-        />
-
-        <div className="relative z-10 max-w-7xl mx-auto px-6 md:px-10 py-10 md:py-12">
+      <main className="lg:ml-64 pt-14 lg:pt-0 min-h-screen">
+        <div className="max-w-7xl mx-auto px-6 md:px-10 py-10 md:py-12">
           {/* Breadcrumb */}
-          <div className="flex items-center gap-2 text-sm text-slate-400 mb-8">
-            <Link href="/dashboard" className="hover:text-white transition">
+          <div className="flex items-center gap-2 text-sm text-slate-500 mb-6">
+            <Link
+              href="/dashboard"
+              className="hover:text-indigo-600 transition"
+            >
               Inicio
             </Link>
-            <span className="text-slate-600">/</span>
-            <span className="text-white">Catálogo</span>
+            <span className="text-slate-300">/</span>
+            <span className="text-slate-900 font-semibold">Catálogo</span>
           </div>
 
           {/* H1 */}
           <header className="mb-8">
-            <h1 className="text-4xl md:text-5xl font-black tracking-tight text-white">
+            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900">
               Catálogo
             </h1>
-            <p className="mt-3 text-sm md:text-base text-slate-400 max-w-2xl">
+            <p className="mt-3 text-sm md:text-base text-slate-600 max-w-2xl">
               Explora equipos y planes corporativos. Lanza una cotización con el
               modelo elegido en un click.
             </p>
           </header>
 
-          {/* Tabs pill segmented */}
+          {/* Tabs pill segmented con motion layoutId */}
           <div
             role="tablist"
             aria-label="Catálogo: equipos o planes"
-            className="mb-6 inline-flex bg-white/[0.04] backdrop-blur-[12px] rounded-full border border-white/10 p-1"
+            className="mb-6 inline-flex bg-white border border-slate-200 shadow-sm rounded-full p-1 relative"
           >
-            <button
-              role="tab"
-              aria-selected={tab === "equipos"}
-              aria-controls="tabpanel-equipos"
-              id="tab-equipos"
+            <TabButton
+              tab="equipos"
+              active={tab === "equipos"}
               onClick={() => setTab("equipos")}
-              className={[
-                "px-5 py-1.5 text-sm font-bold rounded-full transition",
-                tab === "equipos"
-                  ? "bg-gradient-to-br from-blue-600 to-cyan-500 text-white shadow-[0_0_20px_rgba(34,211,238,0.4)]"
-                  : "text-slate-400 hover:text-white",
-              ].join(" ")}
             >
               Equipos
-            </button>
-            <button
-              role="tab"
-              aria-selected={tab === "planes"}
-              aria-controls="tabpanel-planes"
-              id="tab-planes"
+            </TabButton>
+            <TabButton
+              tab="planes"
+              active={tab === "planes"}
               onClick={() => setTab("planes")}
-              className={[
-                "px-5 py-1.5 text-sm font-bold rounded-full transition",
-                tab === "planes"
-                  ? "bg-gradient-to-br from-blue-600 to-cyan-500 text-white shadow-[0_0_20px_rgba(34,211,238,0.4)]"
-                  : "text-slate-400 hover:text-white",
-              ].join(" ")}
             >
               Planes
-            </button>
+            </TabButton>
           </div>
 
           {tab === "equipos" ? (
@@ -209,6 +185,45 @@ export default function CatalogosPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+/* ---------- Tab button con layoutId indicator ---------- */
+
+function TabButton({
+  tab,
+  active,
+  onClick,
+  children,
+}: {
+  tab: Tab;
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      role="tab"
+      aria-selected={active}
+      aria-controls={`tabpanel-${tab}`}
+      id={`tab-${tab}`}
+      onClick={onClick}
+      className="relative px-5 py-1.5 text-sm font-bold rounded-full transition-colors z-10"
+    >
+      {active && (
+        <motion.span
+          layoutId="catalogos-tab-indicator"
+          aria-hidden="true"
+          className="absolute inset-0 rounded-full bg-gradient-to-r from-indigo-600 to-cyan-500 shadow-md shadow-indigo-200"
+          transition={{ type: "spring", stiffness: 360, damping: 32 }}
+        />
+      )}
+      <span
+        className={`relative z-10 ${active ? "text-white" : "text-slate-500"}`}
+      >
+        {children}
+      </span>
+    </button>
   );
 }
 
@@ -287,7 +302,7 @@ function EquiposTab() {
   return (
     <div className="space-y-4">
       {/* Filtros pills */}
-      <div className="rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-white/10 p-4 grid grid-cols-1 md:grid-cols-4 gap-3">
+      <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-4 grid grid-cols-1 md:grid-cols-4 gap-3">
         <div>
           <label
             htmlFor={marcaId}
@@ -300,11 +315,11 @@ function EquiposTab() {
             value={marca}
             onChange={(e) => setMarca(e.target.value)}
             disabled={loading || unavailable}
-            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-full text-sm text-white focus:outline-none focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/30 transition disabled:opacity-50"
+            className="w-full px-4 py-2 bg-slate-100 border border-transparent rounded-full text-sm text-slate-900 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/20 focus:bg-white transition disabled:opacity-50"
           >
-            <option value="" className="bg-[#0b1326]">Todas las marcas</option>
+            <option value="">Todas las marcas</option>
             {marcas.map((m) => (
-              <option key={m} value={m} className="bg-[#0b1326]">
+              <option key={m} value={m}>
                 {m}
               </option>
             ))}
@@ -327,7 +342,7 @@ function EquiposTab() {
             }}
             onBlur={() => void load()}
             placeholder="ej. iPhone 15, Galaxy S24"
-            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-full text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/30 transition"
+            className="w-full px-4 py-2 bg-slate-100 border border-transparent rounded-full text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/20 focus:bg-white transition"
           />
         </div>
         <div>
@@ -348,7 +363,7 @@ function EquiposTab() {
               setPage(0);
             }}
             placeholder="Sin tope"
-            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-full text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/30 transition"
+            className="w-full px-4 py-2 bg-slate-100 border border-transparent rounded-full text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/20 focus:bg-white transition"
           />
         </div>
       </div>
@@ -384,6 +399,7 @@ function EquiposTab() {
             <li key={`${eq.marca}-${eq.modelo}-${idx}`}>
               <EquipoCard
                 eq={eq}
+                delayIndex={idx}
                 onCotizar={() =>
                   router.push(
                     `/dashboard/cotizar?equipo=${encodeURIComponent(eq.modelo)}`
@@ -404,33 +420,45 @@ function EquiposTab() {
 
 function EquipoCard({
   eq,
+  delayIndex,
   onCotizar,
 }: {
   eq: EquipoRow;
+  delayIndex: number;
   onCotizar: () => void;
 }) {
   return (
-    <div className="group relative rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-white/10 p-5 transition-all duration-300 hover:scale-[1.02] hover:border-cyan-400/40 hover:shadow-[0_0_30px_rgba(6,182,212,0.25)] flex flex-col h-full">
-      <p className="text-[10px] font-bold uppercase tracking-widest text-cyan-300">
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{
+        duration: 0.25,
+        delay: Math.min(delayIndex, 12) * 0.025,
+      }}
+      whileHover={{ y: -3, scale: 1.015 }}
+      className="rounded-2xl bg-white border border-slate-200 shadow-sm hover:border-indigo-200 hover:shadow-xl hover:shadow-indigo-100/40 transition-shadow p-5 flex flex-col h-full"
+    >
+      <p className="text-[10px] font-bold uppercase tracking-widest text-cyan-600">
         {eq.marca}
       </p>
-      <p className="mt-2 text-xl font-black text-white leading-tight tracking-tight">
+      <p className="mt-2 text-xl font-extrabold text-slate-900 leading-tight tracking-tight">
         {eq.modelo}
       </p>
       {typeof eq.precio === "number" && eq.precio > 0 && (
-        <p className="mt-3 text-sm text-slate-300 tabular-nums">
+        <p className="mt-3 text-sm text-slate-700 tabular-nums font-semibold">
           {fmtMxn(eq.precio)}
         </p>
       )}
       <button
         onClick={onCotizar}
         className="mt-auto pt-4 w-full"
+        aria-label={`Cotizar ${eq.marca} ${eq.modelo}`}
       >
-        <span className="block w-full px-3 py-2 bg-cyan-500/15 border border-cyan-400/30 text-cyan-300 text-xs font-bold rounded-lg hover:bg-cyan-500/25 hover:border-cyan-400/50 transition">
+        <span className="block w-full px-3 py-2 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-bold hover:bg-indigo-100 hover:border-indigo-300 transition">
           Cotizar este equipo
         </span>
       </button>
-    </div>
+    </motion.div>
   );
 }
 
@@ -527,7 +555,7 @@ function PlanesTab() {
   return (
     <div className="space-y-4">
       {/* Filtros */}
-      <div className="rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-white/10 p-4 grid grid-cols-1 md:grid-cols-4 gap-3">
+      <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-4 grid grid-cols-1 md:grid-cols-4 gap-3">
         <div>
           <label
             htmlFor={qId}
@@ -544,7 +572,7 @@ function PlanesTab() {
               setPage(0);
             }}
             placeholder="Clave o nombre"
-            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-full text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/30 transition"
+            className="w-full px-4 py-2 bg-slate-100 border border-transparent rounded-full text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/20 focus:bg-white transition"
           />
         </div>
         <div>
@@ -559,11 +587,11 @@ function PlanesTab() {
             value={grupo}
             onChange={(e) => setGrupo(e.target.value)}
             disabled={loading || unavailable}
-            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-full text-sm text-white focus:outline-none focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/30 transition disabled:opacity-50"
+            className="w-full px-4 py-2 bg-slate-100 border border-transparent rounded-full text-sm text-slate-900 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/20 focus:bg-white transition disabled:opacity-50"
           >
-            <option value="" className="bg-[#0b1326]">Todos</option>
+            <option value="">Todos</option>
             {filtros.grupos.map((g) => (
-              <option key={g} value={g} className="bg-[#0b1326]">
+              <option key={g} value={g}>
                 {g}
               </option>
             ))}
@@ -581,11 +609,11 @@ function PlanesTab() {
             value={modalidad}
             onChange={(e) => setModalidad(e.target.value)}
             disabled={loading || unavailable}
-            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-full text-sm text-white focus:outline-none focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/30 transition disabled:opacity-50"
+            className="w-full px-4 py-2 bg-slate-100 border border-transparent rounded-full text-sm text-slate-900 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/20 focus:bg-white transition disabled:opacity-50"
           >
-            <option value="" className="bg-[#0b1326]">Todas</option>
+            <option value="">Todas</option>
             {filtros.modalidades.map((m) => (
-              <option key={m} value={m} className="bg-[#0b1326]">
+              <option key={m} value={m}>
                 {m}
               </option>
             ))}
@@ -603,11 +631,11 @@ function PlanesTab() {
             value={plazo}
             onChange={(e) => setPlazo(e.target.value)}
             disabled={loading || unavailable}
-            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-full text-sm text-white focus:outline-none focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/30 transition disabled:opacity-50"
+            className="w-full px-4 py-2 bg-slate-100 border border-transparent rounded-full text-sm text-slate-900 focus:outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/20 focus:bg-white transition disabled:opacity-50"
           >
-            <option value="" className="bg-[#0b1326]">Todos</option>
+            <option value="">Todos</option>
             {filtros.plazos.map((p) => (
-              <option key={p} value={String(p)} className="bg-[#0b1326]">
+              <option key={p} value={String(p)}>
                 {p} meses
               </option>
             ))}
@@ -647,13 +675,13 @@ function PlanesTab() {
 
 function PlanesTable({ rows }: { rows: PlanRow[] }) {
   return (
-    <div className="hidden md:block rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-white/10 overflow-hidden">
+    <div className="hidden md:block rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
       <table className="w-full text-sm">
         <caption className="sr-only">
           Catálogo de planes con clave, nombre, grupo, modalidad, plazo, renta,
           datos y minutos.
         </caption>
-        <thead className="bg-white/[0.02] text-slate-500 uppercase text-[10px] tracking-widest font-bold border-b border-white/10">
+        <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-widest font-bold border-b border-slate-200">
           <tr>
             <th
               scope="col"
@@ -690,35 +718,43 @@ function PlanesTable({ rows }: { rows: PlanRow[] }) {
             </th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-white/5">
+        <tbody className="divide-y divide-slate-100">
           {rows.map((p, idx) => (
-            <tr
+            <motion.tr
               key={`${p.clave ?? "x"}-${idx}`}
-              className="hover:bg-white/[0.03] transition-colors"
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                duration: 0.2,
+                delay: Math.min(idx, 12) * 0.015,
+              }}
+              whileHover={{ backgroundColor: "rgba(79, 70, 229, 0.04)" }}
             >
-              <td className="px-5 py-3.5 font-mono text-xs text-cyan-300 hidden lg:table-cell">
+              <td className="px-5 py-3.5 font-mono text-xs text-cyan-600 font-semibold hidden lg:table-cell">
                 {p.clave ?? "—"}
               </td>
-              <td className="px-5 py-3.5 text-white font-medium">
+              <td className="px-5 py-3.5 text-slate-900 font-semibold">
                 {p.nombre ?? "—"}
               </td>
-              <td className="px-5 py-3.5 text-slate-400 hidden xl:table-cell">
+              <td className="px-5 py-3.5 text-slate-500 hidden xl:table-cell">
                 {p.grupo ?? p.familia ?? "—"}
               </td>
-              <td className="px-5 py-3.5 text-slate-300">{p.modalidad ?? "—"}</td>
-              <td className="px-5 py-3.5 text-slate-300 whitespace-nowrap">
+              <td className="px-5 py-3.5 text-slate-700">
+                {p.modalidad ?? "—"}
+              </td>
+              <td className="px-5 py-3.5 text-slate-700 whitespace-nowrap">
                 {fmtPlazo(p.plazo ?? null)}
               </td>
-              <td className="px-5 py-3.5 text-right text-white font-semibold tabular-nums whitespace-nowrap">
+              <td className="px-5 py-3.5 text-right text-slate-900 font-bold tabular-nums whitespace-nowrap">
                 {fmtMxn(p.renta ?? p.precio_lista ?? null)}
               </td>
-              <td className="px-5 py-3.5 text-right text-slate-300 tabular-nums">
+              <td className="px-5 py-3.5 text-right text-slate-700 tabular-nums">
                 {fmtDatos(p.datos_gb ?? null)}
               </td>
-              <td className="px-5 py-3.5 text-right text-slate-300 tabular-nums hidden xl:table-cell">
+              <td className="px-5 py-3.5 text-right text-slate-700 tabular-nums hidden xl:table-cell">
                 {fmtMinutos(p.minutos ?? null)}
               </td>
-            </tr>
+            </motion.tr>
           ))}
         </tbody>
       </table>
@@ -730,49 +766,67 @@ function PlanesCards({ rows }: { rows: PlanRow[] }) {
   return (
     <ul className="md:hidden space-y-3" aria-label="Planes">
       {rows.map((p, idx) => (
-        <li
-          key={`${p.clave ?? "x"}-${idx}`}
-          className="rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-white/10 p-4"
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <p className="font-bold text-white leading-snug">
-                {p.nombre ?? "—"}
-              </p>
-              {p.clave && (
-                <p className="font-mono text-[10px] text-cyan-300 mt-0.5">
-                  {p.clave}
+        <li key={`${p.clave ?? "x"}-${idx}`}>
+          <motion.div
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{
+              duration: 0.2,
+              delay: Math.min(idx, 12) * 0.02,
+            }}
+            whileHover={{ y: -2 }}
+            className="rounded-2xl bg-white border border-slate-200 shadow-sm hover:border-indigo-200 hover:shadow-md hover:shadow-indigo-100/40 transition-shadow p-4"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="font-bold text-slate-900 leading-snug">
+                  {p.nombre ?? "—"}
                 </p>
-              )}
+                {p.clave && (
+                  <p className="font-mono text-[10px] text-cyan-600 font-semibold mt-0.5">
+                    {p.clave}
+                  </p>
+                )}
+              </div>
+              <p className="text-lg font-extrabold text-slate-900 tabular-nums shrink-0">
+                {fmtMxn(p.renta ?? p.precio_lista ?? null)}
+              </p>
             </div>
-            <p className="text-lg font-black text-white tabular-nums shrink-0">
-              {fmtMxn(p.renta ?? p.precio_lista ?? null)}
-            </p>
-          </div>
-          <dl className="mt-3 pt-3 border-t border-white/5 grid grid-cols-2 gap-2 text-xs">
-            <div>
-              <dt className="text-[10px] text-slate-500 uppercase tracking-wider">Modalidad</dt>
-              <dd className="text-slate-200 mt-0.5">{p.modalidad ?? "—"}</dd>
-            </div>
-            <div>
-              <dt className="text-[10px] text-slate-500 uppercase tracking-wider">Plazo</dt>
-              <dd className="text-slate-200 mt-0.5">
-                {fmtPlazo(p.plazo ?? null)}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-[10px] text-slate-500 uppercase tracking-wider">Datos</dt>
-              <dd className="text-slate-200 tabular-nums mt-0.5">
-                {fmtDatos(p.datos_gb ?? null)}
-              </dd>
-            </div>
-            <div>
-              <dt className="text-[10px] text-slate-500 uppercase tracking-wider">Minutos</dt>
-              <dd className="text-slate-200 tabular-nums mt-0.5">
-                {fmtMinutos(p.minutos ?? null)}
-              </dd>
-            </div>
-          </dl>
+            <dl className="mt-3 pt-3 border-t border-slate-100 grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <dt className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">
+                  Modalidad
+                </dt>
+                <dd className="text-slate-700 mt-0.5">
+                  {p.modalidad ?? "—"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">
+                  Plazo
+                </dt>
+                <dd className="text-slate-700 mt-0.5">
+                  {fmtPlazo(p.plazo ?? null)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">
+                  Datos
+                </dt>
+                <dd className="text-slate-700 tabular-nums mt-0.5">
+                  {fmtDatos(p.datos_gb ?? null)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">
+                  Minutos
+                </dt>
+                <dd className="text-slate-700 tabular-nums mt-0.5">
+                  {fmtMinutos(p.minutos ?? null)}
+                </dd>
+              </div>
+            </dl>
+          </motion.div>
         </li>
       ))}
     </ul>
@@ -795,15 +849,15 @@ function ResultMeta({
   unit: string;
 }) {
   return (
-    <div className="flex items-center justify-between text-xs text-slate-400 flex-wrap gap-2">
+    <div className="flex items-center justify-between text-xs text-slate-500 flex-wrap gap-2">
       <span>
-        <strong className="text-white tabular-nums">{showing}</strong> de{" "}
-        <strong className="text-white tabular-nums">{total}</strong> {unit}
+        <strong className="text-slate-900 tabular-nums">{showing}</strong> de{" "}
+        <strong className="text-slate-900 tabular-nums">{total}</strong> {unit}
       </span>
       {totalPages > 1 && (
-        <span className="text-slate-500">
+        <span className="text-slate-400">
           Página{" "}
-          <span className="tabular-nums text-slate-300">
+          <span className="tabular-nums text-slate-700 font-semibold">
             {page + 1}/{totalPages}
           </span>
         </span>
@@ -824,27 +878,29 @@ function Pagination({
   return (
     <nav
       aria-label="Paginación"
-      className="flex items-center justify-between text-sm text-slate-400 flex-wrap gap-3 pt-2"
+      className="flex items-center justify-between text-sm text-slate-500 flex-wrap gap-3 pt-2"
     >
       <button
         onClick={() => onChange(Math.max(0, page - 1))}
         disabled={page === 0}
-        className="px-3 py-1.5 border border-white/10 bg-white/5 text-slate-200 rounded-lg hover:bg-white/10 hover:border-white/20 transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white/5 disabled:hover:border-white/10"
+        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-slate-200"
       >
-        ← Anterior
+        <ChevronLeft className="w-4 h-4" />
+        Anterior
       </button>
-      <span className="text-slate-500 text-xs">
+      <span className="text-slate-400 text-xs">
         Página{" "}
-        <span className="tabular-nums text-slate-300">
+        <span className="tabular-nums text-slate-700 font-semibold">
           {page + 1} de {totalPages}
         </span>
       </span>
       <button
         onClick={() => onChange(Math.min(totalPages - 1, page + 1))}
         disabled={page >= totalPages - 1}
-        className="px-3 py-1.5 border border-white/10 bg-white/5 text-slate-200 rounded-lg hover:bg-white/10 hover:border-white/20 transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white/5 disabled:hover:border-white/10"
+        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300 transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-slate-200"
       >
-        Siguiente →
+        Siguiente
+        <ChevronRight className="w-4 h-4" />
       </button>
     </nav>
   );
@@ -852,11 +908,14 @@ function Pagination({
 
 function UnavailableBanner() {
   return (
-    <div className="rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-amber-400/30 p-6 text-center">
-      <p className="inline-block bg-amber-400/15 text-amber-300 border border-amber-400/30 text-xs font-bold uppercase tracking-widest rounded-full px-3 py-1">
+    <div
+      role="status"
+      className="rounded-2xl bg-amber-50 border border-amber-200 p-6 text-center"
+    >
+      <p className="inline-block bg-amber-100 text-amber-700 border border-amber-200 text-xs font-bold uppercase tracking-widest rounded-full px-3 py-1">
         Catálogo cargando
       </p>
-      <p className="mt-3 text-sm text-slate-300">
+      <p className="mt-3 text-sm text-slate-700">
         El catálogo se está sincronizando. Intenta de nuevo en aproximadamente 1
         minuto.
       </p>
@@ -874,12 +933,15 @@ function ErrorBanner({
   return (
     <div
       role="alert"
-      className="rounded-xl border border-red-400/30 bg-red-500/10 backdrop-blur-[12px] p-4 flex items-center justify-between gap-3 flex-wrap"
+      className="rounded-2xl border border-rose-200 bg-rose-50 p-4 flex items-center justify-between gap-3 flex-wrap"
     >
-      <p className="text-red-200 text-sm font-medium">{message}</p>
+      <p className="text-rose-700 text-sm font-medium inline-flex items-center gap-2">
+        <AlertCircle className="w-4 h-4" />
+        {message}
+      </p>
       <button
         onClick={onRetry}
-        className="px-3 py-1.5 bg-red-500/30 border border-red-400/40 text-red-100 text-sm font-medium rounded-lg hover:bg-red-500/40 transition"
+        className="px-3 py-1.5 rounded-full bg-rose-100 border border-rose-300 text-rose-700 text-sm font-medium hover:bg-rose-200 transition"
       >
         Reintentar
       </button>
@@ -889,8 +951,14 @@ function ErrorBanner({
 
 function EmptyMessage({ msg }: { msg: string }) {
   return (
-    <div className="rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-white/10 p-10 text-center text-slate-400 text-sm">
-      {msg}
+    <div className="rounded-2xl bg-white border border-slate-200 shadow-sm p-10 text-center">
+      <div
+        className="mx-auto w-16 h-16 rounded-full bg-gradient-to-br from-indigo-100 to-cyan-100 flex items-center justify-center"
+        aria-hidden="true"
+      >
+        <Inbox className="w-8 h-8 text-indigo-500" />
+      </div>
+      <p className="mt-4 text-slate-600 text-sm">{msg}</p>
     </div>
   );
 }
@@ -906,12 +974,12 @@ function GridSkeleton() {
       {[0, 1, 2, 3, 4, 5].map((i) => (
         <div
           key={i}
-          className="rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-white/10 p-5 space-y-3"
+          className="rounded-2xl bg-white border border-slate-200 shadow-sm p-5 space-y-3"
           aria-hidden="true"
         >
-          <div className="h-3 bg-white/5 rounded animate-pulse w-1/3" />
-          <div className="h-5 bg-white/5 rounded animate-pulse w-3/4" />
-          <div className="h-8 bg-white/5 rounded animate-pulse w-full mt-4" />
+          <div className="h-3 bg-slate-100 rounded animate-pulse w-1/3" />
+          <div className="h-5 bg-slate-100 rounded animate-pulse w-3/4" />
+          <div className="h-8 bg-slate-100 rounded animate-pulse w-full mt-4" />
         </div>
       ))}
     </div>
@@ -921,7 +989,7 @@ function GridSkeleton() {
 function TableSkeleton() {
   return (
     <div
-      className="rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-white/10 p-6 space-y-3"
+      className="rounded-2xl bg-white border border-slate-200 shadow-sm p-6 space-y-3"
       role="status"
       aria-live="polite"
     >
@@ -929,7 +997,7 @@ function TableSkeleton() {
       {[0, 1, 2, 3, 4, 5].map((i) => (
         <div
           key={i}
-          className="h-10 bg-white/5 rounded animate-pulse"
+          className="h-10 bg-slate-100 rounded animate-pulse"
           aria-hidden="true"
         />
       ))}

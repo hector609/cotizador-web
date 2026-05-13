@@ -3,81 +3,70 @@
 /**
  * ChatInterface — UI conversacional para cotizar.
  *
- * REDISEÑO "REVENTAR mode" (dark glassmorphism premium tipo Linear/Vercel).
- * Bubbles con `backdrop-blur` sobre el shell `#0b1326`, glow cyan en el
- * timer y los focos importantes, gradiente blue→cyan para el usuario y los
- * CTAs primarios. Toda la lógica (hook `useChatCotizar`, JobCard polling,
- * handoff /optimizar) se mantiene 100% intacta — solo cambia presentación.
+ * REDISEÑO LUMINA Light Premium (pivot 2026-05-13). Pivot total desde el dark
+ * "REVENTAR mode" anterior. Base literal: 21st `Animated AI Chat` (typing
+ * dots stagger, AnimatePresence, motion fade-up bubbles, auto-resize textarea
+ * con useAutoResizeTextarea, focus-ring suave). Color tokens adaptados a
+ * LUMINA:
+ *   - Surfaces: bg-white sobre bg-slate-50.
+ *   - Primary gradient: indigo-600 → cyan-500.
+ *   - Borders: slate-200.
+ *   - Text: slate-900 (titles) / slate-600 (body) / slate-500 (hints).
+ *   - Cero `bg-[#0b1326]`, cero glass-dark.
+ *
+ * Toda la lógica (hook `useChatCotizar`, JobCard polling, handoff
+ * /optimizar, ChatInterfaceApi.append, sessionStorage drain) se mantiene
+ * 100% intacta — solo cambia presentación.
  *
  * Layout:
- *   - Topbar: breadcrumb "Inicio / Cotizar" + timer pill cyan + dropdown
- *     "Conversaciones recientes" (placeholder; no hay endpoint todavía).
- *   - Scroll area con bubbles glass (agente izquierda, usuario derecha).
- *   - Tarjetas especiales cuando hay job activo: JobCard (polling) o
- *     CompletedCard (inline) con folio mono cyan-300 + monto big.
- *   - Composer fijo abajo: textarea glass + botón gradient blue-cyan.
+ *   - Topbar bg-white sticky: breadcrumb + timer pill cyan glow + dropdown
+ *     "Recientes" + botón Reiniciar.
+ *   - Scroll vertical con max-w-3xl, padding generoso. Bubbles motion fade-up.
+ *   - Composer fixed abajo: textarea auto-resize + clip ghost + send pill
+ *     gradient con focus-ring indigo-100.
+ *   - Quick-action chips bajo el composer.
  *
- * Responsive: en móvil el composer queda fijo abajo del viewport; en desktop
- * la conversación ocupa hasta `max-w-3xl` centrada.
- *
- * Persistencia: el hook `useChatCotizar` guarda solo el `conversation_id` en
- * sessionStorage. Al refrescar la página el historial visible se pierde pero
- * el agente recuerda la conversación gracias a Claude conversation memory.
+ * Cuando llega la cotización: `CompletedCard` inline con NumberFlow para el
+ * monto, gradient indigo→cyan buttons, mint chip "COMPLETADA" pulsing.
  */
 
 import Link from "next/link";
 import {
   type FormEvent,
   type KeyboardEvent,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import NumberFlow from "@number-flow/react";
+import { Paperclip, Sparkles, SendHorizonal } from "lucide-react";
 import {
   useChatCotizar,
   type ChatMessage,
   type JobState,
   type PollingStage,
 } from "@/lib/hooks/useChatCotizar";
-import {
-  ArrowUpTrayIcon,
-  PaperAirplaneIcon,
-  DocumentTextIcon,
-  PhotoIcon,
-  SparklesIcon,
-} from "@/components/icons";
+import { DocumentTextIcon, PhotoIcon } from "@/components/icons";
 
 const MAX_MESSAGE_LEN = 2000;
 
 /**
  * API expuesta a través del prop `onReady` para que el padre (e.g. el panel
- * de catálogo) pueda escribir al composer SIN auto-enviar. Solo `append` por
- * ahora — agregar más métodos requiere extender este contrato.
+ * de catálogo) pueda escribir al composer SIN auto-enviar.
  */
 export interface ChatInterfaceApi {
-  /**
-   * Inserta texto al final del draft del composer. Si el draft tiene
-   * contenido, antepone newline para que cada copia quede en su propia
-   * línea. Hace foco al textarea al final.
-   */
   append: (text: string) => void;
 }
 
 interface ChatInterfaceProps {
-  /**
-   * Callback opcional invocado UNA VEZ al montar, recibiendo la API del
-   * chat. Diseñado para que el panel de catálogo lateral pueda empujar
-   * texto al composer (Copiar al chat) sin acoplar componentes.
-   */
   onReady?: (api: ChatInterfaceApi) => void;
 }
 
 /**
- * Clave de sessionStorage que `/dashboard/optimizar` usa para pasarnos el
- * payload con las palancas óptimas (ver `OptimizarPage.handleAplicarYCotizar`).
- * Leemos UNA sola vez al montar y borramos la entrada para que un refresh
- * no vuelva a pre-llenar el composer.
+ * sessionStorage key que `/dashboard/optimizar` usa para pasarnos las palancas.
  */
 const OPTIMIZAR_STORAGE_KEY = "optimizar:palancas";
 
@@ -100,11 +89,6 @@ interface OptimizarHandoff {
   createdAt?: number;
 }
 
-/**
- * Construye el mensaje pre-llenado que el vendedor revisará antes de enviar.
- * Es deliberadamente verboso para que el agente del backend reciba todo el
- * contexto en un solo turno y empiece a cotizar de inmediato.
- */
 function buildOptimizarPrompt(h: OptimizarHandoff): string {
   const partes: string[] = ["Cotiza con estas palancas aplicadas:"];
   if (h.rfc) partes.push(`- RFC: ${h.rfc}`);
@@ -126,11 +110,29 @@ function buildOptimizarPrompt(h: OptimizarHandoff): string {
     partes.push(`  · Tasa negociada: ${p.tasa_negociada_pct}%`);
   }
   if (typeof h.rentabilidad_simulada === "number") {
-    partes.push(
-      `(Rentabilidad simulada: ${h.rentabilidad_simulada.toFixed(2)}%)`,
-    );
+    partes.push(`(Rentabilidad simulada: ${h.rentabilidad_simulada.toFixed(2)}%)`);
   }
   return partes.join("\n");
+}
+
+/**
+ * useAutoResizeTextarea — replica del hook de 21st "Animated AI Chat".
+ * Mide `scrollHeight` cada vez que cambia el value y aplica directly al
+ * inline style del textarea. Caps a `maxHeight` para evitar que el composer
+ * coma toda la pantalla.
+ */
+function useAutoResizeTextarea(
+  ref: React.RefObject<HTMLTextAreaElement | null>,
+  value: string,
+  { minHeight = 48, maxHeight = 180 }: { minHeight?: number; maxHeight?: number } = {},
+) {
+  useEffect(() => {
+    const ta = ref.current;
+    if (!ta) return;
+    ta.style.height = "auto";
+    const next = Math.min(Math.max(ta.scrollHeight, minHeight), maxHeight);
+    ta.style.height = `${next}px`;
+  }, [ref, value, minHeight, maxHeight]);
 }
 
 export function ChatInterface({ onReady }: ChatInterfaceProps = {}) {
@@ -149,22 +151,13 @@ export function ChatInterface({ onReady }: ChatInterfaceProps = {}) {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
-  /**
-   * Reloj global de la sesión (desde que se montó el chat). Es independiente
-   * del reloj del job: aquí queremos que el vendedor vea cuánto lleva en la
-   * conversación, no en la cotización específica. Cero costo si nadie mira.
-   */
+  useAutoResizeTextarea(textareaRef, draft);
+
+  // Reloj global de la sesión.
   const [sessionStart] = useState<number>(() => Date.now());
   const sessionElapsed = useElapsedSeconds(sessionStart, true);
 
-  /**
-   * Expone la API al padre una sola vez (StrictMode-safe: el ref `notified`
-   * evita doble registro en doble-mount de desarrollo). El `setDraft` es
-   * estable de React, y construimos `append` inline cada vez pero sólo
-   * llamamos a `onReady` una vez — el padre guarda la función y nuestras
-   * referencias internas (`setDraft`, `textareaRef`) son válidas durante
-   * todo el ciclo de vida del componente, así no necesitamos re-publicar.
-   */
+  // Expone API al padre una sola vez (StrictMode-safe).
   const apiPublishedRef = useRef(false);
   useEffect(() => {
     if (!onReady || apiPublishedRef.current) return;
@@ -177,24 +170,12 @@ export function ChatInterface({ onReady }: ChatInterfaceProps = {}) {
           const next = `${prev}${sep}${text}`;
           return next.slice(0, MAX_MESSAGE_LEN);
         });
-        // Foco al textarea para que el siguiente Enter envíe.
         setTimeout(() => textareaRef.current?.focus(), 0);
       },
     });
   }, [onReady]);
 
-  /**
-   * Handoff desde /dashboard/optimizar: si el vendedor pulsó "Aplicar y
-   * cotizar", lee las palancas de sessionStorage, arma un prompt verboso
-   * y lo deja en el composer. NO auto-envía — el vendedor ve el texto y
-   * presiona Enter cuando quiera. Esto cumple el contrato de Option A
-   * del UX-audit sin riesgo de disparar una cotización accidental.
-   *
-   * Tanto la lectura de sessionStorage como el setState se difieren a un
-   * micro-task con `queueMicrotask` para mantener la regla
-   * `react-hooks/set-state-in-effect` (no llamar setState síncronamente
-   * dentro del body del effect — evita cascada de renders).
-   */
+  // Handoff desde /dashboard/optimizar.
   useEffect(() => {
     if (typeof window === "undefined") return;
     let cancelled = false;
@@ -203,14 +184,12 @@ export function ChatInterface({ onReady }: ChatInterfaceProps = {}) {
       try {
         const raw = window.sessionStorage.getItem(OPTIMIZAR_STORAGE_KEY);
         if (!raw) return;
-        // Consumimos una sola vez (un refresh no debería re-pre-llenar).
         window.sessionStorage.removeItem(OPTIMIZAR_STORAGE_KEY);
         const handoff = JSON.parse(raw) as OptimizarHandoff;
         if (!handoff || typeof handoff !== "object") return;
         const prompt = buildOptimizarPrompt(handoff);
         if (prompt) {
           setDraft(prompt.slice(0, MAX_MESSAGE_LEN));
-          // Foco al textarea para que Enter envíe inmediatamente.
           setTimeout(() => textareaRef.current?.focus(), 0);
         }
       } catch {
@@ -222,31 +201,25 @@ export function ChatInterface({ onReady }: ChatInterfaceProps = {}) {
     };
   }, []);
 
-  // Auto-scroll al final cuando llegan mensajes nuevos o cambia el estado.
+  // Auto-scroll al final.
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
     el.scrollTop = el.scrollHeight;
   }, [messages, job.kind]);
 
-  // Auto-resize del textarea (1-6 líneas).
-  useEffect(() => {
-    const ta = textareaRef.current;
-    if (!ta) return;
-    ta.style.height = "auto";
-    ta.style.height = `${Math.min(ta.scrollHeight, 180)}px`;
-  }, [draft]);
-
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    const text = draft.trim();
-    if (!text || inputDisabled) return;
-    setDraft("");
-    await sendMessage(text);
-  };
+  const handleSubmit = useCallback(
+    async (e: FormEvent) => {
+      e.preventDefault();
+      const text = draft.trim();
+      if (!text || inputDisabled) return;
+      setDraft("");
+      await sendMessage(text);
+    },
+    [draft, inputDisabled, sendMessage],
+  );
 
   const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-    // Enter envía, Shift+Enter agrega nueva línea (estilo ChatGPT).
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       void handleSubmit(e as unknown as FormEvent);
@@ -269,68 +242,65 @@ export function ChatInterface({ onReady }: ChatInterfaceProps = {}) {
 
   const fillDraft = (text: string) => {
     setDraft((prev) => (prev.length > 0 ? prev : text));
-    // Foco al textarea (defer al próximo frame para que el state nuevo aplique).
-    setTimeout(() => {
-      const ta = textareaRef.current;
-      if (ta) ta.focus();
-    }, 0);
+    setTimeout(() => textareaRef.current?.focus(), 0);
   };
 
   return (
     <div className="flex flex-col flex-1 min-h-0 relative">
-      {/* Topbar: breadcrumb + timer pill + dropdown conversaciones. Glassy
-          sticky en la parte superior del pane. */}
-      <header className="relative z-10 px-4 sm:px-8 py-4 flex items-center justify-between gap-3 border-b border-white/10 bg-[#0b1326]/70 backdrop-blur-md">
+      {/* Topbar light sticky */}
+      <header className="relative z-10 px-4 sm:px-8 py-4 flex items-center justify-between gap-3 border-b border-slate-200 bg-white/80 backdrop-blur-md">
         <div className="flex items-center gap-3 min-w-0">
           <nav
-            className="flex items-center gap-2 text-sm text-slate-400 min-w-0"
+            className="flex items-center gap-2 text-sm text-slate-500 min-w-0"
             aria-label="Migas de pan"
           >
             <Link
               href="/dashboard"
-              className="hover:text-white transition truncate"
+              className="hover:text-slate-900 transition truncate"
             >
               Inicio
             </Link>
-            <span className="text-slate-600">/</span>
-            <span className="text-white font-semibold truncate">Cotizar</span>
+            <span className="text-slate-400">/</span>
+            <span className="text-slate-900 font-semibold truncate">Cotizar</span>
           </nav>
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          {/* Timer pill: tiempo desde inicio de sesión, glow cyan suave. */}
+          {/* Timer pill cyan glow (decorativo). */}
           <span
-            className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-400/30 text-cyan-300 text-xs font-mono tabular-nums shadow-[0_0_18px_rgba(34,211,238,0.15)]"
+            className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-cyan-50 border border-cyan-200 text-cyan-700 text-xs font-mono tabular-nums shadow-sm"
             title="Tiempo desde inicio de la sesión"
             aria-label={`Tiempo de sesión ${sessionTimer}`}
           >
-            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.8)]" aria-hidden="true" />
+            <span
+              className="w-1.5 h-1.5 rounded-full bg-cyan-500 shadow-[0_0_6px_rgba(6,182,212,0.7)]"
+              aria-hidden="true"
+            />
             {sessionTimer}
-            <span className="text-cyan-400/60">— desde inicio</span>
+            <span className="text-cyan-500/70">— desde inicio</span>
           </span>
 
-          {/* Dropdown "Conversaciones recientes" (placeholder hasta que
-              exista el endpoint). Mantiene UX previsible con <details>. */}
+          {/* Dropdown "Conversaciones recientes" (placeholder). */}
           <details className="relative">
             <summary
-              className="list-none cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 backdrop-blur border border-white/10 text-xs font-medium text-slate-300 hover:text-white hover:border-cyan-400/40 transition"
+              className="list-none cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-medium text-slate-600 hover:text-slate-900 hover:border-indigo-300 hover:bg-indigo-50/40 transition"
               aria-label="Conversaciones recientes"
             >
               <span className="hidden sm:inline">Recientes</span>
               <ChevronDownIcon />
             </summary>
             <div
-              className="absolute right-0 mt-2 w-64 rounded-xl bg-[#0b1326]/95 backdrop-blur-md border border-white/10 shadow-[0_8px_40px_rgba(0,0,0,0.5)] p-3 z-40"
+              className="absolute right-0 mt-2 w-64 rounded-xl bg-white border border-slate-200 shadow-xl shadow-slate-200/60 p-3 z-40"
               role="menu"
             >
               <p className="text-[10px] uppercase tracking-widest font-bold text-slate-500 mb-2">
                 Conversaciones recientes
               </p>
-              <p className="text-xs text-slate-400 leading-relaxed">
+              <p className="text-xs text-slate-600 leading-relaxed">
                 Aún no guardamos histórico de chats. Revisa{" "}
                 <Link
                   href="/dashboard/historial"
-                  className="text-cyan-300 hover:text-cyan-200 underline underline-offset-2"
+                  className="text-indigo-600 hover:text-indigo-700 underline underline-offset-2 font-medium"
                 >
                   Historial
                 </Link>{" "}
@@ -342,7 +312,7 @@ export function ChatInterface({ onReady }: ChatInterfaceProps = {}) {
           <button
             type="button"
             onClick={resetChat}
-            className="text-xs text-slate-400 hover:text-white px-3 py-1.5 rounded-full hover:bg-white/5 border border-transparent hover:border-white/10 transition shrink-0"
+            className="text-xs text-slate-500 hover:text-slate-900 px-3 py-1.5 rounded-full hover:bg-slate-100 border border-transparent hover:border-slate-200 transition shrink-0"
             title="Reiniciar conversación"
           >
             Reiniciar
@@ -353,17 +323,17 @@ export function ChatInterface({ onReady }: ChatInterfaceProps = {}) {
       {/* H1 + intro */}
       <div className="relative z-10 px-4 sm:px-8 pt-6 pb-2">
         <div className="max-w-3xl mx-auto">
-          <h1 className="text-3xl md:text-4xl font-black tracking-tight text-white">
+          <h1 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900">
             Nueva cotización
           </h1>
-          <p className="mt-2 text-sm md:text-base text-slate-400">
+          <p className="mt-2 text-sm md:text-base text-slate-600">
             Conversa con el asistente hasta tener todo. Genera el PDF oficial
             en 3-5 minutos.
           </p>
         </div>
       </div>
 
-      {/* Mensajes */}
+      {/* Mensajes con AnimatePresence para enter/exit motion */}
       <div
         ref={scrollRef}
         className="relative z-10 flex-1 overflow-y-auto px-3 sm:px-8 py-6"
@@ -374,62 +344,85 @@ export function ChatInterface({ onReady }: ChatInterfaceProps = {}) {
             <ChatEmptyState />
           )}
 
-          {messages.map((m) => (
-            <MessageBubble key={m.id} message={m} />
-          ))}
+          <AnimatePresence initial={false}>
+            {messages.map((m) => (
+              <MessageBubble key={m.id} message={m} />
+            ))}
 
-          {sending && <ThinkingIndicator />}
+            {sending && <ThinkingIndicator key="__thinking__" />}
 
-          {(job.kind === "polling" || job.kind === "starting") && (
-            <JobCard job={job} onCancel={cancelJob} />
-          )}
+            {(job.kind === "polling" || job.kind === "starting") && (
+              <motion.div
+                key="__jobcard__"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.35 }}
+              >
+                <JobCard job={job} onCancel={cancelJob} />
+              </motion.div>
+            )}
 
-          {job.kind === "completed" && (job.pdfUrl || job.screenshotUrl) && (
-            <CompletedCard
-              pdfUrl={job.pdfUrl}
-              screenshotUrl={job.screenshotUrl}
-              folio={job.id}
-              onReset={resetChat}
-            />
-          )}
+            {job.kind === "completed" &&
+              (job.pdfUrl || job.screenshotUrl) && (
+                <motion.div
+                  key="__completed__"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.45, ease: "easeOut" }}
+                >
+                  <CompletedCard
+                    pdfUrl={job.pdfUrl}
+                    screenshotUrl={job.screenshotUrl}
+                    folio={job.id}
+                    onReset={resetChat}
+                  />
+                </motion.div>
+              )}
 
-          {job.kind === "completed" && !job.pdfUrl && !job.screenshotUrl && (
-            <SystemCard
-              title="Cotización completada"
-              body="No recibimos el enlace al PDF, pero la cotización está en tu Historial."
-              actionLabel="Empezar otra"
-              onAction={resetChat}
-            />
-          )}
+            {job.kind === "completed" &&
+              !job.pdfUrl &&
+              !job.screenshotUrl && (
+                <SystemCard
+                  key="__completed-noresult__"
+                  title="Cotización completada"
+                  body="No recibimos el enlace al PDF, pero la cotización está en tu Historial."
+                  actionLabel="Empezar otra"
+                  onAction={resetChat}
+                />
+              )}
 
-          {job.kind === "failed" && job.timedOut && (
-            <TelcelTimeoutCard
-              message={job.message}
-              onRetry={resetChat}
-              rfc={job.rfc}
-              jobId={job.id}
-            />
-          )}
+            {job.kind === "failed" && job.timedOut && (
+              <TelcelTimeoutCard
+                key="__timeout__"
+                message={job.message}
+                onRetry={resetChat}
+                rfc={job.rfc}
+                jobId={job.id}
+              />
+            )}
 
-          {job.kind === "failed" && !job.timedOut && (
-            <SystemCard
-              title="No se pudo completar"
-              body={job.message}
-              actionLabel="Empezar de nuevo"
-              onAction={resetChat}
-              variant="error"
-            />
-          )}
+            {job.kind === "failed" && !job.timedOut && (
+              <SystemCard
+                key="__failed__"
+                title="No se pudo completar"
+                body={job.message}
+                actionLabel="Empezar de nuevo"
+                onAction={resetChat}
+                variant="error"
+              />
+            )}
+          </AnimatePresence>
         </div>
       </div>
 
-      {/* Composer */}
+      {/* Composer light */}
       <form
         onSubmit={handleSubmit}
-        className="relative z-10 border-t border-white/10 bg-[#0b1326]/80 backdrop-blur-md px-3 sm:px-8 py-4"
+        className="relative z-10 border-t border-slate-200 bg-white/85 backdrop-blur-md px-3 sm:px-8 py-4"
       >
         <div className="max-w-3xl mx-auto">
-          <div className="rounded-xl bg-slate-800/40 backdrop-blur-md border border-white/10 focus-within:border-cyan-400/40 focus-within:shadow-[0_0_24px_rgba(6,182,212,0.18)] transition p-2 flex items-end gap-2">
+          <div className="rounded-2xl bg-white border border-slate-200 focus-within:border-indigo-500 focus-within:ring-4 focus-within:ring-indigo-100 transition px-2 py-2 flex items-end gap-2 shadow-sm">
             <textarea
               ref={textareaRef}
               value={draft}
@@ -439,61 +432,64 @@ export function ChatInterface({ onReady }: ChatInterfaceProps = {}) {
               disabled={inputDisabled}
               rows={1}
               maxLength={MAX_MESSAGE_LEN}
-              className="flex-1 resize-none bg-transparent px-3 py-2 text-sm leading-6 text-white placeholder:text-slate-500 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 resize-none bg-transparent px-3 py-2 text-sm leading-6 text-slate-900 placeholder:text-slate-400 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
               aria-label="Mensaje al asistente"
             />
             <div className="shrink-0 flex items-end gap-2 pb-1">
               <Link
                 href="/dashboard/cotizar-excel"
-                className="inline-flex items-center justify-center w-10 h-10 rounded-lg border border-white/10 bg-white/5 text-slate-300 hover:text-cyan-300 hover:border-cyan-400/40 hover:bg-cyan-500/5 transition"
+                className="inline-flex items-center justify-center w-10 h-10 rounded-xl border border-slate-200 bg-white text-slate-500 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50/50 transition"
                 title="Cotizar desde plantilla Excel"
                 aria-label="Adjuntar Excel"
               >
-                <ArrowUpTrayIcon className="w-5 h-5" />
+                <Paperclip className="w-5 h-5" strokeWidth={1.8} />
               </Link>
-              <button
+              <motion.button
                 type="submit"
                 disabled={inputDisabled || draft.trim().length === 0}
-                className="inline-flex items-center gap-2 px-5 h-10 rounded-full bg-gradient-to-br from-blue-600 to-cyan-500 text-white text-sm font-bold border border-white/15 shadow-[0_0_24px_rgba(29,78,216,0.4)] hover:shadow-[0_0_32px_rgba(29,78,216,0.6)] hover:scale-105 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:scale-100 transition"
+                whileTap={{ scale: 0.96 }}
+                whileHover={{ scale: 1.04 }}
+                transition={{ type: "spring", stiffness: 400, damping: 18 }}
+                className="inline-flex items-center gap-2 px-5 h-10 rounded-full bg-gradient-to-br from-indigo-600 to-cyan-500 text-white text-sm font-bold border border-white/20 shadow-md shadow-indigo-300/40 hover:shadow-indigo-400/60 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none transition"
                 aria-label="Enviar mensaje"
               >
                 <span className="hidden sm:inline">{sending ? "Enviando…" : "Enviar"}</span>
-                <PaperAirplaneIcon className="w-4 h-4" />
-              </button>
+                <SendHorizonal className="w-4 h-4" strokeWidth={2} />
+              </motion.button>
             </div>
           </div>
 
-          {/* Quick-actions chips */}
+          {/* Quick-action chips light */}
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <Link
               href="/dashboard/cotizar-excel"
-              className="inline-flex items-center px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/10 text-xs font-medium text-slate-300 hover:text-cyan-300 hover:border-cyan-400/40 hover:bg-cyan-500/5 transition"
+              className="inline-flex items-center px-3 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-medium text-slate-600 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 transition"
             >
               Subir Excel
             </Link>
             <button
               type="button"
               onClick={() => fillDraft("Continúa con mi última cotización.")}
-              className="inline-flex items-center px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/10 text-xs font-medium text-slate-300 hover:text-cyan-300 hover:border-cyan-400/40 hover:bg-cyan-500/5 transition"
+              className="inline-flex items-center px-3 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-medium text-slate-600 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 transition"
             >
               Continuar última
             </button>
             <button
               type="button"
               onClick={() => fillDraft("Cotiza para un cliente de mi cartera: ")}
-              className="inline-flex items-center px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/10 text-xs font-medium text-slate-300 hover:text-cyan-300 hover:border-cyan-400/40 hover:bg-cyan-500/5 transition"
+              className="inline-flex items-center px-3 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-medium text-slate-600 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 transition"
             >
               Cliente cartera
             </button>
             <Link
               href="/dashboard/catalogos"
-              className="inline-flex items-center px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/10 text-xs font-medium text-slate-300 hover:text-cyan-300 hover:border-cyan-400/40 hover:bg-cyan-500/5 transition"
+              className="inline-flex items-center px-3 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-medium text-slate-600 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 transition"
             >
               Catálogo planes
             </Link>
           </div>
 
-          <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
+          <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
             <span>Enter para enviar · Shift+Enter para nueva línea</span>
             {draft.length > MAX_MESSAGE_LEN - 200 && (
               <span className="tabular-nums">
@@ -507,62 +503,76 @@ export function ChatInterface({ onReady }: ChatInterfaceProps = {}) {
   );
 }
 
-/**
- * Estado vacío del chat (sin mensajes aún). Reduce la "sábana negra" inicial
- * y le da al vendedor 3 ejemplos concretos de cómo arrancar — copy directo,
- * sin emojis (style-guide §5.1).
- */
+/* ---------- Sub-componentes ---------- */
+
 function ChatEmptyState() {
   return (
-    <div className="text-center py-10">
-      <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-500 mb-5 shadow-[0_0_30px_rgba(6,182,212,0.4)]">
-        <SparklesIcon className="w-7 h-7 text-white" />
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: "easeOut" }}
+      className="text-center py-10"
+    >
+      <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-600 to-cyan-500 mb-5 shadow-lg shadow-indigo-300/40">
+        <Sparkles className="w-7 h-7 text-white" strokeWidth={1.8} />
       </div>
-      <h2 className="text-xl font-bold text-white">
+      <h2 className="text-xl font-bold text-slate-900">
         Cuéntale al asistente qué necesitas cotizar
       </h2>
-      <p className="mt-2 text-sm text-slate-400 max-w-md mx-auto leading-relaxed">
+      <p className="mt-2 text-sm text-slate-600 max-w-md mx-auto leading-relaxed">
         RFC del cliente, número de líneas, plan y equipo si aplica. El
         asistente pregunta lo que falte y devuelve el PDF en 3-5 minutos.
       </p>
       <p className="mt-5 text-xs text-slate-500">
         Ejemplo:{" "}
-        <span className="font-mono text-cyan-300/80">
+        <span className="font-mono text-indigo-600">
           XAXX010101000, 25 líneas, plan EMPRESA 500, iPhone 15
         </span>
       </p>
-    </div>
+    </motion.div>
   );
 }
-
-/* ---------- Sub-componentes ---------- */
 
 function MessageBubble({ message }: { message: ChatMessage }) {
   if (message.role === "system") {
     return (
-      <div className="flex justify-center">
-        <div className="max-w-[80%] text-xs text-slate-400 bg-white/[0.04] border border-white/10 rounded-full px-3 py-1.5">
+      <motion.div
+        layout
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0 }}
+        transition={{ duration: 0.3 }}
+        className="flex justify-center"
+      >
+        <div className="max-w-[80%] text-xs text-slate-500 bg-white border border-slate-200 rounded-full px-3 py-1.5">
           {message.text}
         </div>
-      </div>
+      </motion.div>
     );
   }
   const isUser = message.role === "user";
   return (
-    <div className={`flex gap-3 ${isUser ? "justify-end" : "justify-start"}`}>
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -6 }}
+      transition={{ duration: 0.4, ease: "easeOut" }}
+      className={`flex gap-3 ${isUser ? "justify-end" : "justify-start"}`}
+    >
       {!isUser && <AgentAvatar />}
       <div
         className={[
-          "max-w-[85%] sm:max-w-md xl:max-w-xl rounded-xl px-4 py-3 text-sm leading-6 whitespace-pre-wrap break-words backdrop-blur",
+          "max-w-[85%] sm:max-w-md xl:max-w-xl rounded-2xl px-4 py-3 text-sm leading-6 whitespace-pre-wrap break-words",
           isUser
-            ? "bg-gradient-to-br from-blue-700 to-blue-800 text-white border border-white/15 shadow-[0_0_18px_rgba(29,78,216,0.25)] rounded-tr-sm"
-            : "bg-slate-800/60 border border-white/10 text-slate-100 rounded-tl-sm",
+            ? "bg-gradient-to-br from-indigo-600 to-cyan-500 text-white rounded-tr-sm shadow-md shadow-indigo-300/40"
+            : "bg-white text-slate-900 border border-slate-200 rounded-tl-sm shadow-sm",
         ].join(" ")}
       >
         {message.text}
       </div>
       {isUser && <UserAvatar />}
-    </div>
+    </motion.div>
   );
 }
 
@@ -570,60 +580,79 @@ function AgentAvatar() {
   return (
     <div
       aria-hidden="true"
-      className="shrink-0 w-9 h-9 rounded-full bg-gradient-to-br from-blue-600 to-cyan-500 border border-white/15 flex items-center justify-center shadow-[0_0_18px_rgba(6,182,212,0.35)]"
+      className="shrink-0 w-9 h-9 rounded-full bg-gradient-to-br from-indigo-600 to-cyan-500 flex items-center justify-center shadow-md shadow-indigo-300/50"
     >
-      <SparklesIcon className="w-4 h-4 text-white" />
+      <Sparkles className="w-4 h-4 text-white" strokeWidth={2} />
     </div>
   );
 }
 
 function UserAvatar() {
-  // Avatar provisional con inicial estática "V" (vendedor). Si en el futuro
-  // la sesión expone nombre/email, derivar la inicial.
   return (
     <div
       aria-hidden="true"
-      className="shrink-0 w-9 h-9 rounded-full bg-white/[0.06] border border-white/15 flex items-center justify-center text-xs font-bold text-slate-200"
+      className="shrink-0 w-9 h-9 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-xs font-bold text-slate-700"
     >
       V
     </div>
   );
 }
 
+/**
+ * ThinkingIndicator — typing dots de 21st "Animated AI Chat" con stagger.
+ * Tres puntos indigo→cyan con animación de opacity + scale, delay 0.15s
+ * entre cada uno. AnimatePresence-safe via motion wrappers.
+ */
 function ThinkingIndicator() {
   return (
-    <div className="flex gap-3 justify-start">
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
+      className="flex gap-3 justify-start"
+    >
       <AgentAvatar />
-      <div className="bg-slate-800/60 backdrop-blur border border-white/10 rounded-xl rounded-tl-sm px-4 py-3 inline-flex items-center gap-2">
-        <span className="inline-flex gap-1.5 items-center" aria-label="El agente está pensando">
-          <Dot delay={0} />
-          <Dot delay={200} />
-          <Dot delay={400} />
+      <div className="bg-white border border-slate-200 rounded-2xl rounded-tl-sm px-4 py-3 inline-flex items-center gap-2 shadow-sm">
+        <span
+          className="inline-flex gap-1.5 items-center"
+          aria-label="El agente está pensando"
+        >
+          <TypingDot index={0} />
+          <TypingDot index={1} />
+          <TypingDot index={2} />
         </span>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
-function Dot({ delay }: { delay: number }) {
-  // animate-pulse es la única animación decorativa permitida por el
-  // style-guide (§5.4 "solo en skeletons de loading"). Se usa aquí como
-  // skeleton del próximo mensaje. animation-delay escalonado da el efecto
-  // típico de "escribiendo…" sin recurrir a animate-bounce (prohibido).
+/**
+ * TypingDot — framer-motion stagger animation. Cada dot pulsa opacity 0.3→1
+ * y scale 0.85→1, con delay = index * 0.15s. Replica el patrón 21st AI Chat.
+ */
+function TypingDot({ index }: { index: number }) {
   return (
-    <span
-      className="block w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.6)] animate-pulse"
-      style={{ animationDelay: `${delay}ms` }}
+    <motion.span
+      className="block w-1.5 h-1.5 rounded-full bg-gradient-to-br from-indigo-500 to-cyan-500"
+      initial={{ opacity: 0.3, scale: 0.85 }}
+      animate={{
+        opacity: [0.3, 1, 0.3],
+        scale: [0.85, 1, 0.85],
+      }}
+      transition={{
+        duration: 1.05,
+        repeat: Infinity,
+        ease: "easeInOut",
+        delay: index * 0.15,
+      }}
     />
   );
 }
 
 /**
- * Copy por fase del polling. Las strings son el corazón del fix de UX:
- * mientras Telcel tarda, le contamos al vendedor qué pasa para que no
- * piense que la app se congeló. La progresión está calibrada con los
- * tiempos observados (mediana 2-3 min, p95 4-5 min) y deja claro que en
- * la fase final (180s+) Telcel está mal, no nosotros.
+ * Copy por fase del polling.
  */
 const STAGE_COPY: Record<
   PollingStage,
@@ -652,14 +681,9 @@ const STAGE_COPY: Record<
 };
 
 function JobCard({ job, onCancel }: { job: JobState; onCancel: () => void }) {
-  // Para `starting` aún no hay `startedAt`, así que lo capturamos al montar
-  // el card. En `polling` usamos el `startedAt` real del hook. useState con
-  // initializer evita llamar Date.now() durante render (regla
-  // `react-hooks/purity` de React 19).
   const [fallbackStart] = useState<number>(() => Date.now());
   const startedAt = job.kind === "polling" ? job.startedAt : fallbackStart;
-  const stage: PollingStage =
-    job.kind === "polling" ? job.stage : "normal";
+  const stage: PollingStage = job.kind === "polling" ? job.stage : "normal";
   const elapsed = useElapsedSeconds(
     startedAt,
     job.kind === "polling" || job.kind === "starting",
@@ -668,9 +692,6 @@ function JobCard({ job, onCancel }: { job: JobState; onCancel: () => void }) {
   const secs = elapsed % 60;
   const copy = STAGE_COPY[stage];
   const isWarn = copy.tone === "warn";
-  // Barra de progreso indicativa contra el cap de 5 min — útil sobre todo
-  // en las fases tardías para que el vendedor SEPA que el timeout es real
-  // y cuánto le queda.
   const POLL_CAP_S = 300;
   const pct = Math.min(100, Math.round((elapsed / POLL_CAP_S) * 100));
 
@@ -679,10 +700,10 @@ function JobCard({ job, onCancel }: { job: JobState; onCancel: () => void }) {
   return (
     <div
       className={[
-        "relative overflow-hidden rounded-xl backdrop-blur-md border-2 p-5",
+        "relative overflow-hidden rounded-2xl border p-5 shadow-sm",
         isWarn
-          ? "bg-amber-500/[0.08] border-amber-400/30 shadow-[0_0_30px_rgba(251,191,36,0.18)]"
-          : "bg-slate-900/60 border-cyan-400/30 shadow-[0_0_30px_rgba(6,182,212,0.18)]",
+          ? "bg-amber-50 border-amber-200"
+          : "bg-white border-slate-200",
       ].join(" ")}
       role="status"
       aria-live="polite"
@@ -692,8 +713,8 @@ function JobCard({ job, onCancel }: { job: JobState; onCancel: () => void }) {
           className={[
             "shrink-0 w-12 h-12 rounded-xl flex items-center justify-center border",
             isWarn
-              ? "bg-amber-500/15 border-amber-400/30"
-              : "bg-cyan-500/15 border-cyan-400/30 shadow-[0_0_18px_rgba(6,182,212,0.35)]",
+              ? "bg-amber-100 border-amber-200"
+              : "bg-gradient-to-br from-indigo-50 to-cyan-50 border-indigo-200",
           ].join(" ")}
         >
           <Spinner tone={isWarn ? "warn" : "info"} />
@@ -703,7 +724,7 @@ function JobCard({ job, onCancel }: { job: JobState; onCancel: () => void }) {
             <p
               className={[
                 "text-sm font-bold",
-                isWarn ? "text-amber-100" : "text-white",
+                isWarn ? "text-amber-900" : "text-slate-900",
               ].join(" ")}
             >
               {copy.title}
@@ -712,8 +733,8 @@ function JobCard({ job, onCancel }: { job: JobState; onCancel: () => void }) {
               className={[
                 "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border tracking-wider uppercase",
                 isWarn
-                  ? "bg-amber-400/15 text-amber-200 border-amber-400/30"
-                  : "bg-cyan-400/15 text-cyan-200 border-cyan-400/30",
+                  ? "bg-amber-100 text-amber-800 border-amber-300"
+                  : "bg-indigo-50 text-indigo-700 border-indigo-200",
               ].join(" ")}
             >
               Cotizando contra Telcel
@@ -722,20 +743,19 @@ function JobCard({ job, onCancel }: { job: JobState; onCancel: () => void }) {
           <p
             className={[
               "text-xs mt-1 leading-relaxed",
-              isWarn ? "text-amber-200/80" : "text-slate-400",
+              isWarn ? "text-amber-800" : "text-slate-600",
             ].join(" ")}
           >
             {copy.body}
           </p>
 
-          {/* Dots typing — refuerzan que algo se está moviendo. */}
           <div className="mt-3 inline-flex items-center gap-2">
             <span className="inline-flex gap-1.5 items-center" aria-hidden="true">
-              <Dot delay={0} />
-              <Dot delay={200} />
-              <Dot delay={400} />
+              <TypingDot index={0} />
+              <TypingDot index={1} />
+              <TypingDot index={2} />
             </span>
-            <span className="text-[11px] text-slate-400 font-medium">
+            <span className="text-[11px] text-slate-500 font-medium">
               Cotizando contra Telcel… (~2 min)
             </span>
           </div>
@@ -744,7 +764,7 @@ function JobCard({ job, onCancel }: { job: JobState; onCancel: () => void }) {
           <div
             className={[
               "mt-4 h-1.5 w-full rounded-full overflow-hidden",
-              isWarn ? "bg-amber-500/20" : "bg-white/5",
+              isWarn ? "bg-amber-100" : "bg-slate-100",
             ].join(" ")}
             aria-hidden="true"
           >
@@ -753,7 +773,7 @@ function JobCard({ job, onCancel }: { job: JobState; onCancel: () => void }) {
                 "h-full transition-all duration-500 ease-out",
                 isWarn
                   ? "bg-gradient-to-r from-amber-400 to-amber-500"
-                  : "bg-gradient-to-r from-blue-500 to-cyan-400 shadow-[0_0_12px_rgba(34,211,238,0.6)]",
+                  : "bg-gradient-to-r from-indigo-500 to-cyan-500",
               ].join(" ")}
               style={{ width: `${pct}%` }}
             />
@@ -761,7 +781,7 @@ function JobCard({ job, onCancel }: { job: JobState; onCancel: () => void }) {
           <p
             className={[
               "text-[11px] mt-2 tabular-nums font-mono",
-              isWarn ? "text-amber-200/70" : "text-slate-500",
+              isWarn ? "text-amber-700" : "text-slate-500",
             ].join(" ")}
           >
             Tiempo: {mins}:{secs.toString().padStart(2, "0")} / 5:00
@@ -772,7 +792,7 @@ function JobCard({ job, onCancel }: { job: JobState; onCancel: () => void }) {
           <button
             type="button"
             onClick={onCancel}
-            className="shrink-0 text-xs text-slate-400 hover:text-red-300 px-3 py-1.5 rounded-full hover:bg-red-500/10 border border-transparent hover:border-red-400/30 transition"
+            className="shrink-0 text-xs text-slate-500 hover:text-rose-600 px-3 py-1.5 rounded-full hover:bg-rose-50 border border-transparent hover:border-rose-200 transition"
             aria-label="Cancelar la cotización en curso"
           >
             Cancelar
@@ -783,13 +803,6 @@ function JobCard({ job, onCancel }: { job: JobState; onCancel: () => void }) {
   );
 }
 
-/**
- * Card específico para timeout de Telcel (5 min sin respuesta). Es
- * distinto del SystemCard genérico porque ofrece acciones útiles:
- * reintentar (resetea el chat), reportar (abre mailto al soporte) e
- * ir al historial (la cotización puede seguir corriendo del lado del
- * operador y aparecer después).
- */
 function TelcelTimeoutCard({
   message,
   onRetry,
@@ -818,36 +831,41 @@ function TelcelTimeoutCard({
   );
   const mailto = `mailto:soporte@hectoria.mx?subject=${subject}&body=${body}`;
   return (
-    <div className="rounded-xl bg-red-500/[0.08] backdrop-blur-md border-2 border-red-400/30 shadow-[0_0_30px_rgba(248,113,113,0.18)] p-5">
-      <p className="text-sm font-bold text-red-200">
-        Telcel no respondió
-      </p>
-      <p className="text-xs text-red-200/80 mt-1 leading-relaxed">
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35 }}
+      className="rounded-2xl bg-rose-50 border border-rose-200 p-5 shadow-sm"
+    >
+      <p className="text-sm font-bold text-rose-900">Telcel no respondió</p>
+      <p className="text-xs text-rose-800 mt-1 leading-relaxed">
         {message} Tu cotización podría seguir corriendo del lado del operador
         — revisa Historial en unos minutos.
       </p>
       <div className="mt-4 flex flex-wrap gap-2">
-        <button
+        <motion.button
           type="button"
           onClick={onRetry}
-          className="inline-flex items-center px-4 py-2 text-sm font-bold rounded-full bg-gradient-to-br from-red-600 to-red-700 text-white border border-white/15 shadow-[0_0_18px_rgba(248,113,113,0.4)] hover:scale-105 transition"
+          whileHover={{ scale: 1.04 }}
+          whileTap={{ scale: 0.96 }}
+          className="inline-flex items-center px-4 py-2 text-sm font-bold rounded-full bg-gradient-to-br from-rose-500 to-rose-600 text-white shadow-md shadow-rose-300/40 hover:shadow-rose-400/60 transition"
         >
           Reintentar
-        </button>
+        </motion.button>
         <Link
           href="/dashboard/historial"
-          className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-full bg-white/5 border border-white/10 text-slate-200 hover:text-white hover:border-white/20 transition"
+          className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-full bg-white border border-slate-200 text-slate-700 hover:text-slate-900 hover:border-slate-300 transition"
         >
           Ver historial
         </Link>
         <a
           href={mailto}
-          className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-full bg-white/5 border border-white/10 text-slate-200 hover:text-white hover:border-white/20 transition"
+          className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-full bg-white border border-slate-200 text-slate-700 hover:text-slate-900 hover:border-slate-300 transition"
         >
           Reportar problema
         </a>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -855,88 +873,95 @@ function CompletedCard({
   pdfUrl,
   screenshotUrl,
   folio,
+  monto,
   onReset,
 }: {
-  /** PDF cliente del portal Telcel — undefined en cotizaciones BORRADOR. */
   pdfUrl?: string;
-  /**
-   * PNG con el resumen Telcel cuando el portal no emite PDF (borradores
-   * sin RFC). Si está presente y pdfUrl no, renderizamos un thumbnail
-   * clickable en lugar de los botones de PDF.
-   */
   screenshotUrl?: string;
   folio: string;
+  /**
+   * Monto total de la cotización en MXN. Si el JobState no lo expone aún,
+   * cae al fallback de tipografía sin NumberFlow. Hooking aquí mantiene la
+   * lógica del hook intacta — si `monto` es undefined el card sigue siendo
+   * useful con solo el folio.
+   */
+  monto?: number;
   onReset: () => void;
 }) {
-  // Heurística para mostrar el PDF interno: el proxy del frontend acepta
-  // `?formato=interno` y el job.id ya está validado por el regex de pdf/
-  // route.ts. Si el bot no generó el PDF interno (no aplica al caso), el
-  // proxy responderá 404 y el navegador mostrará una página de error
-  // estándar. Aceptable: el botón sigue siendo opt-in.
   const isProxyPath = pdfUrl ? /^\/api\/cotizaciones\//.test(pdfUrl) : false;
   const pdfInternoUrl = isProxyPath
     ? `/api/cotizaciones/${encodeURIComponent(folio)}/pdf?formato=interno`
     : null;
 
-  // Modo borrador: no hay PDF, solo captura. La distinción afecta CTAs +
-  // copy. Validamos screenshotUrl con el mismo prefijo conocido del proxy
-  // para no inyectar URLs arbitrarias en `<img>`.
   const isDraftMode = !pdfUrl && Boolean(screenshotUrl);
   const safeScreenshotUrl =
-    screenshotUrl && /^\/api\/cotizaciones\/[A-Za-z0-9_-]{1,64}\/screenshot$/.test(screenshotUrl)
+    screenshotUrl &&
+    /^\/api\/cotizaciones\/[A-Za-z0-9_-]{1,64}\/screenshot$/.test(screenshotUrl)
       ? screenshotUrl
       : undefined;
 
-  // Folio cortito (mono, big). El job.id real puede ser un UUID — mostramos
-  // primeros 8 chars upper para que quepa en el tipographic "big". El link
-  // del PDF lleva el ID completo (no afecta navegación).
   const folioDisplay = folio.length > 12
     ? `#${folio.slice(0, 8).toUpperCase()}`
     : `#${folio.toUpperCase()}`;
 
   return (
     <div
-      className="relative overflow-hidden rounded-xl bg-slate-900/70 backdrop-blur-md border-2 border-white/10 shadow-[0_0_30px_rgba(6,182,212,0.2)] p-6"
+      className="relative overflow-hidden rounded-3xl bg-white border border-slate-200 shadow-2xl shadow-indigo-200/40 p-7"
       role="status"
     >
-      {/* Glow accent esquina */}
+      {/* Glow accent esquina top-right (indigo→cyan blur). */}
       <div
         aria-hidden="true"
-        className="absolute right-0 top-0 w-48 h-48 bg-cyan-400/10 blur-3xl rounded-full"
+        className="absolute right-0 top-0 w-56 h-56 bg-gradient-to-br from-indigo-300/30 to-cyan-300/30 blur-3xl rounded-full pointer-events-none"
       />
 
       <div className="relative">
-        {/* Chip mint glow "COTIZACIÓN COMPLETADA" */}
+        {/* Chip mint "COTIZACIÓN COMPLETADA" con dot pulse emerald */}
         <div className="flex items-center gap-2 mb-4 flex-wrap">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-400/10 text-emerald-300 border border-emerald-400/30 text-[10px] font-bold uppercase tracking-widest shadow-[0_0_18px_rgba(45,212,191,0.35)]">
-            <span
-              className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(45,212,191,0.8)]"
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold uppercase tracking-widest">
+            <motion.span
+              className="w-1.5 h-1.5 rounded-full bg-emerald-500"
+              animate={{ opacity: [1, 0.4, 1], scale: [1, 1.3, 1] }}
+              transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
               aria-hidden="true"
             />
             Cotización completada
           </span>
         </div>
 
-        {/* Folio big mono */}
-        <p className="font-mono text-3xl md:text-4xl font-black text-cyan-300 tracking-tight tabular-nums">
+        {/* Folio big mono cyan */}
+        <p className="font-mono text-3xl md:text-4xl font-black text-cyan-600 tracking-tight tabular-nums">
           {folioDisplay}
         </p>
         <p className="mt-1 text-xs text-slate-500 font-mono break-all">
           Folio interno: {folio}
         </p>
 
-        {/* Body: el desglose real (cliente/RFC/líneas/plazo/monto) no está
-            todavía expuesto por el JobState — el hook solo recibe pdf_url.
-            Mostramos el CTA principal con el copy del PDF y dejamos el
-            chrome para cuando el endpoint enriquezca el payload.
+        {/* Monto big con NumberFlow si está disponible */}
+        {typeof monto === "number" && Number.isFinite(monto) && (
+          <div className="mt-5">
+            <p className="text-[11px] uppercase tracking-widest font-bold text-slate-500">
+              Monto total
+            </p>
+            <p className="mt-1 text-4xl md:text-5xl font-extrabold tabular-nums text-slate-900 flex items-baseline gap-2">
+              <span className="text-slate-500 text-2xl md:text-3xl">$</span>
+              <NumberFlow
+                value={monto}
+                format={{
+                  style: "decimal",
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                }}
+              />
+              <span className="text-slate-500 text-sm font-bold">MXN</span>
+            </p>
+          </div>
+        )}
 
-            En modo BORRADOR (sin RFC) el portal no emite PDF; el bot guarda
-            una captura PNG del resumen como evidencia. Renderizamos un
-            thumbnail clickable en lugar de los botones de descarga. */}
         {isDraftMode ? (
           <>
-            <p className="mt-5 text-sm text-slate-300 leading-relaxed max-w-2xl">
-              Este es un <strong className="text-white">borrador sin RFC</strong>.
+            <p className="mt-5 text-sm text-slate-700 leading-relaxed max-w-2xl">
+              Este es un <strong className="text-slate-900">borrador sin RFC</strong>.
               El portal de Telcel no emite PDF oficial hasta capturar el
               cliente; te dejo la captura del resumen como evidencia.
             </p>
@@ -947,7 +972,7 @@ function CompletedCard({
                   href={safeScreenshotUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-block rounded-xl overflow-hidden border border-white/15 bg-slate-900/50 hover:border-cyan-400/40 hover:shadow-[0_0_28px_rgba(6,182,212,0.35)] transition"
+                  className="inline-block rounded-2xl overflow-hidden border border-slate-200 bg-slate-50 hover:border-indigo-300 hover:shadow-lg hover:shadow-indigo-200/40 transition"
                   aria-label="Abrir captura del resumen en tamaño completo"
                   title="Abrir captura del resumen en tamaño completo"
                 >
@@ -967,42 +992,47 @@ function CompletedCard({
           </>
         ) : (
           <>
-            <p className="mt-5 text-sm text-slate-300 leading-relaxed max-w-2xl">
+            <p className="mt-5 text-sm text-slate-700 leading-relaxed max-w-2xl">
               El PDF oficial fue generado por el portal de Telcel. Descarga el
               formato cliente para enviar, o el formato interno con el desglose
               de rentabilidad para tu equipo.
             </p>
 
-            {/* Botones grandes: PDF Cliente (gradient) + PDF Interno (outline) */}
+            {/* Botones grandes pill: PDF Cliente (gradient) + PDF Interno (outline) */}
             <div className="mt-6 flex flex-wrap gap-3">
               {pdfUrl && (
-                <a
+                <motion.a
                   href={pdfUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-br from-blue-600 to-cyan-500 text-white text-sm font-bold border border-white/15 shadow-[0_0_24px_rgba(29,78,216,0.45)] hover:shadow-[0_0_32px_rgba(29,78,216,0.65)] hover:scale-105 transition"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.96 }}
+                  transition={{ type: "spring", stiffness: 350, damping: 20 }}
+                  className="inline-flex items-center gap-2 px-5 py-3 rounded-full bg-gradient-to-br from-indigo-600 to-cyan-500 text-white text-sm font-bold shadow-lg shadow-indigo-300/40 hover:shadow-indigo-400/60 transition"
                 >
                   <DocumentTextIcon className="w-4 h-4" />
-                  PDF Cliente
-                </a>
+                  Descargar PDF Cliente
+                </motion.a>
               )}
               {pdfInternoUrl && (
-                <a
+                <motion.a
                   href={pdfInternoUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-white/5 border border-white/15 text-slate-200 text-sm font-bold hover:border-cyan-400/40 hover:text-cyan-300 hover:bg-cyan-500/5 transition"
+                  whileHover={{ scale: 1.04 }}
+                  whileTap={{ scale: 0.96 }}
+                  className="inline-flex items-center gap-2 px-5 py-3 rounded-full bg-white border-2 border-indigo-200 text-indigo-700 text-sm font-bold hover:border-indigo-400 hover:bg-indigo-50 transition"
                 >
                   <DocumentTextIcon className="w-4 h-4" />
                   PDF Interno
-                </a>
+                </motion.a>
               )}
               {safeScreenshotUrl && (
                 <a
                   href={safeScreenshotUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-white/5 border border-white/15 text-slate-200 text-sm font-bold hover:border-cyan-400/40 hover:text-cyan-300 hover:bg-cyan-500/5 transition"
+                  className="inline-flex items-center gap-2 px-5 py-3 rounded-full bg-white border border-slate-200 text-slate-700 text-sm font-bold hover:border-indigo-300 hover:text-indigo-700 hover:bg-indigo-50/50 transition"
                 >
                   <PhotoIcon className="w-4 h-4" />
                   Ver captura
@@ -1012,26 +1042,26 @@ function CompletedCard({
           </>
         )}
 
-        {/* Chips secundarias */}
-        <div className="mt-5 pt-5 border-t border-white/10 flex flex-wrap gap-2">
+        {/* Chips secundarias rounded-full */}
+        <div className="mt-6 pt-5 border-t border-slate-200 flex flex-wrap gap-2">
           <Link
             href="/dashboard/optimizar"
-            className="inline-flex items-center px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/10 text-xs font-medium text-slate-300 hover:text-cyan-300 hover:border-cyan-400/40 hover:bg-cyan-500/5 transition"
+            className="inline-flex items-center px-3 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-medium text-slate-600 hover:text-indigo-700 hover:border-indigo-300 hover:bg-indigo-50 transition"
           >
-            Optimizar palancas
+            Optimizar palancas →
           </Link>
           <Link
             href="/dashboard/historial"
-            className="inline-flex items-center px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/10 text-xs font-medium text-slate-300 hover:text-cyan-300 hover:border-cyan-400/40 hover:bg-cyan-500/5 transition"
+            className="inline-flex items-center px-3 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-medium text-slate-600 hover:text-indigo-700 hover:border-indigo-300 hover:bg-indigo-50 transition"
           >
-            Ver en historial
+            Ver historial →
           </Link>
           <button
             type="button"
             onClick={onReset}
-            className="inline-flex items-center px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/10 text-xs font-medium text-slate-300 hover:text-cyan-300 hover:border-cyan-400/40 hover:bg-cyan-500/5 transition"
+            className="inline-flex items-center px-3 py-1.5 rounded-full bg-white border border-slate-200 text-xs font-medium text-slate-600 hover:text-indigo-700 hover:border-indigo-300 hover:bg-indigo-50 transition"
           >
-            Cotizar otra similar
+            Cotizar otra similar →
           </button>
         </div>
       </div>
@@ -1054,38 +1084,46 @@ function SystemCard({
 }) {
   const isError = variant === "error";
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35 }}
       className={[
-        "rounded-xl backdrop-blur-md border p-5",
-        isError
-          ? "bg-red-500/[0.08] border-red-400/30 shadow-[0_0_24px_rgba(248,113,113,0.18)]"
-          : "bg-slate-800/50 border-white/10",
+        "rounded-2xl border p-5 shadow-sm",
+        isError ? "bg-rose-50 border-rose-200" : "bg-white border-slate-200",
       ].join(" ")}
     >
       <p
         className={[
           "text-sm font-bold",
-          isError ? "text-red-200" : "text-white",
+          isError ? "text-rose-900" : "text-slate-900",
         ].join(" ")}
       >
         {title}
       </p>
-      <p className={["text-xs mt-1 leading-relaxed", isError ? "text-red-200/80" : "text-slate-400"].join(" ")}>
+      <p
+        className={[
+          "text-xs mt-1 leading-relaxed",
+          isError ? "text-rose-800" : "text-slate-600",
+        ].join(" ")}
+      >
         {body}
       </p>
-      <button
+      <motion.button
         type="button"
         onClick={onAction}
+        whileHover={{ scale: 1.04 }}
+        whileTap={{ scale: 0.96 }}
         className={[
-          "mt-4 inline-flex items-center px-4 py-2 text-sm font-bold rounded-full transition border",
+          "mt-4 inline-flex items-center px-4 py-2 text-sm font-bold rounded-full transition",
           isError
-            ? "bg-gradient-to-br from-red-600 to-red-700 text-white border-white/15 shadow-[0_0_18px_rgba(248,113,113,0.4)] hover:scale-105"
-            : "bg-gradient-to-br from-blue-600 to-cyan-500 text-white border-white/15 shadow-[0_0_18px_rgba(29,78,216,0.4)] hover:scale-105",
+            ? "bg-gradient-to-br from-rose-500 to-rose-600 text-white shadow-md shadow-rose-300/40 hover:shadow-rose-400/60"
+            : "bg-gradient-to-br from-indigo-600 to-cyan-500 text-white shadow-md shadow-indigo-300/40 hover:shadow-indigo-400/60",
         ].join(" ")}
       >
         {actionLabel}
-      </button>
-    </div>
+      </motion.button>
+    </motion.div>
   );
 }
 
@@ -1094,7 +1132,7 @@ function Spinner({ tone = "info" }: { tone?: "info" | "warn" }) {
     <svg
       className={[
         "animate-spin h-6 w-6",
-        tone === "warn" ? "text-amber-300" : "text-cyan-300",
+        tone === "warn" ? "text-amber-500" : "text-indigo-600",
       ].join(" ")}
       xmlns="http://www.w3.org/2000/svg"
       fill="none"
@@ -1136,7 +1174,7 @@ function ChevronDownIcon({ className = "w-4 h-4" }: { className?: string }) {
   );
 }
 
-/** Reloj reactivo en segundos desde `startedAt` mientras `active` sea true. */
+/** Reloj reactivo en segundos. */
 function useElapsedSeconds(startedAt: number, active: boolean): number {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
