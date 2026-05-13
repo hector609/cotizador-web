@@ -22,9 +22,10 @@ import Link from "next/link";
 import { useId, useState } from "react";
 import {
   ArrowRightIcon,
+  ArrowTrendingUpIcon,
+  BoltIcon,
   CheckCircleIcon,
-  LockClosedIcon,
-  MapPinIcon,
+  DocumentTextIcon,
 } from "@/components/icons";
 
 const RFC_REGEX = /^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/;
@@ -128,24 +129,34 @@ export default function SignupPage() {
 
   if (done) {
     return (
-      <main className="min-h-screen flex flex-col items-center justify-center px-6 bg-gradient-to-br from-slate-50 to-blue-50">
-        <div className="max-w-lg w-full bg-white rounded-2xl border border-slate-200 shadow-sm p-8 sm:p-10 text-center">
-          <div className="inline-flex w-12 h-12 items-center justify-center rounded-full bg-blue-100 mb-5">
-            <CheckCircleIcon className="w-6 h-6 text-blue-700" aria-hidden />
+      <main
+        className="min-h-screen flex flex-col items-center justify-center px-6 bg-[#0b1326] text-white/90 antialiased overflow-hidden"
+        style={{
+          backgroundImage: `
+            radial-gradient(circle at 50% 0%, rgba(29, 78, 216, 0.18) 0%, transparent 50%),
+            radial-gradient(circle at 80% 80%, rgba(45, 212, 191, 0.12) 0%, transparent 45%),
+            radial-gradient(circle at 15% 70%, rgba(6, 182, 212, 0.10) 0%, transparent 40%)
+          `,
+        }}
+      >
+        <div className="max-w-lg w-full bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl shadow-[0_0_60px_rgba(6,182,212,0.15)] p-8 sm:p-10 text-center">
+          <div className="inline-flex w-14 h-14 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 mb-5 shadow-[0_0_30px_rgba(45,212,191,0.4)]">
+            <CheckCircleIcon className="w-7 h-7 text-[#0b1326]" aria-hidden />
           </div>
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900 mb-3">
+          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white mb-3">
             Solicitud enviada
           </h1>
-          <p className="text-slate-600 leading-relaxed mb-6">
+          <p className="text-slate-400 leading-relaxed mb-6">
             Recibimos tu solicitud. Validamos cada cuenta a mano para evitar
-            abusos del portal Telcel — te avisamos en menos de 24h hábiles
-            por correo y/o Telegram con tus credenciales de acceso.
+            abusos del portal Telcel — te avisamos en menos de 24h hábiles por
+            correo y/o Telegram con tus credenciales de acceso.
           </p>
           <Link
             href="/"
-            className="inline-flex items-center justify-center px-6 py-2.5 text-sm font-semibold text-blue-700 bg-white border-2 border-blue-700 rounded-lg hover:bg-blue-50 transition"
+            className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-gradient-to-br from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white font-semibold shadow-[0_0_30px_rgba(6,182,212,0.3)] hover:scale-[1.02] active:scale-[0.98] transition"
           >
             Volver al inicio
+            <ArrowRightIcon className="w-4 h-4" aria-hidden />
           </Link>
         </div>
       </main>
@@ -153,25 +164,45 @@ export default function SignupPage() {
   }
 
   return (
-    <main className="min-h-screen grid grid-cols-1 lg:grid-cols-2 bg-white">
-      {/* Columna izquierda: formulario */}
-      <section className="flex flex-col px-6 py-10 sm:px-10 lg:px-16 lg:py-14">
-        <div className="mb-8">
+    <main className="min-h-screen grid grid-cols-1 lg:grid-cols-2 bg-[#0b1326] text-white/90 antialiased overflow-x-hidden">
+      {/* Columna izquierda: formulario (REVENTAR dark + mesh) */}
+      <section
+        className="relative flex flex-col px-6 py-10 sm:px-10 lg:px-16 lg:py-14 overflow-hidden"
+        style={{
+          backgroundImage: `
+            radial-gradient(circle at 20% 0%, rgba(29, 78, 216, 0.18) 0%, transparent 50%),
+            radial-gradient(circle at 80% 90%, rgba(6, 182, 212, 0.12) 0%, transparent 45%),
+            linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px)
+          `,
+          backgroundSize: "auto, auto, 40px 40px, 40px 40px",
+        }}
+      >
+        <div className="relative z-10 mb-8 flex items-center justify-between">
           <Link
             href="/"
-            className="inline-flex items-center text-sm text-slate-500 hover:text-slate-700 transition"
+            className="inline-flex items-center text-sm text-white/60 hover:text-white transition"
           >
             <ArrowRightIcon className="w-4 h-4 rotate-180 mr-1.5" aria-hidden />
             Volver al inicio
           </Link>
+          <div className="flex items-center gap-3">
+            <span className="text-lg font-black tracking-tight text-white">
+              Cotizador
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-300/10 border border-emerald-300/30 text-emerald-300 text-[10px] font-semibold uppercase tracking-widest shadow-[0_0_15px_rgba(45,212,191,0.25)]">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse" />
+              Beta
+            </span>
+          </div>
         </div>
 
-        <div className="flex-1 flex items-center">
+        <div className="relative z-10 flex-1 flex items-center">
           <div className="w-full max-w-md mx-auto">
-            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-slate-900">
-              Pide tu acceso.
+            <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white">
+              Crear cuenta
             </h1>
-            <p className="text-slate-600 mt-3 leading-relaxed">
+            <p className="text-slate-400 mt-3 leading-relaxed">
               Distribuidor autorizado Telcel. Validamos cada cuenta a mano y
               respondemos en menos de 24h hábiles.
             </p>
@@ -244,17 +275,17 @@ export default function SignupPage() {
                   type="checkbox"
                   checked={acceptedTerms}
                   onChange={(e) => setAcceptedTerms(e.target.checked)}
-                  className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-700 focus:ring-2 focus:ring-blue-700/20"
+                  className="mt-1 h-4 w-4 rounded border-white/20 bg-white/5 text-cyan-400 focus:ring-2 focus:ring-cyan-400/30 focus:ring-offset-0"
                   aria-describedby={error ? errorId : undefined}
                 />
                 <label
                   htmlFor={termsId}
-                  className="text-sm text-slate-700 leading-relaxed"
+                  className="text-sm text-slate-300 leading-relaxed"
                 >
                   Acepto los{" "}
                   <Link
                     href="/terminos"
-                    className="text-blue-700 font-semibold hover:underline"
+                    className="text-cyan-300 font-semibold hover:underline"
                   >
                     términos de servicio
                   </Link>{" "}
@@ -266,7 +297,7 @@ export default function SignupPage() {
                 <p
                   id={errorId}
                   role="alert"
-                  className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2.5"
+                  className="text-sm text-red-400 bg-red-500/10 border border-red-400/30 rounded-lg px-3 py-2.5"
                 >
                   {error}
                 </p>
@@ -275,7 +306,7 @@ export default function SignupPage() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full inline-flex items-center justify-center gap-2 bg-blue-700 hover:bg-blue-800 text-white font-semibold rounded-lg py-2.5 transition shadow-md disabled:opacity-60 disabled:cursor-not-allowed"
+                className="w-full inline-flex items-center justify-center gap-2 bg-gradient-to-br from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white font-semibold py-3 rounded-lg shadow-[0_0_30px_rgba(6,182,212,0.3)] hover:scale-[1.02] active:scale-[0.98] transition disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:scale-100"
               >
                 {submitting ? "Enviando..." : "Enviar solicitud"}
                 {!submitting && (
@@ -284,13 +315,13 @@ export default function SignupPage() {
               </button>
             </form>
 
-            <p className="text-xs text-slate-500 text-center mt-6">
+            <p className="text-sm text-slate-400 text-center mt-6">
               ¿Ya tienes cuenta?{" "}
               <Link
                 href="/login"
-                className="text-blue-700 font-semibold hover:underline"
+                className="text-cyan-300 font-semibold hover:underline"
               >
-                Entrar al dashboard
+                Iniciar sesión
               </Link>
               .
             </p>
@@ -298,68 +329,142 @@ export default function SignupPage() {
         </div>
       </section>
 
-      {/* Columna derecha: por qué confiar + trust signals */}
-      <aside className="hidden lg:flex flex-col justify-center bg-gradient-to-br from-slate-50 to-blue-50 px-12 py-14 border-l border-slate-200">
-        <div className="max-w-md">
-          <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">
-            Distribuidores Telcel
-          </p>
-          <h2 className="text-2xl font-bold tracking-tight text-slate-900 mt-3">
-            Cotiza en menos de un minuto.
-          </h2>
-          <p className="text-slate-600 mt-3 leading-relaxed">
-            La misma cotización que tomas 15 minutos en el portal — automatizada,
-            con historial por cliente y descarga directa de PDF interno + cliente.
-          </p>
-
-          <ul className="mt-8 space-y-4">
-            <li className="flex items-start gap-3">
-              <CheckCircleIcon
-                className="w-5 h-5 text-blue-700 mt-0.5 shrink-0"
-                aria-hidden
-              />
-              <div>
-                <p className="text-sm font-medium text-slate-900">
-                  Validación manual de cada alta
-                </p>
-                <p className="text-xs text-slate-500">
-                  Confirmamos RFC contra el padrón Telcel para evitar abuso del
-                  portal.
-                </p>
-              </div>
-            </li>
-            <li className="flex items-start gap-3">
-              <MapPinIcon
-                className="w-5 h-5 text-blue-700 mt-0.5 shrink-0"
-                aria-hidden
-              />
-              <div>
-                <p className="text-sm font-medium text-slate-900">
-                  Datos en México
-                </p>
-                <p className="text-xs text-slate-500">
-                  Tu cartera fiscal y la de tus clientes nunca sale del país.
-                </p>
-              </div>
-            </li>
-            <li className="flex items-start gap-3">
-              <LockClosedIcon
-                className="w-5 h-5 text-blue-700 mt-0.5 shrink-0"
-                aria-hidden
-              />
-              <div>
-                <p className="text-sm font-medium text-slate-900">
-                  Cifrado y aislado por tenant
-                </p>
-                <p className="text-xs text-slate-500">
-                  TLS 1.3 en tránsito y separación lógica por distribuidor.
-                </p>
-              </div>
-            </li>
-          </ul>
+      {/* Columna derecha: slice del producto (oculto en mobile) */}
+      <aside
+        className="hidden lg:flex relative flex-col justify-center px-12 py-14 border-l border-white/10 overflow-hidden bg-[#060e20]"
+        style={{
+          backgroundImage: `
+            radial-gradient(circle at 70% 20%, rgba(29, 78, 216, 0.22) 0%, transparent 50%),
+            radial-gradient(circle at 20% 80%, rgba(45, 212, 191, 0.14) 0%, transparent 45%),
+            radial-gradient(circle at 90% 70%, rgba(6, 182, 212, 0.12) 0%, transparent 40%),
+            linear-gradient(to right, rgba(255,255,255,0.04) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(255,255,255,0.04) 1px, transparent 1px)
+          `,
+          backgroundSize: "auto, auto, auto, 40px 40px, 40px 40px",
+        }}
+      >
+        <SignupVisual />
+        <div className="relative z-10 mt-auto pt-10 text-xs text-slate-500">
+          Hecho en MX 🇲🇽
         </div>
       </aside>
     </main>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/* SignupVisual — slice del producto con folio 2378845 + palancas          */
+/* Simplificación del ChatMockup de la landing (no exportado).             */
+/* ---------------------------------------------------------------------- */
+
+function SignupVisual() {
+  return (
+    <div className="relative z-10 max-w-md mx-auto w-full">
+      <div className="mb-6">
+        <p className="text-[11px] font-semibold uppercase tracking-widest text-cyan-300">
+          Distribuidores Telcel
+        </p>
+        <h2 className="mt-3 text-3xl md:text-4xl font-extrabold tracking-tight text-white">
+          Cotiza en menos de{" "}
+          <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-cyan-300 to-teal-300">
+            un minuto.
+          </span>
+        </h2>
+        <p className="mt-3 text-sm text-slate-400 leading-relaxed">
+          La misma cotización que tomas 15 minutos en el portal —
+          automatizada, con historial por cliente y PDF interno + cliente.
+        </p>
+      </div>
+
+      {/* Floating folio badge */}
+      <div className="absolute right-0 -top-2 z-20 flex items-center gap-3 bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl px-4 py-3 shadow-[0_0_30px_rgba(6,182,212,0.2)] rotate-3">
+        <span className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 text-[#0b1326]">
+          <CheckCircleIcon className="w-5 h-5" />
+        </span>
+        <div className="text-left">
+          <div className="text-[10px] uppercase tracking-wider text-white/50 font-semibold leading-none">
+            Folio
+          </div>
+          <div className="text-sm font-mono font-semibold text-white leading-tight">
+            2378845
+          </div>
+        </div>
+      </div>
+
+      {/* Main card: cotización completada */}
+      <div className="relative bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-[0_0_60px_rgba(6,182,212,0.15)]">
+        <div className="flex items-center gap-3 mb-5">
+          <span className="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-gradient-to-br from-blue-600 to-cyan-400 shadow-[0_0_20px_rgba(6,182,212,0.4)]">
+            <DocumentTextIcon className="w-5 h-5 text-white" />
+          </span>
+          <div className="flex-1">
+            <div className="text-sm font-bold text-white leading-tight">
+              Cotización lista
+            </div>
+            <div className="text-xs text-white/50 mt-0.5">
+              5 líneas · 24 meses · A/B 92%
+            </div>
+          </div>
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-emerald-400/15 text-emerald-300 border border-emerald-300/20">
+            Completada
+          </span>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4 py-4 border-y border-white/10">
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-white/50 font-semibold">
+              Total mensual
+            </div>
+            <div className="text-xl font-bold text-white font-mono mt-1">
+              $80,067.50
+            </div>
+          </div>
+          <div>
+            <div className="text-[10px] uppercase tracking-wider text-white/50 font-semibold">
+              Margen
+            </div>
+            <div className="text-xl font-bold font-mono mt-1 text-emerald-300">
+              18.4%
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-2 mt-4">
+          <span className="flex-1 inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-white bg-gradient-to-r from-blue-600 to-cyan-500 px-3 py-2.5 rounded-lg shadow-[0_0_20px_rgba(6,182,212,0.3)]">
+            <DocumentTextIcon className="w-3.5 h-3.5" />
+            PDF cliente
+          </span>
+          <span className="flex-1 inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-white/80 bg-white/5 border border-white/10 px-3 py-2.5 rounded-lg">
+            <DocumentTextIcon className="w-3.5 h-3.5" />
+            PDF interno
+          </span>
+        </div>
+      </div>
+
+      {/* Floating palancas card */}
+      <div className="absolute -right-6 -bottom-6 z-20 w-52 bg-white/5 backdrop-blur-md border border-cyan-300/20 rounded-2xl p-4 shadow-[0_0_30px_rgba(6,182,212,0.2)] -rotate-3">
+        <div className="flex items-center gap-2 mb-3">
+          <BoltIcon className="w-5 h-5 text-cyan-300" />
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-cyan-300">
+            Palancas
+          </div>
+        </div>
+        <ul className="space-y-2 text-xs text-white/80">
+          <li className="flex items-center justify-between">
+            <span>Descuento</span>
+            <span className="font-mono font-semibold text-white">35%</span>
+          </li>
+          <li className="flex items-center justify-between">
+            <span>A/B mensual</span>
+            <span className="font-mono font-semibold text-white">92%</span>
+          </li>
+        </ul>
+        <div className="mt-3 pt-3 border-t border-white/10 flex items-center gap-2 text-[11px] text-emerald-300">
+          <ArrowTrendingUpIcon className="w-3.5 h-3.5" />
+          +18.4% margen
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -390,11 +495,11 @@ function Field(props: FieldProps) {
     <div>
       <label
         htmlFor={inputId}
-        className="block text-sm font-medium text-slate-700 mb-1.5"
+        className="block text-xs font-medium tracking-widest text-slate-500 uppercase mb-2"
       >
         {props.label}
         {props.required && (
-          <span className="text-red-600 ml-0.5" aria-hidden>
+          <span className="text-red-400 ml-1" aria-hidden>
             *
           </span>
         )}
@@ -411,7 +516,7 @@ function Field(props: FieldProps) {
         inputMode={props.inputMode}
         aria-invalid={props.hasError || undefined}
         aria-describedby={describedBy}
-        className="block w-full rounded-lg border border-slate-200 px-3 py-2.5 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-700/20 transition"
+        className="block w-full bg-white/5 backdrop-blur border border-white/10 rounded-lg px-4 py-3 text-white/90 placeholder:text-slate-500 focus:outline-none focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20 transition"
       />
       {props.hint && (
         <p id={hintId} className="text-xs text-slate-500 mt-1.5">

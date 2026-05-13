@@ -51,6 +51,13 @@ const VALID_ESTADOS: ReadonlySet<EstadoCotizacion> = new Set([
 const BACKEND_PDF_PATH_RE = /^\/api\/v1\/cotizaciones\/([A-Za-z0-9_-]{1,64})\/pdf(?:\?formato=(cliente|interno))?$/;
 
 /**
+ * Patrón gemelo para screenshots de borradores (sin RFC). Backend emite
+ *   "/api/v1/cotizaciones/<id>/screenshot"
+ * y reescribimos a `/api/cotizaciones/<id>/screenshot` (proxy stream PNG).
+ */
+const BACKEND_SCREENSHOT_PATH_RE = /^\/api\/v1\/cotizaciones\/([A-Za-z0-9_-]{1,64})\/screenshot$/;
+
+/**
  * Reescribe un `pdf_url` del backend a una URL del proxy frontend.
  *
  * Entrada esperada (backend PR #55):
@@ -75,6 +82,15 @@ function rewritePdfUrl(raw: unknown, cotId: string, defaultFormato: "cliente" | 
   return `/api/cotizaciones/${encodeURIComponent(cotId)}/pdf?formato=${formato}`;
 }
 
+function rewriteScreenshotUrl(raw: unknown, cotId: string): string | undefined {
+  if (typeof raw !== "string" || !raw) return undefined;
+  const m = BACKEND_SCREENSHOT_PATH_RE.exec(raw);
+  if (!m) return undefined;
+  const pathId = m[1];
+  if (pathId !== cotId) return undefined;
+  return `/api/cotizaciones/${encodeURIComponent(cotId)}/screenshot`;
+}
+
 // Sanitizador: el bot puede agregar campos en el futuro o devolver datos
 // extra accidentalmente (paths, telemetría, etc.). En lugar de reenviar
 // `data` tal cual, reconstruimos un DTO con SOLO los campos del contrato
@@ -93,6 +109,9 @@ function sanitizeCotizacion(raw: unknown): Cotizacion | null {
   // formato inesperado, descartamos el campo — NO inventamos URLs.
   const pdfUrl = rewritePdfUrl(r.pdf_url, id, "cliente");
   const pdfUrlInterno = rewritePdfUrl(r.pdf_url_interno, id, "interno");
+  // screenshot_url: aplica a cotizaciones BORRADOR (sin RFC) — el portal
+  // no emite PDF y el bot guarda evidencia como PNG. Mismo esquema que pdf.
+  const screenshotUrl = rewriteScreenshotUrl(r.screenshot_url, id);
 
   const lineas = typeof r.lineas === "number" && Number.isFinite(r.lineas) ? r.lineas : 0;
   const plan = typeof r.plan === "number" && Number.isFinite(r.plan) ? r.plan : 0;
@@ -110,6 +129,7 @@ function sanitizeCotizacion(raw: unknown): Cotizacion | null {
   if (typeof r.equipo === "string" && r.equipo) cotizacion.equipo = r.equipo;
   if (pdfUrl) cotizacion.pdf_url = pdfUrl;
   if (pdfUrlInterno) cotizacion.pdf_url_interno = pdfUrlInterno;
+  if (screenshotUrl) cotizacion.screenshot_url = screenshotUrl;
   if (typeof r.error === "string" && r.error) cotizacion.error = r.error.slice(0, 500);
   return cotizacion;
 }

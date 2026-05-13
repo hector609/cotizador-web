@@ -43,6 +43,17 @@ const BOT_API_URL = process.env.BOT_API_URL || "https://cmdemobot.fly.dev";
 const BACKEND_PDF_PATH_RE =
   /^\/api\/v1\/cotizaciones\/([A-Za-z0-9_-]{1,64})\/pdf(?:\?formato=(cliente|interno))?$/;
 
+/**
+ * Patrón equivalente para `screenshot_url`. Backend emite
+ *   "/api/v1/cotizaciones/<id>/screenshot"
+ * (sin query string). Reescribimos a
+ *   "/api/cotizaciones/<id>/screenshot"
+ * que apunta al proxy `screenshot/route.ts`. Mismas garantías de validación
+ * que `pdf_url` (id whitelist + path coincide con el id de la cotización).
+ */
+const BACKEND_SCREENSHOT_PATH_RE =
+  /^\/api\/v1\/cotizaciones\/([A-Za-z0-9_-]{1,64})\/screenshot$/;
+
 function rewritePdfUrl(
   raw: unknown,
   cotId: string,
@@ -57,10 +68,20 @@ function rewritePdfUrl(
   return `/api/cotizaciones/${encodeURIComponent(cotId)}/pdf?formato=${formato}`;
 }
 
+function rewriteScreenshotUrl(raw: unknown, cotId: string): string | undefined {
+  if (typeof raw !== "string" || !raw) return undefined;
+  const m = BACKEND_SCREENSHOT_PATH_RE.exec(raw);
+  if (!m) return undefined;
+  const pathId = m[1];
+  if (pathId !== cotId) return undefined;
+  return `/api/cotizaciones/${encodeURIComponent(cotId)}/screenshot`;
+}
+
 /**
- * Reescribe los `pdf_url`/`pdf_url_interno` de cada cotización del listing al
- * path del proxy frontend. Si el campo no matchea el patrón conocido, lo
- * descartamos (no inventamos URLs, mismo principio que [id]/route.ts).
+ * Reescribe los `pdf_url`/`pdf_url_interno`/`screenshot_url` de cada
+ * cotización del listing al path del proxy frontend. Si el campo no matchea
+ * el patrón conocido, lo descartamos (no inventamos URLs, mismo principio
+ * que [id]/route.ts).
  */
 function rewriteListing(
   data: ListarCotizacionesResponse
@@ -68,10 +89,12 @@ function rewriteListing(
   const cotizaciones = data.cotizaciones.map((c): Cotizacion => {
     const pdfUrl = rewritePdfUrl(c.pdf_url, c.id, "cliente");
     const pdfUrlInterno = rewritePdfUrl(c.pdf_url_interno, c.id, "interno");
+    const screenshotUrl = rewriteScreenshotUrl(c.screenshot_url, c.id);
     return {
       ...c,
       pdf_url: pdfUrl,
       pdf_url_interno: pdfUrlInterno,
+      screenshot_url: screenshotUrl,
     };
   });
   return { ...data, cotizaciones };

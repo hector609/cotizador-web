@@ -108,7 +108,18 @@ export type JobState =
       elapsedMs: number;
       stage: PollingStage;
     }
-  | { kind: "completed"; id: string; pdfUrl?: string }
+  | {
+      kind: "completed";
+      id: string;
+      pdfUrl?: string;
+      /**
+       * URL al PNG del resumen Telcel cuando la cotización es BORRADOR (sin
+       * RFC) y por tanto no hay PDF. El backend lo emite en lugar de pdf_url.
+       * Si está presente y pdfUrl no, la UI renderiza un thumbnail en vez
+       * de los botones de PDF.
+       */
+      screenshotUrl?: string;
+    }
   | {
       kind: "failed";
       id?: string;
@@ -148,6 +159,8 @@ interface CotizacionPollResponse {
     id: string;
     estado: "pendiente" | "completada" | "fallida";
     pdf_url?: string;
+    /** PNG fallback cuando la cotización es BORRADOR (sin RFC) y no hay PDF. */
+    screenshot_url?: string;
     error?: string;
   };
 }
@@ -328,13 +341,26 @@ export function useChatCotizar(): UseChatCotizarResult {
         const c = data.cotizacion;
         if (c.estado === "completada") {
           clearPolling();
-          setJob({ kind: "completed", id: c.id, pdfUrl: c.pdf_url });
-          appendMessage(
-            "agent",
-            c.pdf_url
-              ? "Listo. Tu cotización está abajo, puedes descargarla."
-              : "Listo. La cotización terminó pero no recibimos el enlace al PDF; revísala en Historial.",
-          );
+          setJob({
+            kind: "completed",
+            id: c.id,
+            pdfUrl: c.pdf_url,
+            screenshotUrl: c.screenshot_url,
+          });
+          let copy: string;
+          if (c.pdf_url) {
+            copy = "Listo. Tu cotización está abajo, puedes descargarla.";
+          } else if (c.screenshot_url) {
+            // BORRADOR: el portal no genera PDF oficial; el bot capturó la
+            // pantalla del resumen como evidencia. Avisar al usuario que el
+            // siguiente paso (cuando capture el RFC) genera el PDF real.
+            copy =
+              "Listo. Como es un borrador (sin RFC) Telcel no emite PDF; te dejo abajo la captura del resumen.";
+          } else {
+            copy =
+              "Listo. La cotización terminó pero no recibimos el enlace al PDF; revísala en Historial.";
+          }
+          appendMessage("agent", copy);
         } else if (c.estado === "fallida") {
           clearPolling();
           const msg =

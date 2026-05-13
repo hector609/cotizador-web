@@ -5,32 +5,27 @@
  *
  * Equivalente web del flujo /catalogos del bot: el DAT puede navegar marcas,
  * modelos y planes corporativos sin abrir Telegram. Desde la tabla de
- * equipos puede saltar directo a /dashboard/cotizar?equipo=<modelo> con la
- * casilla precargada.
+ * equipos puede saltar directo a /dashboard/cotizar?equipo=<modelo>.
  *
- * Datos: GET /api/catalogos/equipos y /api/catalogos/planes (proxies HMAC al
- * bot). Si el backend devuelve `unavailable: true` (404 upstream), pintamos
- * un banner "catálogos cargando, intenta en 1 min" sin reventar la página
- * — el resto del dashboard sigue usable.
+ * REDISEÑO "REVENTAR mode" — dark glassmorphism premium. Hooks y data
+ * fetching INTACTOS; capa visual nueva.
  *
  * Layouts (audit B2):
- *  - Equipos: grid de cards (sin foto — typography grande con marca + modelo).
- *    Cards porque equipo es navegacional: el usuario escanea modelos y los
- *    selecciona; las cards rinden bien en grid responsive sin scroll-x.
- *  - Planes: tabla en md+ (8 columnas para comparar lado a lado es el caso
- *    real de uso del DAT cuando arma cotización); cards stacked en mobile
- *    con columnas secundarias (clave, sms) ocultas.
- *
- * Performance: 928 equipos / 1584 planes paginados a 50/página — son 18-31
- * páginas. Sin virtualización: el render del subset de 50 DOM nodes es
- * sub-frame en hardware del piloto (Chromebook/iPad). Si en piloto vemos
- * complaint de scroll lag al cargar TODO el array en `planes` state,
- * migramos a virtualization (react-virtuoso) — por ahora es over-engineering.
+ *  - Equipos: grid de cards con typography grande marca + modelo.
+ *  - Planes: tabla densa md+ con columnas progresivamente ocultas
+ *    (hidden lg:table-cell, xl:table-cell) + búsqueda clave/nombre.
  */
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { DashboardNav } from "../_nav";
+import Link from "next/link";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useState,
+} from "react";
+import { Sidebar } from "@/components/admin/Sidebar";
 
 /* ---------- Tipos ---------- */
 
@@ -112,76 +107,108 @@ export default function CatalogosPage() {
   const [tab, setTab] = useState<Tab>("equipos");
 
   return (
-    <main className="min-h-screen bg-slate-50">
-      <DashboardNav active="catalogos" />
+    <div className="min-h-screen bg-[#0b1326] text-slate-200 antialiased">
+      <Sidebar active="catalogos" />
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="mb-6">
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900">
-            Catálogo
-          </h1>
-          <p className="text-sm text-slate-600 mt-1">
-            Explora equipos y planes corporativos. Lanza una cotización con el
-            modelo elegido en un click.
-          </p>
-        </div>
-
+      <main className="relative lg:ml-64 pt-14 lg:pt-0 min-h-screen overflow-hidden">
+        {/* Mesh + grid */}
         <div
-          role="tablist"
-          aria-label="Catálogo: equipos o planes"
-          className="mb-6 inline-flex bg-white rounded-lg border border-slate-200 p-1"
-        >
-          <button
-            role="tab"
-            aria-selected={tab === "equipos"}
-            aria-controls="tabpanel-equipos"
-            id="tab-equipos"
-            onClick={() => setTab("equipos")}
-            className={[
-              "px-4 py-1.5 text-sm font-medium rounded-md transition",
-              tab === "equipos"
-                ? "bg-blue-700 text-white"
-                : "text-slate-700 hover:text-slate-900",
-            ].join(" ")}
-          >
-            Equipos
-          </button>
-          <button
-            role="tab"
-            aria-selected={tab === "planes"}
-            aria-controls="tabpanel-planes"
-            id="tab-planes"
-            onClick={() => setTab("planes")}
-            className={[
-              "px-4 py-1.5 text-sm font-medium rounded-md transition",
-              tab === "planes"
-                ? "bg-blue-700 text-white"
-                : "text-slate-700 hover:text-slate-900",
-            ].join(" ")}
-          >
-            Planes
-          </button>
-        </div>
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 z-0"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle at 85% 15%, rgba(29, 78, 216, 0.18) 0%, transparent 45%), radial-gradient(circle at 95% 5%, rgba(76, 215, 246, 0.12) 0%, transparent 35%)",
+          }}
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 z-0 opacity-[0.04]"
+          style={{
+            backgroundImage:
+              "linear-gradient(to right, rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,1) 1px, transparent 1px)",
+            backgroundSize: "64px 64px",
+          }}
+        />
 
-        {tab === "equipos" ? (
-          <div
-            role="tabpanel"
-            id="tabpanel-equipos"
-            aria-labelledby="tab-equipos"
-          >
-            <EquiposTab />
+        <div className="relative z-10 max-w-7xl mx-auto px-6 md:px-10 py-10 md:py-12">
+          {/* Breadcrumb */}
+          <div className="flex items-center gap-2 text-sm text-slate-400 mb-8">
+            <Link href="/dashboard" className="hover:text-white transition">
+              Inicio
+            </Link>
+            <span className="text-slate-600">/</span>
+            <span className="text-white">Catálogo</span>
           </div>
-        ) : (
+
+          {/* H1 */}
+          <header className="mb-8">
+            <h1 className="text-4xl md:text-5xl font-black tracking-tight text-white">
+              Catálogo
+            </h1>
+            <p className="mt-3 text-sm md:text-base text-slate-400 max-w-2xl">
+              Explora equipos y planes corporativos. Lanza una cotización con el
+              modelo elegido en un click.
+            </p>
+          </header>
+
+          {/* Tabs pill segmented */}
           <div
-            role="tabpanel"
-            id="tabpanel-planes"
-            aria-labelledby="tab-planes"
+            role="tablist"
+            aria-label="Catálogo: equipos o planes"
+            className="mb-6 inline-flex bg-white/[0.04] backdrop-blur-[12px] rounded-full border border-white/10 p-1"
           >
-            <PlanesTab />
+            <button
+              role="tab"
+              aria-selected={tab === "equipos"}
+              aria-controls="tabpanel-equipos"
+              id="tab-equipos"
+              onClick={() => setTab("equipos")}
+              className={[
+                "px-5 py-1.5 text-sm font-bold rounded-full transition",
+                tab === "equipos"
+                  ? "bg-gradient-to-br from-blue-600 to-cyan-500 text-white shadow-[0_0_20px_rgba(34,211,238,0.4)]"
+                  : "text-slate-400 hover:text-white",
+              ].join(" ")}
+            >
+              Equipos
+            </button>
+            <button
+              role="tab"
+              aria-selected={tab === "planes"}
+              aria-controls="tabpanel-planes"
+              id="tab-planes"
+              onClick={() => setTab("planes")}
+              className={[
+                "px-5 py-1.5 text-sm font-bold rounded-full transition",
+                tab === "planes"
+                  ? "bg-gradient-to-br from-blue-600 to-cyan-500 text-white shadow-[0_0_20px_rgba(34,211,238,0.4)]"
+                  : "text-slate-400 hover:text-white",
+              ].join(" ")}
+            >
+              Planes
+            </button>
           </div>
-        )}
-      </div>
-    </main>
+
+          {tab === "equipos" ? (
+            <div
+              role="tabpanel"
+              id="tabpanel-equipos"
+              aria-labelledby="tab-equipos"
+            >
+              <EquiposTab />
+            </div>
+          ) : (
+            <div
+              role="tabpanel"
+              id="tabpanel-planes"
+              aria-labelledby="tab-planes"
+            >
+              <PlanesTab />
+            </div>
+          )}
+        </div>
+      </main>
+    </div>
   );
 }
 
@@ -198,9 +225,12 @@ function EquiposTab() {
 
   const [marca, setMarca] = useState("");
   const [q, setQ] = useState("");
-  // Filtro de precio aplica client-side (el upstream no lo soporta).
   const [precioMax, setPrecioMax] = useState<string>("");
   const [page, setPage] = useState(0);
+
+  const marcaId = useId();
+  const qId = useId();
+  const precioId = useId();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -256,25 +286,25 @@ function EquiposTab() {
 
   return (
     <div className="space-y-4">
-      {/* Filtros */}
-      <div className="bg-white rounded-xl border border-slate-200 p-4 grid grid-cols-1 md:grid-cols-4 gap-3">
+      {/* Filtros pills */}
+      <div className="rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-white/10 p-4 grid grid-cols-1 md:grid-cols-4 gap-3">
         <div>
           <label
-            htmlFor="eq-marca"
-            className="block text-xs font-medium text-slate-600 mb-1"
+            htmlFor={marcaId}
+            className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5"
           >
             Marca
           </label>
           <select
-            id="eq-marca"
+            id={marcaId}
             value={marca}
             onChange={(e) => setMarca(e.target.value)}
             disabled={loading || unavailable}
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-500"
+            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-full text-sm text-white focus:outline-none focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/30 transition disabled:opacity-50"
           >
-            <option value="">Todas las marcas</option>
+            <option value="" className="bg-[#0b1326]">Todas las marcas</option>
             {marcas.map((m) => (
-              <option key={m} value={m}>
+              <option key={m} value={m} className="bg-[#0b1326]">
                 {m}
               </option>
             ))}
@@ -282,13 +312,13 @@ function EquiposTab() {
         </div>
         <div className="md:col-span-2">
           <label
-            htmlFor="eq-q"
-            className="block text-xs font-medium text-slate-600 mb-1"
+            htmlFor={qId}
+            className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5"
           >
             Buscar modelo
           </label>
           <input
-            id="eq-q"
+            id={qId}
             type="text"
             value={q}
             onChange={(e) => setQ(e.target.value)}
@@ -297,18 +327,18 @@ function EquiposTab() {
             }}
             onBlur={() => void load()}
             placeholder="ej. iPhone 15, Galaxy S24"
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-slate-500"
+            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-full text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/30 transition"
           />
         </div>
         <div>
           <label
-            htmlFor="eq-precio"
-            className="block text-xs font-medium text-slate-600 mb-1"
+            htmlFor={precioId}
+            className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5"
           >
             Precio máx (MXN)
           </label>
           <input
-            id="eq-precio"
+            id={precioId}
             type="number"
             inputMode="numeric"
             min={0}
@@ -318,7 +348,7 @@ function EquiposTab() {
               setPage(0);
             }}
             placeholder="Sin tope"
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-slate-500"
+            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-full text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/30 transition"
           />
         </div>
       </div>
@@ -380,23 +410,25 @@ function EquipoCard({
   onCotizar: () => void;
 }) {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5 hover:border-blue-400 hover:shadow-sm transition flex flex-col h-full">
-      <p className="text-[10px] font-semibold uppercase tracking-wider text-blue-700">
+    <div className="group relative rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-white/10 p-5 transition-all duration-300 hover:scale-[1.02] hover:border-cyan-400/40 hover:shadow-[0_0_30px_rgba(6,182,212,0.25)] flex flex-col h-full">
+      <p className="text-[10px] font-bold uppercase tracking-widest text-cyan-300">
         {eq.marca}
       </p>
-      <p className="mt-1 text-lg font-semibold text-slate-900 leading-snug">
+      <p className="mt-2 text-xl font-black text-white leading-tight tracking-tight">
         {eq.modelo}
       </p>
       {typeof eq.precio === "number" && eq.precio > 0 && (
-        <p className="mt-2 text-sm text-slate-600 tabular-nums">
+        <p className="mt-3 text-sm text-slate-300 tabular-nums">
           {fmtMxn(eq.precio)}
         </p>
       )}
       <button
         onClick={onCotizar}
-        className="mt-4 w-full px-3 py-2 bg-blue-700 text-white text-xs font-semibold rounded-lg hover:bg-blue-800 transition"
+        className="mt-auto pt-4 w-full"
       >
-        Cotizar este equipo
+        <span className="block w-full px-3 py-2 bg-cyan-500/15 border border-cyan-400/30 text-cyan-300 text-xs font-bold rounded-lg hover:bg-cyan-500/25 hover:border-cyan-400/50 transition">
+          Cotizar este equipo
+        </span>
       </button>
     </div>
   );
@@ -421,6 +453,11 @@ function PlanesTab() {
   const [plazo, setPlazo] = useState("");
   const [q, setQ] = useState("");
   const [page, setPage] = useState(0);
+
+  const qId = useId();
+  const grupoId = useId();
+  const modId = useId();
+  const plazoId = useId();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -490,16 +527,16 @@ function PlanesTab() {
   return (
     <div className="space-y-4">
       {/* Filtros */}
-      <div className="bg-white rounded-xl border border-slate-200 p-4 grid grid-cols-1 md:grid-cols-4 gap-3">
+      <div className="rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-white/10 p-4 grid grid-cols-1 md:grid-cols-4 gap-3">
         <div>
           <label
-            htmlFor="pl-q"
-            className="block text-xs font-medium text-slate-600 mb-1"
+            htmlFor={qId}
+            className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5"
           >
             Buscar plan
           </label>
           <input
-            id="pl-q"
+            id={qId}
             type="text"
             value={q}
             onChange={(e) => {
@@ -507,26 +544,26 @@ function PlanesTab() {
               setPage(0);
             }}
             placeholder="Clave o nombre"
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder:text-slate-500"
+            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-full text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/30 transition"
           />
         </div>
         <div>
           <label
-            htmlFor="pl-grupo"
-            className="block text-xs font-medium text-slate-600 mb-1"
+            htmlFor={grupoId}
+            className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5"
           >
             Grupo
           </label>
           <select
-            id="pl-grupo"
+            id={grupoId}
             value={grupo}
             onChange={(e) => setGrupo(e.target.value)}
             disabled={loading || unavailable}
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-500"
+            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-full text-sm text-white focus:outline-none focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/30 transition disabled:opacity-50"
           >
-            <option value="">Todos</option>
+            <option value="" className="bg-[#0b1326]">Todos</option>
             {filtros.grupos.map((g) => (
-              <option key={g} value={g}>
+              <option key={g} value={g} className="bg-[#0b1326]">
                 {g}
               </option>
             ))}
@@ -534,21 +571,21 @@ function PlanesTab() {
         </div>
         <div>
           <label
-            htmlFor="pl-modalidad"
-            className="block text-xs font-medium text-slate-600 mb-1"
+            htmlFor={modId}
+            className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5"
           >
             Modalidad
           </label>
           <select
-            id="pl-modalidad"
+            id={modId}
             value={modalidad}
             onChange={(e) => setModalidad(e.target.value)}
             disabled={loading || unavailable}
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-500"
+            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-full text-sm text-white focus:outline-none focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/30 transition disabled:opacity-50"
           >
-            <option value="">Todas</option>
+            <option value="" className="bg-[#0b1326]">Todas</option>
             {filtros.modalidades.map((m) => (
-              <option key={m} value={m}>
+              <option key={m} value={m} className="bg-[#0b1326]">
                 {m}
               </option>
             ))}
@@ -556,21 +593,21 @@ function PlanesTab() {
         </div>
         <div>
           <label
-            htmlFor="pl-plazo"
-            className="block text-xs font-medium text-slate-600 mb-1"
+            htmlFor={plazoId}
+            className="block text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-1.5"
           >
             Plazo
           </label>
           <select
-            id="pl-plazo"
+            id={plazoId}
             value={plazo}
             onChange={(e) => setPlazo(e.target.value)}
             disabled={loading || unavailable}
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-50 disabled:text-slate-500"
+            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-full text-sm text-white focus:outline-none focus:border-cyan-400/50 focus:ring-1 focus:ring-cyan-400/30 transition disabled:opacity-50"
           >
-            <option value="">Todos</option>
+            <option value="" className="bg-[#0b1326]">Todos</option>
             {filtros.plazos.map((p) => (
-              <option key={p} value={String(p)}>
+              <option key={p} value={String(p)} className="bg-[#0b1326]">
                 {p} meses
               </option>
             ))}
@@ -610,75 +647,75 @@ function PlanesTab() {
 
 function PlanesTable({ rows }: { rows: PlanRow[] }) {
   return (
-    <div className="hidden md:block bg-white rounded-xl border border-slate-200 overflow-hidden">
+    <div className="hidden md:block rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-white/10 overflow-hidden">
       <table className="w-full text-sm">
         <caption className="sr-only">
           Catálogo de planes con clave, nombre, grupo, modalidad, plazo, renta,
           datos y minutos.
         </caption>
-        <thead className="bg-slate-50 text-slate-600 border-b border-slate-200">
+        <thead className="bg-white/[0.02] text-slate-500 uppercase text-[10px] tracking-widest font-bold border-b border-white/10">
           <tr>
             <th
               scope="col"
-              className="text-left px-4 py-3 font-medium hidden lg:table-cell"
+              className="text-left px-5 py-3 hidden lg:table-cell"
             >
               Clave
             </th>
-            <th scope="col" className="text-left px-4 py-3 font-medium">
+            <th scope="col" className="text-left px-5 py-3">
               Nombre
             </th>
             <th
               scope="col"
-              className="text-left px-4 py-3 font-medium hidden xl:table-cell"
+              className="text-left px-5 py-3 hidden xl:table-cell"
             >
               Grupo
             </th>
-            <th scope="col" className="text-left px-4 py-3 font-medium">
+            <th scope="col" className="text-left px-5 py-3">
               Modalidad
             </th>
-            <th scope="col" className="text-left px-4 py-3 font-medium">
+            <th scope="col" className="text-left px-5 py-3">
               Plazo
             </th>
-            <th scope="col" className="text-right px-4 py-3 font-medium">
+            <th scope="col" className="text-right px-5 py-3">
               Renta
             </th>
-            <th scope="col" className="text-right px-4 py-3 font-medium">
+            <th scope="col" className="text-right px-5 py-3">
               Datos
             </th>
             <th
               scope="col"
-              className="text-right px-4 py-3 font-medium hidden xl:table-cell"
+              className="text-right px-5 py-3 hidden xl:table-cell"
             >
               Minutos
             </th>
           </tr>
         </thead>
-        <tbody>
+        <tbody className="divide-y divide-white/5">
           {rows.map((p, idx) => (
             <tr
               key={`${p.clave ?? "x"}-${idx}`}
-              className="border-t border-slate-100 hover:bg-slate-50 transition"
+              className="hover:bg-white/[0.03] transition-colors"
             >
-              <td className="px-4 py-3 font-mono text-xs text-slate-600 hidden lg:table-cell">
+              <td className="px-5 py-3.5 font-mono text-xs text-cyan-300 hidden lg:table-cell">
                 {p.clave ?? "—"}
               </td>
-              <td className="px-4 py-3 text-slate-900 font-medium">
+              <td className="px-5 py-3.5 text-white font-medium">
                 {p.nombre ?? "—"}
               </td>
-              <td className="px-4 py-3 text-slate-700 hidden xl:table-cell">
+              <td className="px-5 py-3.5 text-slate-400 hidden xl:table-cell">
                 {p.grupo ?? p.familia ?? "—"}
               </td>
-              <td className="px-4 py-3 text-slate-700">{p.modalidad ?? "—"}</td>
-              <td className="px-4 py-3 text-slate-700 whitespace-nowrap">
+              <td className="px-5 py-3.5 text-slate-300">{p.modalidad ?? "—"}</td>
+              <td className="px-5 py-3.5 text-slate-300 whitespace-nowrap">
                 {fmtPlazo(p.plazo ?? null)}
               </td>
-              <td className="px-4 py-3 text-right text-slate-900 font-medium tabular-nums">
+              <td className="px-5 py-3.5 text-right text-white font-semibold tabular-nums whitespace-nowrap">
                 {fmtMxn(p.renta ?? p.precio_lista ?? null)}
               </td>
-              <td className="px-4 py-3 text-right text-slate-700 tabular-nums">
+              <td className="px-5 py-3.5 text-right text-slate-300 tabular-nums">
                 {fmtDatos(p.datos_gb ?? null)}
               </td>
-              <td className="px-4 py-3 text-right text-slate-700 tabular-nums hidden xl:table-cell">
+              <td className="px-5 py-3.5 text-right text-slate-300 tabular-nums hidden xl:table-cell">
                 {fmtMinutos(p.minutos ?? null)}
               </td>
             </tr>
@@ -695,43 +732,43 @@ function PlanesCards({ rows }: { rows: PlanRow[] }) {
       {rows.map((p, idx) => (
         <li
           key={`${p.clave ?? "x"}-${idx}`}
-          className="bg-white rounded-xl border border-slate-200 p-4"
+          className="rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-white/10 p-4"
         >
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
-              <p className="font-semibold text-slate-900 leading-snug">
+              <p className="font-bold text-white leading-snug">
                 {p.nombre ?? "—"}
               </p>
               {p.clave && (
-                <p className="font-mono text-[10px] text-slate-500 mt-0.5">
+                <p className="font-mono text-[10px] text-cyan-300 mt-0.5">
                   {p.clave}
                 </p>
               )}
             </div>
-            <p className="text-lg font-bold text-slate-900 tabular-nums shrink-0">
+            <p className="text-lg font-black text-white tabular-nums shrink-0">
               {fmtMxn(p.renta ?? p.precio_lista ?? null)}
             </p>
           </div>
-          <dl className="mt-3 pt-3 border-t border-slate-100 grid grid-cols-2 gap-2 text-xs">
+          <dl className="mt-3 pt-3 border-t border-white/5 grid grid-cols-2 gap-2 text-xs">
             <div>
-              <dt className="text-slate-500">Modalidad</dt>
-              <dd className="text-slate-800 mt-0.5">{p.modalidad ?? "—"}</dd>
+              <dt className="text-[10px] text-slate-500 uppercase tracking-wider">Modalidad</dt>
+              <dd className="text-slate-200 mt-0.5">{p.modalidad ?? "—"}</dd>
             </div>
             <div>
-              <dt className="text-slate-500">Plazo</dt>
-              <dd className="text-slate-800 mt-0.5">
+              <dt className="text-[10px] text-slate-500 uppercase tracking-wider">Plazo</dt>
+              <dd className="text-slate-200 mt-0.5">
                 {fmtPlazo(p.plazo ?? null)}
               </dd>
             </div>
             <div>
-              <dt className="text-slate-500">Datos</dt>
-              <dd className="text-slate-800 tabular-nums mt-0.5">
+              <dt className="text-[10px] text-slate-500 uppercase tracking-wider">Datos</dt>
+              <dd className="text-slate-200 tabular-nums mt-0.5">
                 {fmtDatos(p.datos_gb ?? null)}
               </dd>
             </div>
             <div>
-              <dt className="text-slate-500">Minutos</dt>
-              <dd className="text-slate-800 tabular-nums mt-0.5">
+              <dt className="text-[10px] text-slate-500 uppercase tracking-wider">Minutos</dt>
+              <dd className="text-slate-200 tabular-nums mt-0.5">
                 {fmtMinutos(p.minutos ?? null)}
               </dd>
             </div>
@@ -758,15 +795,15 @@ function ResultMeta({
   unit: string;
 }) {
   return (
-    <div className="flex items-center justify-between text-xs text-slate-600 flex-wrap gap-2">
+    <div className="flex items-center justify-between text-xs text-slate-400 flex-wrap gap-2">
       <span>
-        <strong className="text-slate-900 tabular-nums">{showing}</strong> de{" "}
-        <strong className="text-slate-900 tabular-nums">{total}</strong> {unit}
+        <strong className="text-white tabular-nums">{showing}</strong> de{" "}
+        <strong className="text-white tabular-nums">{total}</strong> {unit}
       </span>
       {totalPages > 1 && (
         <span className="text-slate-500">
           Página{" "}
-          <span className="tabular-nums">
+          <span className="tabular-nums text-slate-300">
             {page + 1}/{totalPages}
           </span>
         </span>
@@ -787,25 +824,25 @@ function Pagination({
   return (
     <nav
       aria-label="Paginación"
-      className="flex items-center justify-between text-sm text-slate-600 flex-wrap gap-3 pt-2"
+      className="flex items-center justify-between text-sm text-slate-400 flex-wrap gap-3 pt-2"
     >
       <button
         onClick={() => onChange(Math.max(0, page - 1))}
         disabled={page === 0}
-        className="px-3 py-1.5 border border-slate-300 rounded-lg hover:bg-white transition disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+        className="px-3 py-1.5 border border-white/10 bg-white/5 text-slate-200 rounded-lg hover:bg-white/10 hover:border-white/20 transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white/5 disabled:hover:border-white/10"
       >
         ← Anterior
       </button>
       <span className="text-slate-500 text-xs">
         Página{" "}
-        <span className="tabular-nums">
+        <span className="tabular-nums text-slate-300">
           {page + 1} de {totalPages}
         </span>
       </span>
       <button
         onClick={() => onChange(Math.min(totalPages - 1, page + 1))}
         disabled={page >= totalPages - 1}
-        className="px-3 py-1.5 border border-slate-300 rounded-lg hover:bg-white transition disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+        className="px-3 py-1.5 border border-white/10 bg-white/5 text-slate-200 rounded-lg hover:bg-white/10 hover:border-white/20 transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white/5 disabled:hover:border-white/10"
       >
         Siguiente →
       </button>
@@ -815,11 +852,11 @@ function Pagination({
 
 function UnavailableBanner() {
   return (
-    <div className="bg-white rounded-xl border border-amber-200 p-6 text-center">
-      <p className="inline-block bg-amber-100 text-amber-800 text-xs font-semibold uppercase tracking-wider rounded-full px-3 py-1">
+    <div className="rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-amber-400/30 p-6 text-center">
+      <p className="inline-block bg-amber-400/15 text-amber-300 border border-amber-400/30 text-xs font-bold uppercase tracking-widest rounded-full px-3 py-1">
         Catálogo cargando
       </p>
-      <p className="mt-3 text-sm text-slate-700">
+      <p className="mt-3 text-sm text-slate-300">
         El catálogo se está sincronizando. Intenta de nuevo en aproximadamente 1
         minuto.
       </p>
@@ -837,12 +874,12 @@ function ErrorBanner({
   return (
     <div
       role="alert"
-      className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center justify-between gap-3 flex-wrap"
+      className="rounded-xl border border-red-400/30 bg-red-500/10 backdrop-blur-[12px] p-4 flex items-center justify-between gap-3 flex-wrap"
     >
-      <p className="text-red-800 text-sm font-medium">{message}</p>
+      <p className="text-red-200 text-sm font-medium">{message}</p>
       <button
         onClick={onRetry}
-        className="px-3 py-1.5 bg-red-700 text-white text-sm font-medium rounded-lg hover:bg-red-800 transition"
+        className="px-3 py-1.5 bg-red-500/30 border border-red-400/40 text-red-100 text-sm font-medium rounded-lg hover:bg-red-500/40 transition"
       >
         Reintentar
       </button>
@@ -852,7 +889,7 @@ function ErrorBanner({
 
 function EmptyMessage({ msg }: { msg: string }) {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-10 text-center text-slate-600 text-sm">
+    <div className="rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-white/10 p-10 text-center text-slate-400 text-sm">
       {msg}
     </div>
   );
@@ -869,12 +906,12 @@ function GridSkeleton() {
       {[0, 1, 2, 3, 4, 5].map((i) => (
         <div
           key={i}
-          className="bg-white rounded-xl border border-slate-200 p-5 space-y-3"
+          className="rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-white/10 p-5 space-y-3"
           aria-hidden="true"
         >
-          <div className="h-3 bg-slate-100 rounded animate-pulse w-1/3" />
-          <div className="h-5 bg-slate-100 rounded animate-pulse w-3/4" />
-          <div className="h-8 bg-slate-100 rounded animate-pulse w-full mt-4" />
+          <div className="h-3 bg-white/5 rounded animate-pulse w-1/3" />
+          <div className="h-5 bg-white/5 rounded animate-pulse w-3/4" />
+          <div className="h-8 bg-white/5 rounded animate-pulse w-full mt-4" />
         </div>
       ))}
     </div>
@@ -884,7 +921,7 @@ function GridSkeleton() {
 function TableSkeleton() {
   return (
     <div
-      className="bg-white rounded-xl border border-slate-200 p-6 space-y-3"
+      className="rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-white/10 p-6 space-y-3"
       role="status"
       aria-live="polite"
     >
@@ -892,7 +929,7 @@ function TableSkeleton() {
       {[0, 1, 2, 3, 4, 5].map((i) => (
         <div
           key={i}
-          className="h-10 bg-slate-100 rounded animate-pulse"
+          className="h-10 bg-white/5 rounded animate-pulse"
           aria-hidden="true"
         />
       ))}

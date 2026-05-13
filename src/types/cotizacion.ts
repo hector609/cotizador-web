@@ -50,6 +50,16 @@ export interface Cotizacion {
    * Solo presente si el bot generó este PDF en el run (no siempre aplica).
    */
   pdf_url_interno?: string;
+  /**
+   * URL a la captura (PNG) del resumen Telcel cuando la cotización es un
+   * BORRADOR (sin RFC) y por tanto el portal NO emite PDF oficial. El
+   * backend devuelve un path relativo `/api/v1/cotizaciones/<id>/screenshot`
+   * y este frontend lo reescribe al proxy `/api/cotizaciones/<id>/screenshot`
+   * que streamea el image/png con X-Auth firmado. Cuando exista `pdf_url`
+   * suele estar ausente; cuando no hay PDF, este campo es la única evidencia
+   * descargable del run.
+   */
+  screenshot_url?: string;
   /** Mensaje legible si falló (no exponer stacktraces). */
   error?: string;
   /** ISO-8601 UTC. */

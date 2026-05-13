@@ -13,20 +13,19 @@
  *    `find` server-side. Es barato (cartera ≤ pocos cientos en piloto).
  *  - Historial de cotizaciones (`listarCotizaciones`) — leemos hasta 50
  *    del tenant y filtramos por `c.rfc === rfc` server-side. El bot tampoco
- *    soporta filtro por rfc en el endpoint listar (ver bot:6313). Para
- *    cuando un cliente tenga >50 cotizaciones tendremos que extender el
- *    endpoint upstream para aceptar `?rfc=`.
+ *    soporta filtro por rfc en el endpoint listar.
  *
  * SECURITY:
  *  - El RFC viene de URL (params) → validar con `RFC_REGEX` antes de
  *    confiar para querys / display. Si no matchea, 404.
  *  - `tenant_id` viene del HMAC firmado de la sesión; jamás del cliente.
  *
- * Diseño: header con nombre + RFC mono + 3 KPI cards arriba; abajo timeline
- * vertical de cotizaciones (dot azul = más reciente, verde = completadas
- * previas, ámbar = pendientes, rojo = fallidas). Tabla solo cuando hay
- * muchas filas y el usuario quiere ver columnas comparativas — para piloto
- * timeline cubre el caso de uso (auditoría rápida de qué le hemos cotizado).
+ * REDISEÑO "REVENTAR mode" — dark glassmorphism premium. Hooks y data
+ * fetching INTACTOS; capa visual nueva.
+ *
+ * Diseño: header con nombre + RFC mono cyan + 3 KPI cards arriba; abajo
+ * timeline vertical de cotizaciones (dot color por estado + hairline
+ * divider izquierdo).
  */
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -35,8 +34,7 @@ import { signBackendRequest } from "@/lib/backend-auth";
 import { listarCotizaciones } from "@/lib/cotizaciones";
 import type { Cotizacion, EstadoCotizacion } from "@/types/cotizacion";
 import { RFC_REGEX } from "@/types/cotizacion";
-import { Section } from "@/components/ui/Section";
-import { DashboardNav } from "../../_nav";
+import { Sidebar } from "@/components/admin/Sidebar";
 
 const BOT_API_URL = process.env.BOT_API_URL || "https://cmdemobot.fly.dev";
 const FETCH_LIMIT = 50;
@@ -108,14 +106,12 @@ export default async function ClienteDetallePage({ params }: PageProps) {
   const { rfc: rfcRaw } = await params;
   const rfc = decodeURIComponent(rfcRaw).toUpperCase();
 
-  // Validar formato RFC antes de tocar backend. Defensa contra inputs
-  // como "../foo" o RFCs malformados.
+  // Validar formato RFC antes de tocar backend.
   if (!RFC_REGEX.test(rfc)) {
     notFound();
   }
 
-  // Paralelo: cliente + historial. Ambos van al mismo backend pero a
-  // endpoints distintos; lanzamos en paralelo para reducir TTFB.
+  // Paralelo: cliente + historial.
   const [cliente, cotizacionesResult] = await Promise.all([
     fetchClienteByRfc(session.tenant_id, rfc),
     listarCotizaciones(session.tenant_id, { limit: FETCH_LIMIT, offset: 0 }),
@@ -128,8 +124,7 @@ export default async function ClienteDetallePage({ params }: PageProps) {
       )
     : [];
 
-  // Si el RFC no aparece en cartera Y no tiene cotizaciones, lo tratamos
-  // como "no existe en este tenant" → 404.
+  // Si el RFC no aparece en cartera Y no tiene cotizaciones, 404.
   if (!cliente && cotizacionesCliente.length === 0 && cotizacionesResult.ok) {
     notFound();
   }
@@ -145,101 +140,160 @@ export default async function ClienteDetallePage({ params }: PageProps) {
     (acc, c) => acc + c.lineas * c.plan,
     0
   );
-  // "AB promedio" no está en el shape de Cotizacion — lo omitimos hasta
-  // que el backend lo exponga. Mostramos en su lugar # líneas totales.
   const lineasTotales = completadas.reduce((acc, c) => acc + c.lineas, 0);
 
+  // Sidebar identity.
+  const initials = String(session.vendedor_id).slice(0, 2).toUpperCase();
+  const userLabel = `Vendedor #${session.vendedor_id}`;
+  const userSubtitle = `Distribuidor ${session.tenant_id}`;
+
   return (
-    <main className="min-h-screen bg-slate-50">
-      <DashboardNav active="clientes" />
+    <div className="min-h-screen bg-[#0b1326] text-slate-200 antialiased">
+      <Sidebar
+        active="clientes"
+        initials={initials}
+        userLabel={userLabel}
+        userSubtitle={userSubtitle}
+      />
 
-      <Section bg="slate" spacing="sm" width="wide">
-        {/* Breadcrumb */}
-        <div className="text-sm mb-4">
-          <Link
-            href="/dashboard/clientes"
-            className="text-slate-600 hover:text-slate-900 inline-flex items-center gap-1"
-          >
-            <span aria-hidden="true">←</span> Volver a clientes
-          </Link>
-        </div>
+      <main className="relative lg:ml-64 pt-14 lg:pt-0 min-h-screen overflow-hidden">
+        {/* Mesh + grid */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 z-0"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle at 85% 15%, rgba(29, 78, 216, 0.18) 0%, transparent 45%), radial-gradient(circle at 95% 5%, rgba(76, 215, 246, 0.12) 0%, transparent 35%)",
+          }}
+        />
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 z-0 opacity-[0.04]"
+          style={{
+            backgroundImage:
+              "linear-gradient(to right, rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,1) 1px, transparent 1px)",
+            backgroundSize: "64px 64px",
+          }}
+        />
 
-        {/* Header */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 md:p-8 mb-6">
-          <div className="flex items-start justify-between gap-4 flex-wrap">
-            <div className="min-w-0">
-              <div className="flex items-center gap-3 flex-wrap">
-                <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900">
-                  {nombreMostrar}
-                </h1>
-                <span className="font-mono text-xs md:text-sm text-slate-600 bg-slate-50 border border-slate-200 rounded px-2 py-0.5">
-                  {rfc}
-                </span>
+        <div className="relative z-10 max-w-7xl mx-auto px-6 md:px-10 py-10 md:py-12">
+          {/* Breadcrumb */}
+          <div className="flex items-center gap-2 text-sm text-slate-400 mb-6">
+            <Link href="/dashboard" className="hover:text-white transition">
+              Inicio
+            </Link>
+            <span className="text-slate-600">/</span>
+            <Link
+              href="/dashboard/clientes"
+              className="hover:text-white transition"
+            >
+              Mis clientes
+            </Link>
+            <span className="text-slate-600">/</span>
+            <span className="text-white font-mono text-xs">{rfc}</span>
+          </div>
+
+          {/* Header glassmorphism */}
+          <div className="rounded-2xl bg-white/[0.04] backdrop-blur-[12px] border border-white/10 p-6 md:p-8 mb-6 relative overflow-hidden">
+            <div
+              aria-hidden="true"
+              className="absolute -right-10 -top-10 w-48 h-48 bg-cyan-400/10 blur-3xl rounded-full pointer-events-none"
+            />
+            <div className="flex items-start justify-between gap-4 flex-wrap relative">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <div
+                    aria-hidden="true"
+                    className="w-12 h-12 rounded-full bg-cyan-400/20 text-cyan-200 font-black flex items-center justify-center text-base shrink-0 border border-cyan-400/30 shadow-[0_0_18px_rgba(34,211,238,0.25)]"
+                  >
+                    {initialsFromNombre(nombreMostrar)}
+                  </div>
+                  <div>
+                    <h1 className="text-3xl md:text-4xl font-black tracking-tight text-white">
+                      {nombreMostrar}
+                    </h1>
+                    <p className="font-mono text-xs md:text-sm text-cyan-300 mt-1">
+                      {rfc}
+                    </p>
+                  </div>
+                </div>
+                <p className="text-sm text-slate-400 mt-3">
+                  {totalCot === 0
+                    ? "Sin cotizaciones registradas aún."
+                    : `${totalCot} ${totalCot === 1 ? "cotización registrada" : "cotizaciones registradas"}${
+                        !cotizacionesResult.ok ? " (datos parciales)" : ""
+                      }.`}
+                </p>
               </div>
-              <p className="text-sm text-slate-600 mt-2">
-                {totalCot === 0
-                  ? "Sin cotizaciones registradas aún."
-                  : `${totalCot} ${totalCot === 1 ? "cotización registrada" : "cotizaciones registradas"}${
-                      !cotizacionesResult.ok ? " (datos parciales)" : ""
-                    }.`}
+              <Link
+                href={`/dashboard/cotizar?rfc=${encodeURIComponent(rfc)}`}
+                className="shrink-0 px-4 py-2 bg-gradient-to-br from-blue-600 to-cyan-500 text-white text-sm font-semibold rounded-lg shadow-[0_0_20px_rgba(29,78,216,0.3)] hover:shadow-[0_0_30px_rgba(29,78,216,0.5)] transition"
+              >
+                Cotizar para este cliente
+              </Link>
+            </div>
+          </div>
+
+          {/* KPI cards */}
+          {totalCot > 0 && (
+            <dl className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+              <KpiCard
+                label="Cotizaciones completadas"
+                value={completadas.length.toLocaleString("es-MX")}
+                hint={
+                  totalCot > completadas.length
+                    ? `${totalCot - completadas.length} en proceso o fallidas`
+                    : undefined
+                }
+                icon={<DocumentIcon className="w-8 h-8" />}
+              />
+              <KpiCard
+                label="Monto mensual acumulado"
+                value={fmtMxn(montoTotal)}
+                hint="Suma de líneas × plan en completadas"
+                icon={<DollarIcon className="w-8 h-8" />}
+              />
+              <KpiCard
+                label="Líneas cotizadas"
+                value={lineasTotales.toLocaleString("es-MX")}
+                hint="Total entre todas las completadas"
+                icon={<HashIcon className="w-8 h-8" />}
+              />
+            </dl>
+          )}
+
+          {!cotizacionesResult.ok && (
+            <div
+              role="alert"
+              className="mb-6 rounded-xl border border-red-400/30 bg-red-500/10 backdrop-blur-[12px] p-4"
+            >
+              <p className="text-red-200 font-semibold text-sm">
+                No pudimos cargar el historial de cotizaciones.
+              </p>
+              <p className="text-sm text-red-300/80 mt-1">
+                {cotizacionesResult.message}
               </p>
             </div>
-            <Link
-              href={`/dashboard/cotizar?rfc=${encodeURIComponent(rfc)}`}
-              className="px-4 py-2 bg-blue-700 text-white text-sm font-semibold rounded-lg hover:bg-blue-800 transition shadow-md"
-            >
-              Cotizar para este cliente
-            </Link>
-          </div>
+          )}
+
+          {cotizacionesResult.ok && cotizacionesCliente.length === 0 ? (
+            <EmptyState rfc={rfc} />
+          ) : cotizacionesCliente.length > 0 ? (
+            <Timeline rows={cotizacionesCliente} />
+          ) : null}
         </div>
-
-        {/* KPI cards */}
-        {totalCot > 0 && (
-          <dl className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-            <KpiCard
-              label="Cotizaciones completadas"
-              value={String(completadas.length)}
-              hint={
-                totalCot > completadas.length
-                  ? `${totalCot - completadas.length} en proceso o fallidas`
-                  : undefined
-              }
-            />
-            <KpiCard
-              label="Monto mensual acumulado"
-              value={fmtMxn(montoTotal)}
-              hint="Suma de líneas × plan en completadas"
-            />
-            <KpiCard
-              label="Líneas cotizadas"
-              value={lineasTotales.toLocaleString("es-MX")}
-              hint="Total entre todas las completadas"
-            />
-          </dl>
-        )}
-
-        {!cotizacionesResult.ok && (
-          <div
-            role="alert"
-            className="mb-6 rounded-xl border border-red-200 bg-red-50 p-4"
-          >
-            <p className="text-red-900 font-semibold text-sm">
-              No pudimos cargar el historial de cotizaciones.
-            </p>
-            <p className="text-sm text-red-800 mt-1">
-              {cotizacionesResult.message}
-            </p>
-          </div>
-        )}
-
-        {cotizacionesResult.ok && cotizacionesCliente.length === 0 ? (
-          <EmptyState rfc={rfc} />
-        ) : cotizacionesCliente.length > 0 ? (
-          <Timeline rows={cotizacionesCliente} />
-        ) : null}
-      </Section>
-    </main>
+      </main>
+    </div>
   );
+}
+
+/* ---------- Helpers ---------- */
+
+function initialsFromNombre(nombre: string): string {
+  const parts = nombre.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[1][0]).toUpperCase();
 }
 
 /* ---------- KPI ---------- */
@@ -248,20 +302,32 @@ function KpiCard({
   label,
   value,
   hint,
+  icon,
 }: {
   label: string;
   value: string;
   hint?: string;
+  icon?: React.ReactNode;
 }) {
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-5">
-      <dt className="text-xs font-medium uppercase tracking-wider text-slate-500">
+    <div className="group relative overflow-hidden rounded-xl bg-white/[0.04] backdrop-blur-[12px] border border-white/10 p-6 transition-all duration-300 hover:scale-[1.02] hover:border-cyan-400/40 hover:shadow-[0_0_30px_rgba(6,182,212,0.25)]">
+      {icon && (
+        <div
+          aria-hidden="true"
+          className="absolute top-4 right-4 text-cyan-400/10 group-hover:text-cyan-400/20 transition-colors"
+        >
+          {icon}
+        </div>
+      )}
+      <dt className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-3">
         {label}
       </dt>
-      <dd className="mt-2 text-2xl md:text-3xl font-bold text-slate-900 tabular-nums">
+      <dd className="text-3xl md:text-4xl font-black tracking-tighter text-white tabular-nums">
         {value}
       </dd>
-      {hint && <p className="text-xs text-slate-500 mt-1">{hint}</p>}
+      {hint && (
+        <p className="mt-2 text-xs text-slate-400 font-medium">{hint}</p>
+      )}
     </div>
   );
 }
@@ -269,8 +335,7 @@ function KpiCard({
 /* ---------- Timeline ---------- */
 
 function Timeline({ rows }: { rows: Cotizacion[] }) {
-  // Ordenar por fecha desc para que el más reciente esté arriba — el primero
-  // es el "actual" (dot azul); el resto usa color de estado.
+  // Ordenar por fecha desc — el más reciente arriba.
   const sorted = [...rows].sort((a, b) => {
     const ta = new Date(a.created_at).getTime() || 0;
     const tb = new Date(b.created_at).getTime() || 0;
@@ -280,16 +345,16 @@ function Timeline({ rows }: { rows: Cotizacion[] }) {
   return (
     <section
       aria-label="Historial de cotizaciones"
-      className="bg-white rounded-2xl border border-slate-200 p-6 md:p-8"
+      className="rounded-2xl bg-white/[0.04] backdrop-blur-[12px] border border-white/10 p-6 md:p-8"
     >
-      <h2 className="text-lg font-semibold text-slate-900 mb-6">
+      <h2 className="text-xl font-bold text-white mb-6">
         Línea de tiempo
       </h2>
       <ol className="relative" role="list">
-        {/* Línea vertical */}
+        {/* Hairline divider izquierdo */}
         <span
           aria-hidden="true"
-          className="absolute left-[7px] top-2 bottom-2 w-px bg-slate-200"
+          className="absolute left-[7px] top-2 bottom-2 w-px bg-white/10"
         />
         {sorted.map((c, idx) => (
           <TimelineItem key={c.id} c={c} mostRecent={idx === 0} />
@@ -319,64 +384,66 @@ function TimelineItem({
 
   const totalMensual = c.lineas * c.plan;
 
-  // Color del dot: el más reciente siempre va azul (ancla visual de "aquí
-  // está la actividad reciente"); los anteriores por estado.
-  const dotClass = mostRecent
-    ? "bg-blue-700 ring-4 ring-blue-100"
-    : c.estado === "completada"
-      ? "bg-green-500"
+  // Color del dot por estado; "más reciente" añade ring cyan + glow.
+  const dotBase = "absolute left-0 top-1.5 w-3.5 h-3.5 rounded-full";
+  const dotColor =
+    c.estado === "completada"
+      ? "bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.7)]"
       : c.estado === "pendiente"
-        ? "bg-amber-500"
-        : "bg-red-500";
+        ? "bg-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.7)]"
+        : "bg-red-400 shadow-[0_0_10px_rgba(248,113,113,0.7)]";
+  const dotRing = mostRecent
+    ? "ring-4 ring-cyan-400/30"
+    : "";
+  const folio = c.id.length > 8 ? c.id.slice(0, 8).toUpperCase() : c.id;
 
   return (
     <li className="relative pl-8 pb-6 last:pb-0">
-      <span
-        aria-hidden="true"
-        className={`absolute left-0 top-1.5 w-3.5 h-3.5 rounded-full ${dotClass}`}
-      />
+      <span aria-hidden="true" className={`${dotBase} ${dotColor} ${dotRing}`} />
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <p className="font-mono text-xs text-slate-600">
-              #{c.id.length > 12 ? c.id.slice(0, 12) : c.id}
-            </p>
+            <p className="font-mono text-xs text-cyan-300">{folio}</p>
             <EstadoBadge estado={c.estado} />
             {mostRecent && (
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-blue-700">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-cyan-300">
                 Más reciente
               </span>
             )}
           </div>
-          <p className="text-sm text-slate-700 mt-1">
+          <p className="text-sm text-slate-300 mt-2">
             {c.equipo || (
               <span className="text-slate-500 italic">Sin equipo</span>
             )}
-            {" · "}
-            <span className="text-slate-600">
+            <span className="text-slate-600 mx-1.5">·</span>
+            <span className="text-slate-400">
               {c.lineas} {c.lineas === 1 ? "línea" : "líneas"} ×{" "}
               {fmtMxn(c.plan)}
             </span>
           </p>
-          <p className="text-xs text-slate-500 mt-1">{fechaStr}</p>
+          <p className="text-xs text-slate-500 mt-1 tabular-nums">
+            {fechaStr}
+          </p>
         </div>
         <div className="text-right shrink-0">
-          <p className="text-lg font-bold text-slate-900 tabular-nums">
+          <p className="text-xl md:text-2xl font-black text-white tabular-nums">
             {fmtMxn(totalMensual)}
           </p>
-          <p className="text-[10px] text-slate-500">renta mensual</p>
+          <p className="text-[10px] uppercase tracking-widest text-slate-500 mt-0.5">
+            renta mensual
+          </p>
         </div>
       </div>
-      <div className="mt-3 flex items-center gap-3 flex-wrap">
+      <div className="mt-3 flex items-center gap-2 flex-wrap">
         {c.estado === "completada" && c.pdf_url && (
           <a
             href={c.pdf_url}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs font-medium text-blue-700 hover:underline inline-flex items-center gap-1"
+            className="inline-flex items-center gap-1 px-2.5 py-1 bg-cyan-500/15 border border-cyan-400/30 text-cyan-300 text-xs font-medium rounded-md hover:bg-cyan-500/25 hover:border-cyan-400/50 transition"
             aria-label={`Descargar PDF cliente de cotización ${c.id}`}
           >
-            <DownloadIcon className="w-4 h-4" />
+            <DownloadIcon className="w-3.5 h-3.5" />
             PDF cliente
           </a>
         )}
@@ -385,23 +452,23 @@ function TimelineItem({
             href={c.pdf_url_interno}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs font-medium text-slate-700 hover:underline inline-flex items-center gap-1"
+            className="inline-flex items-center gap-1 px-2.5 py-1 bg-white/5 border border-white/10 text-slate-300 text-xs font-medium rounded-md hover:bg-white/10 transition"
             aria-label={`Descargar PDF interno de cotización ${c.id}`}
           >
-            <DownloadIcon className="w-4 h-4" />
+            <DownloadIcon className="w-3.5 h-3.5" />
             PDF interno
           </a>
         )}
         {c.estado === "fallida" && (
           <Link
             href={`/dashboard/cotizar${c.rfc ? `?rfc=${encodeURIComponent(c.rfc)}` : ""}`}
-            className="text-xs font-medium text-amber-800 hover:underline"
+            className="inline-flex items-center gap-1 px-2.5 py-1 bg-white/5 border border-white/10 text-slate-200 text-xs font-medium rounded-md hover:bg-white/10 transition"
           >
             Reintentar →
           </Link>
         )}
         {c.estado === "pendiente" && (
-          <span className="text-xs text-slate-500 italic">En proceso…</span>
+          <span className="text-xs text-amber-300 italic">En proceso…</span>
         )}
       </div>
     </li>
@@ -413,20 +480,20 @@ function TimelineItem({
 function EstadoBadge({ estado }: { estado: EstadoCotizacion }) {
   if (estado === "completada") {
     return (
-      <span className="inline-flex items-center font-semibold rounded-full bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5">
+      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-400/10 text-emerald-300 border border-emerald-400/30 uppercase tracking-wider">
         Completada
       </span>
     );
   }
   if (estado === "pendiente") {
     return (
-      <span className="inline-flex items-center font-semibold rounded-full bg-amber-100 text-amber-800 text-[10px] px-2 py-0.5">
+      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-400/10 text-amber-300 border border-amber-400/30 uppercase tracking-wider">
         Pendiente
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center font-semibold rounded-full bg-red-50 text-red-700 text-[10px] px-2 py-0.5">
+    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-400/10 text-red-300 border border-red-400/30 uppercase tracking-wider">
       Falló
     </span>
   );
@@ -436,23 +503,23 @@ function EstadoBadge({ estado }: { estado: EstadoCotizacion }) {
 
 function EmptyState({ rfc }: { rfc: string }) {
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-10 md:p-14 text-center">
-      <div className="mx-auto w-16 h-16 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center">
-        <FolderEmptyIcon className="w-8 h-8 text-slate-400" />
+    <div className="rounded-2xl bg-white/[0.04] backdrop-blur-[12px] border border-white/10 p-10 md:p-14 text-center">
+      <div className="mx-auto w-16 h-16 rounded-full bg-cyan-500/10 border border-cyan-400/30 flex items-center justify-center">
+        <FolderEmptyIcon className="w-8 h-8 text-cyan-300" />
       </div>
-      <h2 className="mt-5 text-xl font-bold text-slate-900">
+      <h2 className="mt-5 text-xl font-bold text-white">
         Aún no hay cotizaciones para este RFC
       </h2>
-      <p className="mt-2 text-slate-600 max-w-md mx-auto text-sm leading-relaxed">
+      <p className="mt-2 text-slate-400 max-w-md mx-auto text-sm leading-relaxed">
         Crea la primera y aparecerá aquí en cuanto el bot termine de generar el
         PDF.
       </p>
       <div className="mt-6">
         <Link
           href={`/dashboard/cotizar?rfc=${encodeURIComponent(rfc)}`}
-          className="px-5 py-2.5 bg-blue-700 text-white text-sm font-semibold rounded-lg hover:bg-blue-800 transition shadow-md inline-flex items-center gap-2"
+          className="px-5 py-2.5 bg-gradient-to-br from-blue-600 to-cyan-500 text-white text-sm font-semibold rounded-lg shadow-[0_0_20px_rgba(29,78,216,0.3)] hover:shadow-[0_0_30px_rgba(29,78,216,0.5)] transition inline-flex items-center gap-2"
         >
-          Crear primera cotización <span aria-hidden="true">→</span>
+          Crear primera cotización <ArrowRightIcon className="w-4 h-4" />
         </Link>
       </div>
     </div>
@@ -467,7 +534,7 @@ function DownloadIcon({ className = "w-4 h-4" }: { className?: string }) {
       xmlns="http://www.w3.org/2000/svg"
       fill="none"
       viewBox="0 0 24 24"
-      strokeWidth={1.5}
+      strokeWidth={1.8}
       stroke="currentColor"
       className={className}
       aria-hidden="true"
@@ -496,6 +563,86 @@ function FolderEmptyIcon({ className = "w-8 h-8" }: { className?: string }) {
         strokeLinecap="round"
         strokeLinejoin="round"
         d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 0 0-1.883 2.542l.857 6a2.25 2.25 0 0 0 2.227 1.932H19.05a2.25 2.25 0 0 0 2.227-1.932l.857-6a2.25 2.25 0 0 0-1.883-2.542m-16.5 0V6A2.25 2.25 0 0 1 6 3.75h3.879a1.5 1.5 0 0 1 1.06.44l2.122 2.12a1.5 1.5 0 0 0 1.06.44H18A2.25 2.25 0 0 1 20.25 9v.776"
+      />
+    </svg>
+  );
+}
+
+function ArrowRightIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"
+      />
+    </svg>
+  );
+}
+
+function DocumentIcon({ className = "w-8 h-8" }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M19 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113 7.125v-1.5A3.375 3.375 0 009.625 2.25H8.25M9 12h6m-6 3h6m-6 3h3.75M8.25 2.25H5.625A1.125 1.125 0 004.5 3.375v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25A9 9 0 0010.5 2.25"
+      />
+    </svg>
+  );
+}
+
+function DollarIcon({ className = "w-8 h-8" }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4M12 4.5v15"
+      />
+    </svg>
+  );
+}
+
+function HashIcon({ className = "w-8 h-8" }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M5.25 8.25h15m-15 7.5h15M8.5 3l-2 18m11-18l-2 18"
       />
     </svg>
   );

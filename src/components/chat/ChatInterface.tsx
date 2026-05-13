@@ -3,12 +3,19 @@
 /**
  * ChatInterface — UI conversacional para cotizar.
  *
+ * REDISEÑO "REVENTAR mode" (dark glassmorphism premium tipo Linear/Vercel).
+ * Bubbles con `backdrop-blur` sobre el shell `#0b1326`, glow cyan en el
+ * timer y los focos importantes, gradiente blue→cyan para el usuario y los
+ * CTAs primarios. Toda la lógica (hook `useChatCotizar`, JobCard polling,
+ * handoff /optimizar) se mantiene 100% intacta — solo cambia presentación.
+ *
  * Layout:
- *   - Header con título + acciones secundarias (Subir Excel, Reiniciar).
- *   - Scroll area con mensajes (agente izquierda, usuario derecha).
- *   - Tarjetas especiales cuando hay job activo: "Cotizando..." con tiempo
- *     transcurrido y botón Cancelar, o "Cotización lista" con link al PDF.
- *   - Composer fijo abajo: textarea autoexpansible + botón Enviar.
+ *   - Topbar: breadcrumb "Inicio / Cotizar" + timer pill cyan + dropdown
+ *     "Conversaciones recientes" (placeholder; no hay endpoint todavía).
+ *   - Scroll area con bubbles glass (agente izquierda, usuario derecha).
+ *   - Tarjetas especiales cuando hay job activo: JobCard (polling) o
+ *     CompletedCard (inline) con folio mono cyan-300 + monto big.
+ *   - Composer fijo abajo: textarea glass + botón gradient blue-cyan.
  *
  * Responsive: en móvil el composer queda fijo abajo del viewport; en desktop
  * la conversación ocupa hasta `max-w-3xl` centrada.
@@ -37,6 +44,8 @@ import {
   ArrowUpTrayIcon,
   PaperAirplaneIcon,
   DocumentTextIcon,
+  PhotoIcon,
+  SparklesIcon,
 } from "@/components/icons";
 
 const MAX_MESSAGE_LEN = 2000;
@@ -141,6 +150,14 @@ export function ChatInterface({ onReady }: ChatInterfaceProps = {}) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   /**
+   * Reloj global de la sesión (desde que se montó el chat). Es independiente
+   * del reloj del job: aquí queremos que el vendedor vea cuánto lleva en la
+   * conversación, no en la cotización específica. Cero costo si nadie mira.
+   */
+  const [sessionStart] = useState<number>(() => Date.now());
+  const sessionElapsed = useElapsedSeconds(sessionStart, true);
+
+  /**
    * Expone la API al padre una sola vez (StrictMode-safe: el ref `notified`
    * evita doble registro en doble-mount de desarrollo). El `setDraft` es
    * estable de React, y construimos `append` inline cada vez pero sólo
@@ -240,39 +257,119 @@ export function ChatInterface({ onReady }: ChatInterfaceProps = {}) {
     if (job.kind === "polling") return "Cotización en curso…";
     if (rateLimitedFor > 0) return `Espera ${rateLimitedFor}s…`;
     if (sending) return "Esperando respuesta…";
-    return "Escribe tu solicitud. Enter para enviar, Shift+Enter para nueva línea.";
+    return "Describe la cotización. Enter para enviar, Shift+Enter para nueva línea.";
   }, [job, rateLimitedFor, sending]);
 
+  const sessionMins = Math.floor(sessionElapsed / 60);
+  const sessionSecs = sessionElapsed % 60;
+  const sessionHrs = Math.floor(sessionMins / 60);
+  const sessionTimer = sessionHrs > 0
+    ? `${sessionHrs.toString().padStart(2, "0")}:${(sessionMins % 60).toString().padStart(2, "0")}:${sessionSecs.toString().padStart(2, "0")}`
+    : `00:${sessionMins.toString().padStart(2, "0")}:${sessionSecs.toString().padStart(2, "0")}`;
+
+  const fillDraft = (text: string) => {
+    setDraft((prev) => (prev.length > 0 ? prev : text));
+    // Foco al textarea (defer al próximo frame para que el state nuevo aplique).
+    setTimeout(() => {
+      const ta = textareaRef.current;
+      if (ta) ta.focus();
+    }, 0);
+  };
+
   return (
-    <div className="flex flex-col flex-1 min-h-0 bg-slate-50">
-      {/* Header del chat — H1 propio (audit A1: cada página dashboard debe
-          tener H1). El topbar global ya está montado por el padre. */}
-      <header className="bg-white border-b border-slate-200 px-4 sm:px-6 py-4 flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900">
+    <div className="flex flex-col flex-1 min-h-0 relative">
+      {/* Topbar: breadcrumb + timer pill + dropdown conversaciones. Glassy
+          sticky en la parte superior del pane. */}
+      <header className="relative z-10 px-4 sm:px-8 py-4 flex items-center justify-between gap-3 border-b border-white/10 bg-[#0b1326]/70 backdrop-blur-md">
+        <div className="flex items-center gap-3 min-w-0">
+          <nav
+            className="flex items-center gap-2 text-sm text-slate-400 min-w-0"
+            aria-label="Migas de pan"
+          >
+            <Link
+              href="/dashboard"
+              className="hover:text-white transition truncate"
+            >
+              Inicio
+            </Link>
+            <span className="text-slate-600">/</span>
+            <span className="text-white font-semibold truncate">Cotizar</span>
+          </nav>
+        </div>
+
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Timer pill: tiempo desde inicio de sesión, glow cyan suave. */}
+          <span
+            className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-400/30 text-cyan-300 text-xs font-mono tabular-nums shadow-[0_0_18px_rgba(34,211,238,0.15)]"
+            title="Tiempo desde inicio de la sesión"
+            aria-label={`Tiempo de sesión ${sessionTimer}`}
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.8)]" aria-hidden="true" />
+            {sessionTimer}
+            <span className="text-cyan-400/60">— desde inicio</span>
+          </span>
+
+          {/* Dropdown "Conversaciones recientes" (placeholder hasta que
+              exista el endpoint). Mantiene UX previsible con <details>. */}
+          <details className="relative">
+            <summary
+              className="list-none cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 backdrop-blur border border-white/10 text-xs font-medium text-slate-300 hover:text-white hover:border-cyan-400/40 transition"
+              aria-label="Conversaciones recientes"
+            >
+              <span className="hidden sm:inline">Recientes</span>
+              <ChevronDownIcon />
+            </summary>
+            <div
+              className="absolute right-0 mt-2 w-64 rounded-xl bg-[#0b1326]/95 backdrop-blur-md border border-white/10 shadow-[0_8px_40px_rgba(0,0,0,0.5)] p-3 z-40"
+              role="menu"
+            >
+              <p className="text-[10px] uppercase tracking-widest font-bold text-slate-500 mb-2">
+                Conversaciones recientes
+              </p>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Aún no guardamos histórico de chats. Revisa{" "}
+                <Link
+                  href="/dashboard/historial"
+                  className="text-cyan-300 hover:text-cyan-200 underline underline-offset-2"
+                >
+                  Historial
+                </Link>{" "}
+                para ver tus cotizaciones generadas.
+              </p>
+            </div>
+          </details>
+
+          <button
+            type="button"
+            onClick={resetChat}
+            className="text-xs text-slate-400 hover:text-white px-3 py-1.5 rounded-full hover:bg-white/5 border border-transparent hover:border-white/10 transition shrink-0"
+            title="Reiniciar conversación"
+          >
+            Reiniciar
+          </button>
+        </div>
+      </header>
+
+      {/* H1 + intro */}
+      <div className="relative z-10 px-4 sm:px-8 pt-6 pb-2">
+        <div className="max-w-3xl mx-auto">
+          <h1 className="text-3xl md:text-4xl font-black tracking-tight text-white">
             Nueva cotización
           </h1>
-          <p className="mt-0.5 text-sm text-slate-600 hidden sm:block">
-            Conversa con el asistente hasta tener todo. Genera el PDF oficial.
+          <p className="mt-2 text-sm md:text-base text-slate-400">
+            Conversa con el asistente hasta tener todo. Genera el PDF oficial
+            en 3-5 minutos.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={resetChat}
-          className="text-xs sm:text-sm text-slate-600 hover:text-slate-900 px-3 py-1.5 rounded-md hover:bg-slate-100 transition shrink-0"
-          title="Reiniciar conversación"
-        >
-          Reiniciar
-        </button>
-      </header>
+      </div>
 
       {/* Mensajes */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto px-3 sm:px-6 py-6"
+        className="relative z-10 flex-1 overflow-y-auto px-3 sm:px-8 py-6"
         aria-live="polite"
       >
-        <div className="max-w-3xl mx-auto space-y-4">
+        <div className="max-w-3xl mx-auto space-y-5">
           {messages.length === 0 && !sending && job.kind === "idle" && (
             <ChatEmptyState />
           )}
@@ -287,15 +384,16 @@ export function ChatInterface({ onReady }: ChatInterfaceProps = {}) {
             <JobCard job={job} onCancel={cancelJob} />
           )}
 
-          {job.kind === "completed" && job.pdfUrl && (
+          {job.kind === "completed" && (job.pdfUrl || job.screenshotUrl) && (
             <CompletedCard
               pdfUrl={job.pdfUrl}
+              screenshotUrl={job.screenshotUrl}
               folio={job.id}
               onReset={resetChat}
             />
           )}
 
-          {job.kind === "completed" && !job.pdfUrl && (
+          {job.kind === "completed" && !job.pdfUrl && !job.screenshotUrl && (
             <SystemCard
               title="Cotización completada"
               body="No recibimos el enlace al PDF, pero la cotización está en tu Historial."
@@ -328,18 +426,10 @@ export function ChatInterface({ onReady }: ChatInterfaceProps = {}) {
       {/* Composer */}
       <form
         onSubmit={handleSubmit}
-        className="bg-white border-t border-slate-200 px-3 sm:px-6 py-3"
+        className="relative z-10 border-t border-white/10 bg-[#0b1326]/80 backdrop-blur-md px-3 sm:px-8 py-4"
       >
         <div className="max-w-3xl mx-auto">
-          <div className="flex items-end gap-2">
-            <Link
-              href="/dashboard/cotizar-excel"
-              className="shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-lg border border-slate-300 text-slate-600 hover:text-blue-700 hover:border-blue-400 hover:bg-blue-50 transition"
-              title="Cotizar desde plantilla Excel"
-              aria-label="Adjuntar Excel"
-            >
-              <ArrowUpTrayIcon className="w-5 h-5" />
-            </Link>
+          <div className="rounded-xl bg-slate-800/40 backdrop-blur-md border border-white/10 focus-within:border-cyan-400/40 focus-within:shadow-[0_0_24px_rgba(6,182,212,0.18)] transition p-2 flex items-end gap-2">
             <textarea
               ref={textareaRef}
               value={draft}
@@ -349,20 +439,61 @@ export function ChatInterface({ onReady }: ChatInterfaceProps = {}) {
               disabled={inputDisabled}
               rows={1}
               maxLength={MAX_MESSAGE_LEN}
-              className="flex-1 resize-none rounded-lg border border-slate-300 px-4 py-2.5 text-sm leading-6 text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-slate-100 disabled:cursor-not-allowed"
+              className="flex-1 resize-none bg-transparent px-3 py-2 text-sm leading-6 text-white placeholder:text-slate-500 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
               aria-label="Mensaje al asistente"
             />
-            <button
-              type="submit"
-              disabled={inputDisabled || draft.trim().length === 0}
-              className="shrink-0 inline-flex items-center gap-1.5 px-4 h-10 bg-blue-700 text-white text-sm font-semibold rounded-lg hover:bg-blue-800 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-md"
-              aria-label="Enviar mensaje"
-            >
-              <span className="hidden sm:inline">{sending ? "…" : "Enviar"}</span>
-              <PaperAirplaneIcon className="w-4 h-4 sm:hidden" />
-            </button>
+            <div className="shrink-0 flex items-end gap-2 pb-1">
+              <Link
+                href="/dashboard/cotizar-excel"
+                className="inline-flex items-center justify-center w-10 h-10 rounded-lg border border-white/10 bg-white/5 text-slate-300 hover:text-cyan-300 hover:border-cyan-400/40 hover:bg-cyan-500/5 transition"
+                title="Cotizar desde plantilla Excel"
+                aria-label="Adjuntar Excel"
+              >
+                <ArrowUpTrayIcon className="w-5 h-5" />
+              </Link>
+              <button
+                type="submit"
+                disabled={inputDisabled || draft.trim().length === 0}
+                className="inline-flex items-center gap-2 px-5 h-10 rounded-full bg-gradient-to-br from-blue-600 to-cyan-500 text-white text-sm font-bold border border-white/15 shadow-[0_0_24px_rgba(29,78,216,0.4)] hover:shadow-[0_0_32px_rgba(29,78,216,0.6)] hover:scale-105 disabled:opacity-40 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:scale-100 transition"
+                aria-label="Enviar mensaje"
+              >
+                <span className="hidden sm:inline">{sending ? "Enviando…" : "Enviar"}</span>
+                <PaperAirplaneIcon className="w-4 h-4" />
+              </button>
+            </div>
           </div>
-          <div className="mt-1.5 flex items-center justify-between text-xs text-slate-400">
+
+          {/* Quick-actions chips */}
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Link
+              href="/dashboard/cotizar-excel"
+              className="inline-flex items-center px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/10 text-xs font-medium text-slate-300 hover:text-cyan-300 hover:border-cyan-400/40 hover:bg-cyan-500/5 transition"
+            >
+              Subir Excel
+            </Link>
+            <button
+              type="button"
+              onClick={() => fillDraft("Continúa con mi última cotización.")}
+              className="inline-flex items-center px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/10 text-xs font-medium text-slate-300 hover:text-cyan-300 hover:border-cyan-400/40 hover:bg-cyan-500/5 transition"
+            >
+              Continuar última
+            </button>
+            <button
+              type="button"
+              onClick={() => fillDraft("Cotiza para un cliente de mi cartera: ")}
+              className="inline-flex items-center px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/10 text-xs font-medium text-slate-300 hover:text-cyan-300 hover:border-cyan-400/40 hover:bg-cyan-500/5 transition"
+            >
+              Cliente cartera
+            </button>
+            <Link
+              href="/dashboard/catalogos"
+              className="inline-flex items-center px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/10 text-xs font-medium text-slate-300 hover:text-cyan-300 hover:border-cyan-400/40 hover:bg-cyan-500/5 transition"
+            >
+              Catálogo planes
+            </Link>
+          </div>
+
+          <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
             <span>Enter para enviar · Shift+Enter para nueva línea</span>
             {draft.length > MAX_MESSAGE_LEN - 200 && (
               <span className="tabular-nums">
@@ -377,25 +508,28 @@ export function ChatInterface({ onReady }: ChatInterfaceProps = {}) {
 }
 
 /**
- * Estado vacío del chat (sin mensajes aún). Reduce la "sábana blanca" inicial
+ * Estado vacío del chat (sin mensajes aún). Reduce la "sábana negra" inicial
  * y le da al vendedor 3 ejemplos concretos de cómo arrancar — copy directo,
  * sin emojis (style-guide §5.1).
  */
 function ChatEmptyState() {
   return (
-    <div className="text-center py-8">
-      <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-blue-50 mb-4">
-        <DocumentTextIcon className="w-6 h-6 text-blue-700" />
+    <div className="text-center py-10">
+      <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-500 mb-5 shadow-[0_0_30px_rgba(6,182,212,0.4)]">
+        <SparklesIcon className="w-7 h-7 text-white" />
       </div>
-      <h2 className="text-base font-semibold text-slate-900">
+      <h2 className="text-xl font-bold text-white">
         Cuéntale al asistente qué necesitas cotizar
       </h2>
-      <p className="mt-1.5 text-sm text-slate-600 max-w-md mx-auto leading-relaxed">
+      <p className="mt-2 text-sm text-slate-400 max-w-md mx-auto leading-relaxed">
         RFC del cliente, número de líneas, plan y equipo si aplica. El
         asistente pregunta lo que falte y devuelve el PDF en 3-5 minutos.
       </p>
-      <p className="mt-4 text-xs text-slate-500">
-        Ejemplo: <span className="font-mono text-slate-700">XAXX010101000, 25 líneas, plan EMPRESA 500, iPhone 15</span>
+      <p className="mt-5 text-xs text-slate-500">
+        Ejemplo:{" "}
+        <span className="font-mono text-cyan-300/80">
+          XAXX010101000, 25 líneas, plan EMPRESA 500, iPhone 15
+        </span>
       </p>
     </div>
   );
@@ -407,7 +541,7 @@ function MessageBubble({ message }: { message: ChatMessage }) {
   if (message.role === "system") {
     return (
       <div className="flex justify-center">
-        <div className="max-w-[80%] text-xs text-slate-500 bg-slate-100 rounded-full px-3 py-1.5">
+        <div className="max-w-[80%] text-xs text-slate-400 bg-white/[0.04] border border-white/10 rounded-full px-3 py-1.5">
           {message.text}
         </div>
       </div>
@@ -415,41 +549,52 @@ function MessageBubble({ message }: { message: ChatMessage }) {
   }
   const isUser = message.role === "user";
   return (
-    <div className={`flex gap-2 ${isUser ? "justify-end" : "justify-start"}`}>
+    <div className={`flex gap-3 ${isUser ? "justify-end" : "justify-start"}`}>
       {!isUser && <AgentAvatar />}
       <div
         className={[
-          "max-w-[85%] sm:max-w-md rounded-2xl px-4 py-2.5 text-sm leading-6 whitespace-pre-wrap break-words",
+          "max-w-[85%] sm:max-w-md xl:max-w-xl rounded-xl px-4 py-3 text-sm leading-6 whitespace-pre-wrap break-words backdrop-blur",
           isUser
-            ? "bg-blue-700 text-white rounded-br-sm"
-            : "bg-slate-50 border border-slate-200 text-slate-900 rounded-bl-sm",
+            ? "bg-gradient-to-br from-blue-700 to-blue-800 text-white border border-white/15 shadow-[0_0_18px_rgba(29,78,216,0.25)] rounded-tr-sm"
+            : "bg-slate-800/60 border border-white/10 text-slate-100 rounded-tl-sm",
         ].join(" ")}
       >
         {message.text}
       </div>
+      {isUser && <UserAvatar />}
     </div>
   );
 }
 
 function AgentAvatar() {
-  // Avatar plano (style-guide §5.2 prohíbe gradientes saturados/multi-stop
-  // y §5.5 prohíbe sombras de color). Mantenemos blue-100/blue-700 — mismo
-  // sistema que badges primary y el dot de RecienteRow.
   return (
     <div
       aria-hidden="true"
-      className="shrink-0 w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-semibold"
+      className="shrink-0 w-9 h-9 rounded-full bg-gradient-to-br from-blue-600 to-cyan-500 border border-white/15 flex items-center justify-center shadow-[0_0_18px_rgba(6,182,212,0.35)]"
     >
-      AI
+      <SparklesIcon className="w-4 h-4 text-white" />
+    </div>
+  );
+}
+
+function UserAvatar() {
+  // Avatar provisional con inicial estática "V" (vendedor). Si en el futuro
+  // la sesión expone nombre/email, derivar la inicial.
+  return (
+    <div
+      aria-hidden="true"
+      className="shrink-0 w-9 h-9 rounded-full bg-white/[0.06] border border-white/15 flex items-center justify-center text-xs font-bold text-slate-200"
+    >
+      V
     </div>
   );
 }
 
 function ThinkingIndicator() {
   return (
-    <div className="flex gap-2 justify-start">
+    <div className="flex gap-3 justify-start">
       <AgentAvatar />
-      <div className="bg-slate-50 border border-slate-200 rounded-2xl rounded-bl-sm px-4 py-3">
+      <div className="bg-slate-800/60 backdrop-blur border border-white/10 rounded-xl rounded-tl-sm px-4 py-3 inline-flex items-center gap-2">
         <span className="inline-flex gap-1.5 items-center" aria-label="El agente está pensando">
           <Dot delay={0} />
           <Dot delay={200} />
@@ -467,7 +612,7 @@ function Dot({ delay }: { delay: number }) {
   // típico de "escribiendo…" sin recurrir a animate-bounce (prohibido).
   return (
     <span
-      className="block w-1.5 h-1.5 rounded-full bg-slate-400 animate-pulse"
+      className="block w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(34,211,238,0.6)] animate-pulse"
       style={{ animationDelay: `${delay}ms` }}
     />
   );
@@ -528,74 +673,106 @@ function JobCard({ job, onCancel }: { job: JobState; onCancel: () => void }) {
   // y cuánto le queda.
   const POLL_CAP_S = 300;
   const pct = Math.min(100, Math.round((elapsed / POLL_CAP_S) * 100));
+
+  const rfcLabel = job.kind === "polling" && job.rfc ? job.rfc : null;
+
   return (
     <div
       className={[
-        "rounded-2xl px-5 py-4 shadow-sm border",
+        "relative overflow-hidden rounded-xl backdrop-blur-md border-2 p-5",
         isWarn
-          ? "bg-amber-50 border-amber-200"
-          : "bg-white border-blue-200",
+          ? "bg-amber-500/[0.08] border-amber-400/30 shadow-[0_0_30px_rgba(251,191,36,0.18)]"
+          : "bg-slate-900/60 border-cyan-400/30 shadow-[0_0_30px_rgba(6,182,212,0.18)]",
       ].join(" ")}
       role="status"
       aria-live="polite"
     >
-      <div className="flex items-start gap-3">
+      <div className="flex items-start gap-4">
         <div
           className={[
-            "shrink-0 w-10 h-10 rounded-full flex items-center justify-center",
-            isWarn ? "bg-amber-100" : "bg-blue-100",
+            "shrink-0 w-12 h-12 rounded-xl flex items-center justify-center border",
+            isWarn
+              ? "bg-amber-500/15 border-amber-400/30"
+              : "bg-cyan-500/15 border-cyan-400/30 shadow-[0_0_18px_rgba(6,182,212,0.35)]",
           ].join(" ")}
         >
           <Spinner tone={isWarn ? "warn" : "info"} />
         </div>
         <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p
+              className={[
+                "text-sm font-bold",
+                isWarn ? "text-amber-100" : "text-white",
+              ].join(" ")}
+            >
+              {copy.title}
+            </p>
+            <span
+              className={[
+                "inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border tracking-wider uppercase",
+                isWarn
+                  ? "bg-amber-400/15 text-amber-200 border-amber-400/30"
+                  : "bg-cyan-400/15 text-cyan-200 border-cyan-400/30",
+              ].join(" ")}
+            >
+              Cotizando contra Telcel
+            </span>
+          </div>
           <p
             className={[
-              "text-sm font-semibold",
-              isWarn ? "text-amber-900" : "text-slate-900",
-            ].join(" ")}
-          >
-            {copy.title}
-          </p>
-          <p
-            className={[
-              "text-xs mt-0.5",
-              isWarn ? "text-amber-800" : "text-slate-600",
+              "text-xs mt-1 leading-relaxed",
+              isWarn ? "text-amber-200/80" : "text-slate-400",
             ].join(" ")}
           >
             {copy.body}
           </p>
+
+          {/* Dots typing — refuerzan que algo se está moviendo. */}
+          <div className="mt-3 inline-flex items-center gap-2">
+            <span className="inline-flex gap-1.5 items-center" aria-hidden="true">
+              <Dot delay={0} />
+              <Dot delay={200} />
+              <Dot delay={400} />
+            </span>
+            <span className="text-[11px] text-slate-400 font-medium">
+              Cotizando contra Telcel… (~2 min)
+            </span>
+          </div>
+
           {/* Barra de progreso fina contra el cap de 5 min. */}
           <div
             className={[
-              "mt-3 h-1.5 w-full rounded-full overflow-hidden",
-              isWarn ? "bg-amber-200/70" : "bg-blue-100",
+              "mt-4 h-1.5 w-full rounded-full overflow-hidden",
+              isWarn ? "bg-amber-500/20" : "bg-white/5",
             ].join(" ")}
             aria-hidden="true"
           >
             <div
               className={[
                 "h-full transition-all duration-500 ease-out",
-                isWarn ? "bg-amber-500" : "bg-blue-600",
+                isWarn
+                  ? "bg-gradient-to-r from-amber-400 to-amber-500"
+                  : "bg-gradient-to-r from-blue-500 to-cyan-400 shadow-[0_0_12px_rgba(34,211,238,0.6)]",
               ].join(" ")}
               style={{ width: `${pct}%` }}
             />
           </div>
           <p
             className={[
-              "text-xs mt-2 tabular-nums",
-              isWarn ? "text-amber-700" : "text-slate-400",
+              "text-[11px] mt-2 tabular-nums font-mono",
+              isWarn ? "text-amber-200/70" : "text-slate-500",
             ].join(" ")}
           >
             Tiempo: {mins}:{secs.toString().padStart(2, "0")} / 5:00
-            {job.kind === "polling" && job.rfc ? ` · RFC ${job.rfc}` : ""}
+            {rfcLabel ? ` · RFC ${rfcLabel}` : ""}
           </p>
         </div>
         {job.kind === "polling" && (
           <button
             type="button"
             onClick={onCancel}
-            className="shrink-0 text-xs text-slate-500 hover:text-red-700 px-2 py-1 rounded hover:bg-red-50 transition"
+            className="shrink-0 text-xs text-slate-400 hover:text-red-300 px-3 py-1.5 rounded-full hover:bg-red-500/10 border border-transparent hover:border-red-400/30 transition"
             aria-label="Cancelar la cotización en curso"
           >
             Cancelar
@@ -641,31 +818,31 @@ function TelcelTimeoutCard({
   );
   const mailto = `mailto:soporte@hectoria.mx?subject=${subject}&body=${body}`;
   return (
-    <div className="rounded-2xl px-5 py-4 shadow-sm border bg-red-50 border-red-200">
-      <p className="text-sm font-semibold text-red-900">
+    <div className="rounded-xl bg-red-500/[0.08] backdrop-blur-md border-2 border-red-400/30 shadow-[0_0_30px_rgba(248,113,113,0.18)] p-5">
+      <p className="text-sm font-bold text-red-200">
         Telcel no respondió
       </p>
-      <p className="text-xs text-red-800 mt-1">
+      <p className="text-xs text-red-200/80 mt-1 leading-relaxed">
         {message} Tu cotización podría seguir corriendo del lado del operador
         — revisa Historial en unos minutos.
       </p>
-      <div className="mt-3 flex flex-wrap gap-2">
+      <div className="mt-4 flex flex-wrap gap-2">
         <button
           type="button"
           onClick={onRetry}
-          className="inline-flex items-center px-3 py-1.5 text-sm font-semibold rounded-lg bg-red-700 text-white hover:bg-red-800 transition"
+          className="inline-flex items-center px-4 py-2 text-sm font-bold rounded-full bg-gradient-to-br from-red-600 to-red-700 text-white border border-white/15 shadow-[0_0_18px_rgba(248,113,113,0.4)] hover:scale-105 transition"
         >
           Reintentar
         </button>
         <Link
           href="/dashboard/historial"
-          className="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-lg bg-white border border-red-300 text-red-800 hover:bg-red-100 transition"
+          className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-full bg-white/5 border border-white/10 text-slate-200 hover:text-white hover:border-white/20 transition"
         >
           Ver historial
         </Link>
         <a
           href={mailto}
-          className="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-lg bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 transition"
+          className="inline-flex items-center px-4 py-2 text-sm font-medium rounded-full bg-white/5 border border-white/10 text-slate-200 hover:text-white hover:border-white/20 transition"
         >
           Reportar problema
         </a>
@@ -676,10 +853,18 @@ function TelcelTimeoutCard({
 
 function CompletedCard({
   pdfUrl,
+  screenshotUrl,
   folio,
   onReset,
 }: {
-  pdfUrl: string;
+  /** PDF cliente del portal Telcel — undefined en cotizaciones BORRADOR. */
+  pdfUrl?: string;
+  /**
+   * PNG con el resumen Telcel cuando el portal no emite PDF (borradores
+   * sin RFC). Si está presente y pdfUrl no, renderizamos un thumbnail
+   * clickable en lugar de los botones de PDF.
+   */
+  screenshotUrl?: string;
   folio: string;
   onReset: () => void;
 }) {
@@ -688,65 +873,167 @@ function CompletedCard({
   // route.ts. Si el bot no generó el PDF interno (no aplica al caso), el
   // proxy responderá 404 y el navegador mostrará una página de error
   // estándar. Aceptable: el botón sigue siendo opt-in.
-  const isProxyPath = /^\/api\/cotizaciones\//.test(pdfUrl);
+  const isProxyPath = pdfUrl ? /^\/api\/cotizaciones\//.test(pdfUrl) : false;
   const pdfInternoUrl = isProxyPath
     ? `/api/cotizaciones/${encodeURIComponent(folio)}/pdf?formato=interno`
     : null;
 
+  // Modo borrador: no hay PDF, solo captura. La distinción afecta CTAs +
+  // copy. Validamos screenshotUrl con el mismo prefijo conocido del proxy
+  // para no inyectar URLs arbitrarias en `<img>`.
+  const isDraftMode = !pdfUrl && Boolean(screenshotUrl);
+  const safeScreenshotUrl =
+    screenshotUrl && /^\/api\/cotizaciones\/[A-Za-z0-9_-]{1,64}\/screenshot$/.test(screenshotUrl)
+      ? screenshotUrl
+      : undefined;
+
+  // Folio cortito (mono, big). El job.id real puede ser un UUID — mostramos
+  // primeros 8 chars upper para que quepa en el tipographic "big". El link
+  // del PDF lleva el ID completo (no afecta navegación).
+  const folioDisplay = folio.length > 12
+    ? `#${folio.slice(0, 8).toUpperCase()}`
+    : `#${folio.toUpperCase()}`;
+
   return (
     <div
-      className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
+      className="relative overflow-hidden rounded-xl bg-slate-900/70 backdrop-blur-md border-2 border-white/10 shadow-[0_0_30px_rgba(6,182,212,0.2)] p-6"
       role="status"
     >
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">
-            Cotización lista
-          </p>
-          <p className="mt-2 font-mono text-sm text-slate-900">
-            Folio {folio}
-          </p>
+      {/* Glow accent esquina */}
+      <div
+        aria-hidden="true"
+        className="absolute right-0 top-0 w-48 h-48 bg-cyan-400/10 blur-3xl rounded-full"
+      />
+
+      <div className="relative">
+        {/* Chip mint glow "COTIZACIÓN COMPLETADA" */}
+        <div className="flex items-center gap-2 mb-4 flex-wrap">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-400/10 text-emerald-300 border border-emerald-400/30 text-[10px] font-bold uppercase tracking-widest shadow-[0_0_18px_rgba(45,212,191,0.35)]">
+            <span
+              className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(45,212,191,0.8)]"
+              aria-hidden="true"
+            />
+            Cotización completada
+          </span>
         </div>
-        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-700">
-          <span
-            className="w-1.5 h-1.5 rounded-full bg-green-600"
-            aria-hidden="true"
-          />
-          Generada por Telcel
-        </span>
-      </div>
-      <p className="mt-4 text-sm text-slate-600 leading-relaxed">
-        Descarga el PDF oficial generado por el portal del operador. El interno
-        incluye el desglose de rentabilidad para tu equipo.
-      </p>
-      <div className="mt-5 flex flex-wrap gap-2">
-        <a
-          href={pdfUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-700 text-white text-sm font-semibold rounded-lg hover:bg-blue-800 transition shadow-md"
-        >
-          <DocumentTextIcon className="w-4 h-4" />
-          PDF Cliente
-        </a>
-        {pdfInternoUrl && (
-          <a
-            href={pdfInternoUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition"
-          >
-            <DocumentTextIcon className="w-4 h-4" />
-            PDF Interno
-          </a>
+
+        {/* Folio big mono */}
+        <p className="font-mono text-3xl md:text-4xl font-black text-cyan-300 tracking-tight tabular-nums">
+          {folioDisplay}
+        </p>
+        <p className="mt-1 text-xs text-slate-500 font-mono break-all">
+          Folio interno: {folio}
+        </p>
+
+        {/* Body: el desglose real (cliente/RFC/líneas/plazo/monto) no está
+            todavía expuesto por el JobState — el hook solo recibe pdf_url.
+            Mostramos el CTA principal con el copy del PDF y dejamos el
+            chrome para cuando el endpoint enriquezca el payload.
+
+            En modo BORRADOR (sin RFC) el portal no emite PDF; el bot guarda
+            una captura PNG del resumen como evidencia. Renderizamos un
+            thumbnail clickable en lugar de los botones de descarga. */}
+        {isDraftMode ? (
+          <>
+            <p className="mt-5 text-sm text-slate-300 leading-relaxed max-w-2xl">
+              Este es un <strong className="text-white">borrador sin RFC</strong>.
+              El portal de Telcel no emite PDF oficial hasta capturar el
+              cliente; te dejo la captura del resumen como evidencia.
+            </p>
+
+            {safeScreenshotUrl && (
+              <div className="mt-6">
+                <a
+                  href={safeScreenshotUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block rounded-xl overflow-hidden border border-white/15 bg-slate-900/50 hover:border-cyan-400/40 hover:shadow-[0_0_28px_rgba(6,182,212,0.35)] transition"
+                  aria-label="Abrir captura del resumen en tamaño completo"
+                  title="Abrir captura del resumen en tamaño completo"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={safeScreenshotUrl}
+                    alt="Captura del resumen de la cotización (borrador)"
+                    className="block max-w-full sm:max-w-md w-auto h-auto max-h-72 object-contain"
+                    loading="lazy"
+                  />
+                </a>
+                <p className="mt-2 text-xs text-slate-500 italic">
+                  Click para abrir la captura en tamaño completo.
+                </p>
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            <p className="mt-5 text-sm text-slate-300 leading-relaxed max-w-2xl">
+              El PDF oficial fue generado por el portal de Telcel. Descarga el
+              formato cliente para enviar, o el formato interno con el desglose
+              de rentabilidad para tu equipo.
+            </p>
+
+            {/* Botones grandes: PDF Cliente (gradient) + PDF Interno (outline) */}
+            <div className="mt-6 flex flex-wrap gap-3">
+              {pdfUrl && (
+                <a
+                  href={pdfUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-br from-blue-600 to-cyan-500 text-white text-sm font-bold border border-white/15 shadow-[0_0_24px_rgba(29,78,216,0.45)] hover:shadow-[0_0_32px_rgba(29,78,216,0.65)] hover:scale-105 transition"
+                >
+                  <DocumentTextIcon className="w-4 h-4" />
+                  PDF Cliente
+                </a>
+              )}
+              {pdfInternoUrl && (
+                <a
+                  href={pdfInternoUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-white/5 border border-white/15 text-slate-200 text-sm font-bold hover:border-cyan-400/40 hover:text-cyan-300 hover:bg-cyan-500/5 transition"
+                >
+                  <DocumentTextIcon className="w-4 h-4" />
+                  PDF Interno
+                </a>
+              )}
+              {safeScreenshotUrl && (
+                <a
+                  href={safeScreenshotUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-white/5 border border-white/15 text-slate-200 text-sm font-bold hover:border-cyan-400/40 hover:text-cyan-300 hover:bg-cyan-500/5 transition"
+                >
+                  <PhotoIcon className="w-4 h-4" />
+                  Ver captura
+                </a>
+              )}
+            </div>
+          </>
         )}
-        <button
-          type="button"
-          onClick={onReset}
-          className="inline-flex items-center gap-1.5 px-4 py-2 text-slate-600 text-sm font-medium rounded-lg hover:bg-slate-50 transition"
-        >
-          Empezar otra
-        </button>
+
+        {/* Chips secundarias */}
+        <div className="mt-5 pt-5 border-t border-white/10 flex flex-wrap gap-2">
+          <Link
+            href="/dashboard/optimizar"
+            className="inline-flex items-center px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/10 text-xs font-medium text-slate-300 hover:text-cyan-300 hover:border-cyan-400/40 hover:bg-cyan-500/5 transition"
+          >
+            Optimizar palancas
+          </Link>
+          <Link
+            href="/dashboard/historial"
+            className="inline-flex items-center px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/10 text-xs font-medium text-slate-300 hover:text-cyan-300 hover:border-cyan-400/40 hover:bg-cyan-500/5 transition"
+          >
+            Ver en historial
+          </Link>
+          <button
+            type="button"
+            onClick={onReset}
+            className="inline-flex items-center px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/10 text-xs font-medium text-slate-300 hover:text-cyan-300 hover:border-cyan-400/40 hover:bg-cyan-500/5 transition"
+          >
+            Cotizar otra similar
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -769,31 +1056,31 @@ function SystemCard({
   return (
     <div
       className={[
-        "rounded-2xl px-5 py-4 shadow-sm border",
+        "rounded-xl backdrop-blur-md border p-5",
         isError
-          ? "bg-red-50 border-red-200"
-          : "bg-white border-slate-200",
+          ? "bg-red-500/[0.08] border-red-400/30 shadow-[0_0_24px_rgba(248,113,113,0.18)]"
+          : "bg-slate-800/50 border-white/10",
       ].join(" ")}
     >
       <p
         className={[
-          "text-sm font-semibold",
-          isError ? "text-red-900" : "text-slate-900",
+          "text-sm font-bold",
+          isError ? "text-red-200" : "text-white",
         ].join(" ")}
       >
         {title}
       </p>
-      <p className={["text-xs mt-1", isError ? "text-red-700" : "text-slate-600"].join(" ")}>
+      <p className={["text-xs mt-1 leading-relaxed", isError ? "text-red-200/80" : "text-slate-400"].join(" ")}>
         {body}
       </p>
       <button
         type="button"
         onClick={onAction}
         className={[
-          "mt-3 inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-lg transition",
+          "mt-4 inline-flex items-center px-4 py-2 text-sm font-bold rounded-full transition border",
           isError
-            ? "bg-red-700 text-white hover:bg-red-800"
-            : "bg-slate-900 text-white hover:bg-slate-700",
+            ? "bg-gradient-to-br from-red-600 to-red-700 text-white border-white/15 shadow-[0_0_18px_rgba(248,113,113,0.4)] hover:scale-105"
+            : "bg-gradient-to-br from-blue-600 to-cyan-500 text-white border-white/15 shadow-[0_0_18px_rgba(29,78,216,0.4)] hover:scale-105",
         ].join(" ")}
       >
         {actionLabel}
@@ -806,8 +1093,8 @@ function Spinner({ tone = "info" }: { tone?: "info" | "warn" }) {
   return (
     <svg
       className={[
-        "animate-spin h-5 w-5",
-        tone === "warn" ? "text-amber-700" : "text-blue-700",
+        "animate-spin h-6 w-6",
+        tone === "warn" ? "text-amber-300" : "text-cyan-300",
       ].join(" ")}
       xmlns="http://www.w3.org/2000/svg"
       fill="none"
@@ -826,6 +1113,24 @@ function Spinner({ tone = "info" }: { tone?: "info" | "warn" }) {
         className="opacity-75"
         fill="currentColor"
         d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+      />
+    </svg>
+  );
+}
+
+function ChevronDownIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        fillRule="evenodd"
+        d="M5.23 7.21a.75.75 0 011.06.02L10 11.06l3.71-3.83a.75.75 0 111.08 1.04l-4.25 4.39a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z"
+        clipRule="evenodd"
       />
     </svg>
   );
