@@ -73,7 +73,10 @@ const nextConfig: NextConfig = {
         headers: adminProxyHeaders,
       },
       {
-        source: "/(.*)",
+        // Catch-all SIN /admin (admin lleva CSP propio arriba). Sin esto,
+        // Next.js mezcla headers de ambas reglas y el CSP estricto del
+        // global gana, bloqueando Tailwind/ApexCharts/Geist en el proxy.
+        source: "/((?!admin).*)",
         headers: securityHeaders,
       },
     ];
