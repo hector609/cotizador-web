@@ -33,18 +33,88 @@ import type { TTSProvider, TTSSynthesizeOptions } from "./types";
 const ELEVENLABS_TTS_ENDPOINT = "https://api.elevenlabs.io/v1/text-to-speech";
 
 /**
- * Voice ID default. `21m00Tcm4TlvDq8ikWAM` = "Bella" (female, warm, US English).
- * Para español MX conviene probar una voz clonada de la library o un voice
- * design custom. Override desde la UI con `options.voiceId`.
+ * Voice ID default. `pNInz6obpgDQGcFmaJgB` = "Adam" (male, US English) —
+ * placeholder mientras Hector selecciona una voz MX premium (clone latino
+ * o voice design). El override desde la UI/route es `options.voiceId`.
+ *
+ * TODO(voice-mx): Hector debe escoger un voiceId latino real de la library
+ * ElevenLabs (recomendado: search "spanish mexico" en la voice library o
+ * crear un voice design custom). Una vez confirmado, actualizar este
+ * constante. Por ahora dejamos Adam para que el endpoint sea testeable
+ * end-to-end aunque la voz no sea ideal.
  */
-export const DEFAULT_ELEVENLABS_VOICE_ID = "21m00Tcm4TlvDq8ikWAM";
+export const DEFAULT_ELEVENLABS_VOICE_ID = "pNInz6obpgDQGcFmaJgB";
+
+/** Histórico: voiceId "Bella" (female warm US English). Conservado por si se
+ *  quiere A/B testear contra Adam mientras se elige la voz MX final. */
+export const LEGACY_BELLA_VOICE_ID = "21m00Tcm4TlvDq8ikWAM";
 
 /**
  * Modelo. `eleven_multilingual_v2` soporta español con buena prosodia.
  * `eleven_turbo_v2_5` es más rápido (~300ms TTFB) pero un poco menos
  * expresivo — buen tradeoff para conversación en tiempo real.
  */
-const DEFAULT_MODEL_ID = "eleven_multilingual_v2";
+export const DEFAULT_ELEVENLABS_MODEL_ID = "eleven_multilingual_v2";
+const DEFAULT_MODEL_ID = DEFAULT_ELEVENLABS_MODEL_ID;
+
+/** Hard cap de longitud del texto a sintetizar. Más allá de esto el cliente
+ *  debe partir el texto o resumir. 5000 chars ≈ 5 min de audio. */
+export const MAX_TTS_TEXT_LEN = 5000;
+
+/**
+ * Sanitiza un texto markdown/rich → prosa plana apta para TTS.
+ *
+ * Quitar:
+ *  - URLs (las máquinas no las pronuncian bien).
+ *  - Bloques de código (``` ... ``` y `inline`).
+ *  - Imágenes ![alt](url) y links [text](url) — preserva el texto si lo hay.
+ *  - Headings markdown (#, ##, ###).
+ *  - Énfasis (*bold*, _italics_).
+ *  - HTML tags simples (<br>, <p>, <span>...).
+ *  - Whitespace excesivo.
+ *
+ * Mantener: signos de puntuación normales (la prosodia los aprovecha).
+ *
+ * NO intenta ser un parser markdown completo — es best-effort para conversión
+ * a voz. Si el caller necesita algo más fino debe sanitizar él mismo y pasar
+ * el texto ya plano.
+ */
+export function sanitizeForTTS(input: string): string {
+  if (!input) return "";
+  let s = input;
+
+  // 1. Fenced code blocks ``` ... ``` (multi-línea). Antes que inline `` para
+  //    no romper el contenido de los bloques.
+  s = s.replace(/```[\s\S]*?```/g, " ");
+  // 2. Inline code `...`.
+  s = s.replace(/`[^`\n]*`/g, " ");
+  // 3. Imágenes ![alt](url) → quitar entero (alt rara vez aporta TTS-wise).
+  s = s.replace(/!\[[^\]]*\]\([^)]*\)/g, " ");
+  // 4. Links [texto](url) → conservar `texto`.
+  s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1");
+  // 5. URLs sueltas (http/https/www).
+  s = s.replace(/https?:\/\/\S+/gi, " ");
+  s = s.replace(/\bwww\.\S+/gi, " ");
+  // 6. HTML tags simples (<br>, <p>, </span>, etc).
+  s = s.replace(/<\/?[a-zA-Z][^>]*>/g, " ");
+  // 7. Headings ATX al inicio de línea: `# `, `## `, etc.
+  s = s.replace(/^\s{0,3}#{1,6}\s+/gm, "");
+  // 8. Énfasis markdown: **bold**, *italic*, __bold__, _italic_.
+  //    Quitamos solo los marcadores; el texto se conserva.
+  s = s.replace(/\*\*([^*]+)\*\*/g, "$1");
+  s = s.replace(/__([^_]+)__/g, "$1");
+  s = s.replace(/(^|[^*])\*([^*\n]+)\*/g, "$1$2");
+  s = s.replace(/(^|[^_])_([^_\n]+)_/g, "$1$2");
+  // 9. Blockquotes `> ` al inicio de línea.
+  s = s.replace(/^\s{0,3}>\s?/gm, "");
+  // 10. Listas: bullets `- `, `* `, `+ ` y numeradas `1. ` al inicio de línea.
+  s = s.replace(/^\s{0,3}[-*+]\s+/gm, "");
+  s = s.replace(/^\s{0,3}\d+\.\s+/gm, "");
+  // 11. Whitespace excesivo (líneas en blanco múltiples + spaces).
+  s = s.replace(/[ \t]+/g, " ");
+  s = s.replace(/\n{3,}/g, "\n\n");
+  return s.trim();
+}
 
 export interface ElevenLabsClientOptions {
   /** API key de ElevenLabs. NO se expone al cliente. */
