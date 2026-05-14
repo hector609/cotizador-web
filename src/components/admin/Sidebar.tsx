@@ -32,6 +32,7 @@ import {
   Settings,
   LifeBuoy,
   ChevronsUpDown,
+  Download,
 } from "lucide-react";
 
 export type SidebarKey =
@@ -205,6 +206,16 @@ export function Sidebar({
 
         {/* Bottom: settings + user */}
         <div className="border-t border-slate-100 p-3 space-y-0.5">
+          <Link
+            href="/descargar"
+            className="flex items-center gap-3 rounded-full px-3 py-2 text-sm font-bold text-indigo-700 bg-gradient-to-r from-indigo-50 to-cyan-50 hover:from-indigo-100 hover:to-cyan-100 transition"
+          >
+            <Download className="w-4 h-4 text-indigo-600" />
+            <span className="flex-1">Descargas</span>
+            <span className="inline-flex items-center px-1.5 py-0.5 bg-pink-500 text-white text-[9px] font-bold rounded-md uppercase tracking-wide">
+              App + PDF
+            </span>
+          </Link>
           <Link
             href="/dashboard/configuracion"
             className="flex items-center gap-3 rounded-full px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition"
