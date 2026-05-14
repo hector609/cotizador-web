@@ -29,6 +29,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { apiFetch } from "@/lib/api-fetch";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import NumberFlow from "@number-flow/react";
@@ -233,9 +234,9 @@ export default function OptimizarPage() {
     (async () => {
       try {
         const [eqRes, plRes, clRes] = await Promise.all([
-          fetch("/api/catalogos/equipos", { cache: "no-store" }),
-          fetch("/api/catalogos/planes", { cache: "no-store" }),
-          fetch("/api/clientes", { cache: "no-store" }),
+          apiFetch("/api/catalogos/equipos", { cache: "no-store" }),
+          apiFetch("/api/catalogos/planes", { cache: "no-store" }),
+          apiFetch("/api/clientes", { cache: "no-store" }),
         ]);
         if (!alive) return;
         if (eqRes.ok) {
@@ -353,7 +354,7 @@ export default function OptimizarPage() {
     setSubmit({ kind: "loading" });
 
     try {
-      const res = await fetch("/api/optimizar", {
+      const res = await apiFetch("/api/optimizar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

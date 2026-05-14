@@ -71,6 +71,12 @@ export async function POST(req: NextRequest) {
       "line_items[0][price]": priceId,
       "line_items[0][quantity]": "1",
       mode: "subscription",
+      // P0-2: Forzar moneda MXN y locale LATAM para la UI de Stripe Checkout.
+      // Nota: el currency del Price object en Stripe Dashboard también debe ser
+      // MXN. Si el Price ya tiene currency definida, Stripe la respeta —
+      // currency aquí actúa como validación adicional (Stripe rechazará si no coincide).
+      currency: "mxn",
+      locale: "es-419",
       success_url: `${APP_URL}/dashboard/billing?checkout=success`,
       cancel_url: `${APP_URL}/dashboard/billing?checkout=canceled`,
       // Metadatos para asociar la sesión al tenant en el webhook.

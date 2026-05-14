@@ -28,6 +28,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
+import { apiFetch } from "@/lib/api-fetch";
 import { motion } from "framer-motion";
 import {
   Search,
@@ -102,7 +103,7 @@ export default function ClientesPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/clientes");
+      const res = await apiFetch("/api/clientes");
       if (!res.ok) {
         throw new Error(`Error ${res.status}: ${res.statusText}`);
       }

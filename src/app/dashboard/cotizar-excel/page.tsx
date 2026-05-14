@@ -33,6 +33,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { apiFetch } from "@/lib/api-fetch";
 import { useEffect, useId, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -306,7 +307,7 @@ export default function CotizarExcelPage() {
     fd.append("file", file);
 
     try {
-      const res = await fetch("/api/cotizaciones/excel", {
+      const res = await apiFetch("/api/cotizaciones/excel", {
         method: "POST",
         body: fd,
       });

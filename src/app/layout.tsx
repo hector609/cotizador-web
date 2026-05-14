@@ -4,6 +4,7 @@ import "./globals.css";
 import { ServiceWorkerRegister } from "./sw-register";
 import { Toaster } from "@/components/toast/Toaster";
 import { CommandPalette } from "@/components/command-palette/CommandPalette";
+import { SubscriptionExpiredModal } from "@/components/ui/SubscriptionExpiredModal";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -60,6 +61,7 @@ export default function RootLayout({
         <ServiceWorkerRegister />
         <Toaster />
         <CommandPalette />
+        <SubscriptionExpiredModal />
       </body>
     </html>
   );
