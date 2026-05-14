@@ -107,8 +107,10 @@ const features = [
 export default function Home() {
   return (
     <main className="min-h-screen flex flex-col bg-white text-slate-900 antialiased overflow-x-hidden selection:bg-cyan-200/50 selection:text-indigo-700">
+      <PromoStrip />
       <TopNav />
       <Hero />
+      <VendedorTelcelCard />
       <StatsBand />
       <LogosStrip />
       <NumberedFeatures />
@@ -121,6 +123,44 @@ export default function Home() {
 }
 
 /* ---------------------------------------------------------------------- */
+/* PromoStrip — amber/orange/pink top strip above nav                      */
+/* ---------------------------------------------------------------------- */
+
+function PromoStrip() {
+  return (
+    <motion.div
+      initial={{ y: -40, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.6, ease: "easeOut" }}
+      className="fixed top-0 inset-x-0 z-[60] bg-gradient-to-r from-amber-400 via-orange-400 to-pink-500"
+    >
+      <div className="max-w-7xl mx-auto px-4 py-2 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4 text-center">
+        <motion.span
+          animate={{ opacity: [1, 0.7, 1] }}
+          transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+          className="text-white text-xs sm:text-sm font-bold leading-snug"
+        >
+          <span className="mr-1">🌟</span>
+          <span className="font-black">OFERTA ESPECIAL DE LANZAMIENTO:</span>{" "}
+          Vendedor Telcel{" "}
+          <span className="inline-block bg-white/25 rounded-full px-2 py-0.5 font-black">
+            $399/mes
+          </span>{" "}
+          <span className="line-through opacity-75">$599</span> — solo primeros 100 cupos · 14 días gratis sin tarjeta
+        </motion.span>
+        <Link
+          href="/vendedor-telcel"
+          className="flex-shrink-0 inline-flex items-center gap-1 bg-white text-orange-600 font-black text-xs sm:text-sm px-4 py-1.5 rounded-full shadow-md hover:scale-105 active:scale-95 transition-transform whitespace-nowrap"
+        >
+          Aprovechar
+          <ArrowRightIcon className="w-3.5 h-3.5" />
+        </Link>
+      </div>
+    </motion.div>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
 /* TopNav — sticky white/70 backdrop-blur                                  */
 /* ---------------------------------------------------------------------- */
 
@@ -129,8 +169,8 @@ function TopNav() {
     <motion.nav
       initial={{ y: -32, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.6, ease: "easeOut" }}
-      className="fixed top-0 inset-x-0 z-50 bg-white/70 backdrop-blur-md border-b border-slate-200/60 shadow-sm"
+      transition={{ duration: 0.6, ease: "easeOut", delay: 0.1 }}
+      className="fixed top-9 inset-x-0 z-50 bg-white/70 backdrop-blur-md border-b border-slate-200/60 shadow-sm"
     >
       <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
         <Link
@@ -217,7 +257,7 @@ function Hero() {
   return (
     <section
       ref={heroRef}
-      className="relative min-h-screen pt-32 pb-24 px-6 flex items-center overflow-hidden bg-white"
+      className="relative min-h-screen pt-40 pb-24 px-6 flex items-center overflow-hidden bg-white"
     >
       {/* 5 floating shapes (blur-3xl) */}
       <FloatingBlob
@@ -471,6 +511,234 @@ function ChatMockup() {
         </div>
       </div>
     </div>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/* VendedorTelcelCard — card destacada post-hero                           */
+/* ---------------------------------------------------------------------- */
+
+function MiniChatMockup() {
+  return (
+    <div className="bg-slate-900 rounded-2xl overflow-hidden shadow-xl shadow-slate-900/30 text-left w-full max-w-xs mx-auto lg:mx-0">
+      {/* Mac dots */}
+      <div className="bg-slate-800 px-3 py-2 flex items-center gap-1.5">
+        <span className="w-2.5 h-2.5 rounded-full bg-red-400/80" />
+        <span className="w-2.5 h-2.5 rounded-full bg-yellow-400/80" />
+        <span className="w-2.5 h-2.5 rounded-full bg-emerald-400/80" />
+        <span className="ml-2 text-[10px] font-semibold text-slate-400">Aria · IA Agent</span>
+      </div>
+      <div className="p-4 flex flex-col gap-3">
+        {/* user */}
+        <div className="flex justify-end">
+          <div className="bg-indigo-600 text-white text-[11px] leading-relaxed px-3 py-2 rounded-xl rounded-tr-sm max-w-[80%]">
+            3 Samsung S25 Ultra, Plan 4000, 18 meses
+          </div>
+        </div>
+        {/* typing indicator */}
+        <div className="flex items-center gap-1.5 ml-1">
+          <motion.span
+            animate={{ opacity: [0.4, 1, 0.4] }}
+            transition={{ duration: 1.2, repeat: Infinity }}
+            className="w-1.5 h-1.5 rounded-full bg-cyan-400"
+          />
+          <motion.span
+            animate={{ opacity: [0.4, 1, 0.4] }}
+            transition={{ duration: 1.2, repeat: Infinity, delay: 0.2 }}
+            className="w-1.5 h-1.5 rounded-full bg-cyan-400"
+          />
+          <motion.span
+            animate={{ opacity: [0.4, 1, 0.4] }}
+            transition={{ duration: 1.2, repeat: Infinity, delay: 0.4 }}
+            className="w-1.5 h-1.5 rounded-full bg-cyan-400"
+          />
+        </div>
+        {/* agent response */}
+        <div className="flex justify-start">
+          <div className="bg-slate-700 text-slate-100 text-[11px] leading-relaxed px-3 py-2 rounded-xl rounded-tl-sm max-w-[85%]">
+            Cotización lista en <span className="text-cyan-400 font-bold">2 min 14 seg</span>. Folio{" "}
+            <span className="font-mono text-amber-300">#2381204</span> · Subsidio aplicado ✓
+          </div>
+        </div>
+        {/* PDF row */}
+        <div className="mt-1 flex items-center gap-2 bg-slate-800 rounded-xl px-3 py-2">
+          <DocumentTextIcon className="w-5 h-5 text-indigo-400 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="text-[10px] text-slate-400">PDF listo</div>
+            <div className="text-[11px] text-white font-semibold truncate">Cotizacion_2381204.pdf</div>
+          </div>
+          <span className="text-[10px] text-emerald-400 font-bold">↓</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function VendedorTelcelCard() {
+  const benefits = [
+    "Importación automática de tu cartera Telcel",
+    "Aria AI te cotiza por chat en lenguaje natural",
+    "PDFs cliente + interno en segundos",
+    "Comparte cotizaciones al instante vía link",
+  ];
+
+  return (
+    <section className="relative py-16 px-6 bg-white overflow-hidden">
+      {/* Subtle background glow */}
+      <div
+        aria-hidden
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background:
+            "radial-gradient(ellipse 70% 60% at 50% 50%, rgba(245,158,11,0.07) 0%, transparent 70%)",
+        }}
+      />
+
+      <div className="relative max-w-6xl mx-auto">
+        <motion.div
+          initial={{ opacity: 0, y: 40 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+          className="relative rounded-[2.5rem] overflow-hidden border-2 border-amber-300/60 bg-gradient-to-br from-white via-amber-50/60 to-orange-50/40 shadow-2xl shadow-amber-200/50 p-8 md:p-12"
+        >
+          {/* Top accent gradient bar */}
+          <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-amber-400 via-orange-400 to-pink-500" />
+
+          {/* Decorative blob */}
+          <div
+            aria-hidden
+            className="absolute -right-24 -top-24 w-80 h-80 rounded-full bg-gradient-to-br from-amber-300/20 to-orange-300/20 blur-3xl pointer-events-none"
+          />
+
+          <div className="relative grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+            {/* Left column — text */}
+            <div className="space-y-6">
+              {/* Badge */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.85 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: 0.1 }}
+              >
+                <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 text-white text-xs font-black uppercase tracking-widest shadow-lg shadow-amber-300/40">
+                  <span className="text-base">🌟</span> OFERTA ESPECIAL
+                </span>
+              </motion.div>
+
+              {/* Heading */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6, delay: 0.15 }}
+                className="space-y-2"
+              >
+                <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900 leading-tight">
+                  ¿Eres vendedor de{" "}
+                  <span className="bg-clip-text text-transparent bg-gradient-to-r from-amber-500 via-orange-500 to-pink-500">
+                    Telcel Empresas?
+                  </span>
+                </h2>
+                <p className="text-lg text-slate-500 leading-relaxed max-w-lg">
+                  Cotiza 10x más rápido sin abrir el portal. Aria hace el trabajo pesado mientras tú cierras la venta.
+                </p>
+              </motion.div>
+
+              {/* Benefits */}
+              <motion.ul
+                initial="hidden"
+                whileInView="visible"
+                viewport={{ once: true }}
+                variants={containerVariants}
+                className="space-y-3"
+              >
+                {benefits.map((b) => (
+                  <motion.li
+                    key={b}
+                    variants={fadeUp}
+                    className="flex items-start gap-3"
+                  >
+                    <span className="flex-shrink-0 w-5 h-5 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center mt-0.5 shadow-sm shadow-amber-300/40">
+                      <CheckCircleIcon className="w-3.5 h-3.5 text-white" />
+                    </span>
+                    <span className="text-slate-700 text-sm font-medium leading-relaxed">{b}</span>
+                  </motion.li>
+                ))}
+              </motion.ul>
+
+              {/* Pricing */}
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: 0.3 }}
+                className="flex items-baseline gap-3 pt-2"
+              >
+                <span className="text-5xl font-black text-slate-900 tracking-tight">$399</span>
+                <div className="flex flex-col">
+                  <span className="text-lg font-bold text-slate-400 line-through">$599</span>
+                  <span className="text-sm text-slate-500 font-medium">/mes IVA incluido</span>
+                </div>
+                <span className="ml-2 inline-flex items-center px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-black border border-emerald-200">
+                  Ahorra 33%
+                </span>
+              </motion.div>
+
+              {/* CTA */}
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: 0.4 }}
+                className="space-y-3"
+              >
+                <Link
+                  href="/vendedor-telcel"
+                  className="group relative inline-flex items-center justify-center gap-2 px-8 py-4 rounded-full bg-gradient-to-r from-amber-400 via-orange-400 to-pink-500 text-white font-black text-base shadow-[0_14px_36px_-8px_rgba(245,158,11,0.55)] hover:shadow-[0_18px_44px_-8px_rgba(249,115,22,0.6)] hover:scale-105 active:scale-95 transition-all duration-300 overflow-hidden"
+                >
+                  <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/25 to-transparent" />
+                  <span className="relative">Empezar GRATIS 14 días</span>
+                  <ArrowRightIcon className="relative w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                </Link>
+                <p className="text-xs text-slate-400 font-medium">
+                  Sin tarjeta requerida · Cancela cuando quieras · 100% mexicano
+                </p>
+              </motion.div>
+            </div>
+
+            {/* Right column — mini chat mockup + cupos chip */}
+            <div className="flex flex-col items-center lg:items-start gap-4">
+              <motion.div
+                initial={{ opacity: 0, x: 30, rotate: 2 }}
+                whileInView={{ opacity: 1, x: 0, rotate: 0 }}
+                viewport={{ once: true, margin: "-80px" }}
+                transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1], delay: 0.2 }}
+                className="w-full"
+              >
+                <MiniChatMockup />
+              </motion.div>
+
+              {/* Cupos chip */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: 0.5 }}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-amber-100 border border-amber-300/60 text-amber-800 text-xs font-bold shadow-sm"
+              >
+                <motion.span
+                  animate={{ scale: [1, 1.25, 1] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                  className="w-2 h-2 rounded-full bg-amber-500"
+                />
+                87/100 cupos disponibles
+              </motion.div>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+    </section>
   );
 }
 
@@ -882,40 +1150,86 @@ function FeatureMock({ idx, gradient }: { idx: number; gradient: string }) {
 }
 
 /* ---------------------------------------------------------------------- */
-/* PricingTeaser — 3 plan cards con NumberFlow                             */
+/* PricingTeaser — 4 plan cards con NumberFlow                             */
 /* ---------------------------------------------------------------------- */
 
-const plans = [
+type Plan = {
+  name: string;
+  price: number;
+  originalPrice?: number;
+  suffix: string;
+  description: string;
+  features: string[];
+  cta: string;
+  ctaHref: string;
+  featured: boolean;
+  badge?: string;
+  badgeVariant?: "gold" | "indigo";
+};
+
+const plans: Plan[] = [
+  {
+    name: "Vendedor Telcel",
+    price: 399,
+    originalPrice: 599,
+    suffix: "/mes IVA incluido",
+    description: "Para vendedores individuales de Telcel Empresas. Cotiza 10x más rápido.",
+    features: [
+      "1 vendedor · cartera propia",
+      "Cotizaciones ilimitadas vía chat",
+      "PDF cliente + PDF interno",
+      "14 días gratis sin tarjeta",
+    ],
+    cta: "Empezar GRATIS 14 días",
+    ctaHref: "/vendedor-telcel",
+    featured: true,
+    badge: "OFERTA ESPECIAL",
+    badgeVariant: "gold",
+  },
   {
     name: "Starter",
-    price: 0,
-    suffix: "/primer mes",
-    description: "Para vendedores individuales que prueban el agente.",
-    features: ["1 distribuidor", "Cotizaciones ilimitadas", "PDF cliente"],
-    cta: "Probar gratis",
+    price: 999,
+    suffix: "/mes IVA incluido",
+    description: "Para equipos pequeños que cotizan a diario.",
+    features: [
+      "Hasta 3 vendedores",
+      "PDF cliente + interno",
+      "Historial filtrable",
+    ],
+    cta: "Empezar Starter",
+    ctaHref: "/signup",
     featured: false,
   },
   {
     name: "Pro",
-    price: 1490,
-    suffix: "/mes",
-    description: "Para equipos B2B que cotizan a diario.",
+    price: 2499,
+    suffix: "/mes IVA incluido",
+    description: "Para distribuidores B2B con volumen alto.",
     features: [
-      "Hasta 5 vendedores",
-      "PDF cliente + interno",
+      "Hasta 10 vendedores",
       "Calibrador de palancas",
-      "Historial + Excel",
+      "Historial + Excel export",
+      "Dashboard consolidado",
     ],
     cta: "Empezar Pro",
-    featured: true,
+    ctaHref: "/signup",
+    featured: false,
+    badge: "Más popular",
+    badgeVariant: "indigo",
   },
   {
-    name: "Business",
-    price: 4990,
-    suffix: "/mes",
-    description: "Multi-distribuidor con SLA dedicado.",
-    features: ["Multi-distribuidor", "SSO + auditoría", "SLA dedicado"],
+    name: "Empresa",
+    price: 4999,
+    suffix: "/mes IVA incluido",
+    description: "Multi-distribuidor con SLA dedicado y soporte prioritario.",
+    features: [
+      "Vendedores ilimitados",
+      "Multi-distribuidor",
+      "SSO + auditoría",
+      "SLA dedicado",
+    ],
     cta: "Hablar con ventas",
+    ctaHref: "/signup",
     featured: false,
   },
 ];
@@ -923,7 +1237,7 @@ const plans = [
 function PricingTeaser() {
   return (
     <section id="pricing" className="py-32 px-6 bg-white">
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -941,11 +1255,11 @@ function PricingTeaser() {
             </span>
           </h2>
           <p className="text-lg text-slate-500 max-w-xl mx-auto">
-            Suscripción mensual en pesos. Sin tarjeta para los primeros días.
+            Suscripción mensual en pesos. Todos los precios IVA incluido. Sin tarjeta para los primeros 14 días.
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 items-stretch">
           {plans.map((p, idx) => (
             <motion.div
               key={p.name}
@@ -955,59 +1269,89 @@ function PricingTeaser() {
               transition={{ duration: 0.6, delay: idx * 0.1 }}
               className={
                 p.featured
-                  ? "relative bg-white rounded-3xl border-2 border-indigo-500 p-8 shadow-2xl shadow-indigo-300/40 scale-[1.05] z-10"
-                  : "relative bg-white rounded-3xl border border-slate-200 p-8 shadow-sm hover:border-slate-300 hover:shadow-lg hover:shadow-indigo-100/30 transition-all"
+                  ? "relative flex flex-col bg-gradient-to-br from-amber-50 via-orange-50 to-pink-50 rounded-3xl border-2 border-amber-400/70 p-8 shadow-2xl shadow-amber-200/50 z-10 xl:scale-[1.04]"
+                  : "relative flex flex-col bg-white rounded-3xl border border-slate-200 p-8 shadow-sm hover:border-slate-300 hover:shadow-lg hover:shadow-indigo-100/30 transition-all"
               }
             >
-              {p.featured && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-gradient-to-r from-indigo-600 to-cyan-500 text-white text-[10px] font-bold uppercase tracking-widest shadow-lg shadow-indigo-300/50">
-                  Recomendado
+              {/* Badge */}
+              {p.badge && p.badgeVariant === "gold" && (
+                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 text-white text-[10px] font-black uppercase tracking-widest shadow-lg shadow-amber-300/50 whitespace-nowrap">
+                  {p.badge}
                 </div>
               )}
-              <div className="text-sm font-bold text-slate-500 uppercase tracking-widest">
+              {p.badge && p.badgeVariant === "indigo" && (
+                <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-gradient-to-r from-indigo-600 to-cyan-500 text-white text-[10px] font-bold uppercase tracking-widest shadow-lg shadow-indigo-300/50 whitespace-nowrap">
+                  {p.badge}
+                </div>
+              )}
+
+              <div className={`text-sm font-black uppercase tracking-widest ${p.featured ? "text-amber-600" : "text-slate-500"}`}>
                 {p.name}
               </div>
-              <div className="mt-3 flex items-baseline gap-1">
-                <span className="text-5xl font-black text-slate-900 tracking-tight tabular-nums">
-                  $
-                  <NumberFlow
-                    value={p.price}
-                    format={{ maximumFractionDigits: 0 }}
-                  />
+
+              {/* Price */}
+              <div className="mt-3 flex items-baseline gap-1.5">
+                <span className={`text-4xl font-black tracking-tight tabular-nums ${p.featured ? "text-orange-600" : "text-slate-900"}`}>
+                  $<NumberFlow value={p.price} format={{ maximumFractionDigits: 0 }} />
                 </span>
-                <span className="text-sm text-slate-400">{p.suffix}</span>
+                {p.originalPrice && (
+                  <span className="text-base font-bold text-slate-400 line-through tabular-nums">
+                    ${p.originalPrice}
+                  </span>
+                )}
               </div>
-              <p className="mt-3 text-sm text-slate-500 leading-relaxed">
+              <div className="text-[11px] text-slate-400 font-medium mt-0.5">{p.suffix}</div>
+
+              <p className="mt-3 text-sm text-slate-500 leading-relaxed flex-grow">
                 {p.description}
               </p>
-              <ul className="mt-6 space-y-3 mb-8">
+
+              <ul className="mt-5 space-y-2.5 mb-8">
                 {p.features.map((feat) => (
                   <li
                     key={feat}
                     className="flex items-start gap-2 text-sm text-slate-700"
                   >
-                    <CheckCircleIcon className="w-5 h-5 text-cyan-500 flex-shrink-0 mt-0.5" />
+                    <CheckCircleIcon className={`w-4 h-4 flex-shrink-0 mt-0.5 ${p.featured ? "text-orange-500" : "text-cyan-500"}`} />
                     {feat}
                   </li>
                 ))}
               </ul>
+
               <Link
-                href="/signup"
+                href={p.ctaHref}
                 className={
                   p.featured
-                    ? "group relative inline-flex w-full items-center justify-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-indigo-600 to-cyan-500 text-white font-semibold shadow-[0_12px_30px_-8px_rgba(79,70,229,0.5)] hover:shadow-[0_18px_40px_-8px_rgba(6,182,212,0.55)] hover:scale-[1.03] active:scale-95 transition-all overflow-hidden"
+                    ? "group relative inline-flex w-full items-center justify-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-amber-400 via-orange-400 to-pink-500 text-white font-black shadow-[0_12px_30px_-8px_rgba(245,158,11,0.5)] hover:shadow-[0_18px_40px_-8px_rgba(249,115,22,0.55)] hover:scale-[1.03] active:scale-95 transition-all overflow-hidden"
                     : "inline-flex w-full items-center justify-center gap-2 px-6 py-3 rounded-full bg-white text-slate-700 border border-slate-200 font-semibold hover:bg-slate-50 hover:border-slate-300 transition-colors"
                 }
               >
                 {p.featured && (
-                  <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/30 to-transparent" />
+                  <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/25 to-transparent" />
                 )}
-                <span className="relative">{p.cta}</span>
+                <span className="relative text-sm">{p.cta}</span>
                 <ArrowRightIcon className="relative w-4 h-4" />
               </Link>
             </motion.div>
           ))}
         </div>
+
+        {/* CTA link to full pricing */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.5, delay: 0.4 }}
+          className="text-center mt-10"
+        >
+          <Link
+            href="/precios"
+            className="inline-flex items-center gap-1.5 text-sm font-semibold text-indigo-600 hover:text-indigo-700 transition-colors group"
+          >
+            Ver todos los precios y comparar planes
+            <ArrowRightIcon className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+          </Link>
+        </motion.div>
       </div>
     </section>
   );
