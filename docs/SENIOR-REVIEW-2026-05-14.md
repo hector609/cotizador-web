@@ -1,0 +1,51 @@
+# Senior Code Review — Dashboard Components
+**Fecha:** 2026-05-14  
+**Scope:** dashboard/page.tsx · historial/page.tsx · clientes/page.tsx · ChatInterface.tsx · useChatCotizar.ts  
+**Revisor:** Claude Sonnet 4.6 (modo solo lectura)
+
+---
+
+## Tabla de hallazgos
+
+| # | File | Línea(s) | Severidad | Bug | Fix sugerido |
+|---|------|----------|-----------|-----|--------------|
+| 1 | `useChatCotizar.ts` | 348–368 | **P0** | `queueMicrotask` en `useEffect` de handoff optimizar: si el componente se desmonta entre mount y el microtask, la closure `cancelled` captura `false` en el closure externo pero el setter `setDraft` ya habrá sido limpiado por React (StrictMode doble-mount). En producción SSR con Suspense / navegación rápida el draft puede pisarse con datos de sesión anterior. | Mover la lectura de `sessionStorage` dentro del mismo tick del effect (sin `queueMicrotask`) o verificar que el componente siga montado con un `ref` antes del `setDraft`. |
+| 2 | `useChatCotizar.ts` | 344–368 & 377–408 | **P0** | Dos `useEffect` de handoff (`OPTIMIZAR_STORAGE_KEY` y query `?rfc=`) corren **simultáneamente** al montar. Ambos llaman `setDraft`. Si el URL contiene `?rfc=` Y sessionStorage tiene `optimizar:palancas`, el segundo effect sobreescribe al primero sin ninguna precedencia definida. El orden de ejecución de React no garantiza cuál gana. | Unificar ambos handoffs en un único `useEffect` con prioridad explícita: RFC-query > optimizar-palancas > nada. |
+| 3 | `clientes/page.tsx` | 107–108 | **P0** | `apiFetch` arroja `Error("subscription_expired")` cuando el backend devuelve 402. El `catch` del `loadClientes` lo convierte en `setError("subscription_expired")` y la UI muestra ese string técnico (`Error 402: …` o `subscription_expired`) directamente al usuario en el `role="alert"`. | En el `catch` de `loadClientes`, distinguir `err.message === "subscription_expired"` y mostrar mensaje legible: "Tu suscripción venció. Contacta a soporte." |
+| 4 | `clientes/page.tsx` | 102–119 | **P1** | `loadClientes` no tiene AbortController / signal. Si el usuario pulsa "Refrescar" mientras ya hay una petición en vuelo, habrá dos `setClientes` concurrentes. El más lento puede pisar al más rápido (race condition clásico). | Usar `useRef<AbortController>` y abortar el request anterior antes de lanzar uno nuevo. |
+| 5 | `dashboard/page.tsx` | 121–124 | **P1** | `listarCotizaciones` puede tirar si `getSession()` redirige (lanza). Si en algún contexto `getSession` retorna `null` en vez de redirigir (p. ej. cambio futuro en el helper), `session.tenant_id` sería acceso a null sin guard. Actualmente seguro, pero frágil al refactoring. | Tipar el retorno de `getSession` como `SessionPayload | never` y añadir un assert explícito en el dashboard. |
+| 6 | `dashboard/page.tsx` | 553–562 | **P1** | El cálculo de `fallidas` en `OptimizacionesCard` es incorrecto. Hace `totalRows - cotizacionesMes - pendientes_recientes`. `cotizacionesMes` solo cuenta el **mes actual**, pero `totalRows` es el global de los últimos 100. El resultado puede ser negativo (mitigado con `Math.max(0,…)`) pero casi siempre es incorrecto — sobreestima fallidas históricas como si fueran recientes. | Calcular `fallidas` filtrando `rows` directamente: `rows.filter(r => r.estado === 'fallida').length` (o pasarlos al componente). |
+| 7 | `historial/page.tsx` | 95–98 | **P1** | El filtro por RFC se hace client-side **solo sobre la página actual** (25 registros). Si el usuario busca un RFC que está en la página 3 y está viendo la 1, no encontrará nada y verá "Sin resultados" aunque existan datos. El comentario lo admite ("sólo afecta a la página actual") pero no hay aviso en la UI. | Añadir un texto de aviso bajo el filtro RFC: "La búsqueda por RFC solo aplica a los registros cargados. Navega por páginas para ampliar." O implementar la búsqueda en el backend. |
+| 8 | `historial/page.tsx` | 111 | **P1** | `c.lineas * c.plan` se calcula sin guardia de NaN: si el backend devuelve `lineas: null` o `plan: null` (posible según tipo `Cotizacion` que define ambos como `number` pero sin null-check en runtime), el resultado es `NaN`. `Math.max(...montos)` con `NaN` dentro del array devuelve `NaN`, lo que hace que todos los ratios A/B sean `NaN` y los renders de la barra fallen silenciosamente mostrando barras al 0%. | Añadir `!isNaN(v)` al filtro de `montos` (ya existe `filter(v => v > 0)`, que descarta NaN implícitamente — pero el `c.lineas * c.plan` podría producir `NaN` que no es `> 0`). Verificar: `Number.isFinite(c.lineas) && Number.isFinite(c.plan)` antes de multiplicar. |
+| 9 | `ChatInterface.tsx` | 604–618 | **P1** | `CompletedCard` solo se renderiza si `job.pdfUrl || job.screenshotUrl`. Pero `CompletedCard` ya acepta `undefined` en ambos props y tiene lógica interna para el caso `isDraftMode`. Si ninguno existe, se cae al `SystemCard` de "no recibimos enlace". Esto es correcto, pero la transición entre `job.kind === "completed"` y ambos bloques (`CompletedCard` / `SystemCard`) está en `AnimatePresence` con distintas keys — React puede animar la salida de uno y entrada del otro, causando que ambos aparezcan simultáneamente durante ~400 ms. | Usar una sola key para el bloque completed y condicionar internamente, o envolver en un solo `<motion.div>`. |
+| 10 | `ChatInterface.tsx` | 346–368 | **P1** | El effect del handoff `OPTIMIZAR_STORAGE_KEY` usa `queueMicrotask` para leer sessionStorage. Si la clave tiene JSON malformado, el `catch` silencia el error sin notificar al usuario. El vendedor pensará que el handoff desde `/optimizar` funcionó pero el draft estará vacío. | Añadir un mensaje de sistema discreto: `appendMessage("system", "No se pudo cargar el borrador de optimización.")` dentro del catch que hoy silencia. |
+| 11 | `useChatCotizar.ts` | 379–384 | **P1** | `pollJob` hace `console.error` en errores de red y sigue polling. Correcto. Pero si el servidor responde con JSON malformado (ej. timeout de Fly → HTML de error), `(await res.json())` lanza y el catch de la línea 379 lo captura como error de red — el polling nunca se detiene y el usuario queda con el spinner de "en marcha" hasta el timeout de 5 min. Ningún mensaje indica que hay un problema de decodificación. | Dentro del try de `pollJob`, separar el `res.json()` en un try/catch propio que cuente fallos consecutivos; tras N fallos de parse, detener el polling con mensaje de error. |
+| 12 | `useChatCotizar.ts` | 459–464 | **P1** | En `sendMessage`, para HTTP 401/403 se añade un mensaje de sistema pero **no se llama `setSending(false)`** antes del `return`. `setSending` se llama en el bloque `finally`, que sí se ejecuta. Revisando: el `finally` sí corre. OK, falsa alarma. Sin embargo el `setSending(false)` en el finally corre **antes** de que `appendMessage` actualice el estado en React, dado que ambas son actualizaciones síncronas batched. Inofensivo pero confuso. Anotado como P2. | (ver fila siguiente) |
+| 13 | `ChatInterface.tsx` | 522–548 | **P2** | El `<details>` nativo para "Recientes" no cierra al hacer clic fuera. Es el comportamiento nativo de `<details>`, pero en una UI conversacional donde el dropdown se abre sobre el chat, el usuario puede no darse cuenta de cómo cerrarlo. No hay `onBlur` ni click-outside handler. | Reemplazar con un controlled state (`useState(false)`) + `useEffect` click-outside, o usar Radix DropdownMenu. |
+| 14 | `clientes/page.tsx` | 232–235 | **P2** | `key={c.rfc}` en la lista de clientes. Si el backend devuelve dos clientes con el mismo RFC (duplicado por bug de scrape), React lanzará una advertencia en consola y potencialmente renderizará solo uno. No hay dedup en el frontend. | Añadir dedup antes del render: `const seen = new Set(); filtered.filter(c => !seen.has(c.rfc) && seen.add(c.rfc))`. |
+| 15 | `dashboard/page.tsx` | 335 | **P2** | `c.id.slice(0, 8).toUpperCase()` sin guard de longitud. Si `c.id` tiene menos de 8 caracteres (UUID truncado o ID sintético muy corto), `slice` no tira — devuelve el string completo. Inofensivo, pero el folio mostrado diferiría del truncado esperado. Ya hay un guard en `FilaDesktop` (`c.id.length > 8 ? ... : c.id`) que `RecienteRow` no tiene. | Aplicar el mismo patrón condicional de `FilaDesktop` en `RecienteRow`. |
+| 16 | `useChatCotizar.ts` | 212–218 | **P2** | `GREETING.createdAt = Date.now()` se evalúa en tiempo de módulo (import), no por render. En SSR + hidratación, el timestamp del servidor y el del cliente diferirán, causando un hydration mismatch si `createdAt` se muestra en la UI. Actualmente no se renderiza, pero es una bomba de tiempo si se añade timestamps a bubbles. | Mover a una factory `createGreeting()` que se llame dentro del `useState` initializer. |
+
+---
+
+## Resumen por severidad
+
+| Severidad | Cantidad |
+|-----------|---------|
+| P0 (rompe UX) | 3 |
+| P1 (degrada UX silenciosamente) | 9 |
+| P2 (mejora / bomba de tiempo) | 4 |
+| **Total** | **16** |
+
+---
+
+## Top 3 a arreglar inmediato
+
+### 1. P0 — `clientes/page.tsx` línea 107: error técnico visible al usuario
+Cuando la suscripción expira (HTTP 402), `apiFetch` lanza `Error("subscription_expired")` que llega como string a `role="alert"`. El vendedor ve `"subscription_expired"` en rojo sin entender qué hacer. **Fix:** catch específico en `loadClientes` para `subscription_expired` con mensaje legible y CTA de contacto a soporte.
+
+### 2. P0 — `ChatInterface.tsx` líneas 344–408: race condition handoff optimizar vs RFC
+Dos `useEffect` independientes ejecutan `setDraft` al montar. Si ambas condiciones se cumplen simultáneamente (sessionStorage con palancas + `?rfc=` en URL), el draft queda en estado no determinístico. En el flujo real `optimizar → cotizar`, el vendedor envía una cotización con los datos incorrectos. **Fix:** unificar en un solo `useEffect` con prioridad explícita.
+
+### 3. P1 — `historial/page.tsx` línea 97: filtro RFC da falso "sin resultados"
+Un vendedor con 200 cotizaciones busca un RFC específico en la página 1 (25 registros). Si ese RFC está en la página 3, verá "Sin cotizaciones que coincidan" y creerá que el cliente no existe. No hay aviso en la UI de que el filtro es parcial. **Fix:** mostrar banner "Búsqueda parcial — aplica solo a esta página" o implementar filtro backend.
