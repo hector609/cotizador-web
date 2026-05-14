@@ -2,48 +2,65 @@
 
 Distribución privada para vendedores. **No requiere cuenta Google Play Console.**
 
-## Generar el APK (1 vez por release, ~30 min)
+## Generar el APK — 5 clics en PWABuilder (10 min)
 
-1. Abre **https://www.pwabuilder.com/**
-2. Pega tu URL: `https://cotizador.hectoria.mx`
-3. Espera análisis. Score esperado: **100/100 PWA** (manifest + iconos + SW listos).
-4. Click **"Package For Stores"** → **"Android"**.
-5. Llena el formulario:
+> **Por qué PWABuilder:** Bubblewrap CLI no corre en Node 24 (incompatibilidad minizlib).
+> Android SDK pesa 5+ GB. PWABuilder hace exactamente lo mismo en la nube, gratis.
 
-   | Campo | Valor |
-   |---|---|
-   | Package ID | `mx.hectoria.cotizador` |
-   | App name | `Cotizador` |
-   | Launcher name | `Cotizador` |
-   | App version | `1.0.0` (sube al hacer release) |
-   | App version code | `1` (entero, sube +1 por release) |
-   | Theme color | `#4F46E5` |
-   | Background color | `#FFFFFF` |
-   | Nav color | `#4F46E5` |
-   | Status bar color | `#4F46E5` |
-   | Icon URL | `https://cotizador.hectoria.mx/icons/icon-512.png` |
-   | Maskable icon URL | `https://cotizador.hectoria.mx/icons/icon-512-maskable.png` |
-   | Splash / Monochrome icon | mismo `/icons/icon-512.png` |
-   | Display mode | `standalone` |
-   | Orientation | `default` (o `portrait` si prefieres) |
-   | Signing key | **"Use mine"** → **NO**, dejar **"Create new"** (PWABuilder firma con debug key) |
+### Paso a paso
 
-6. Click **"Download Test Package"** (NO "Production Package" porque ese pide subir a Play Store).
-7. Descomprime el zip. Tendrás:
-   - `app-release-signed.apk` ← este es el que distribuyes
-   - `signing.keystore` + `key.json` ← **GUARDA esto**. Sin estos archivos no podrás firmar updates con la misma identidad. Guárdalos en 1Password / Bitwarden.
+**1. Abre** https://www.pwabuilder.com/  
+   → Pega `https://cotizador.hectoria.mx` → **Start**
 
-## Subir el APK al dominio
+**2. Espera el análisis** (10–30 seg).  
+   Score esperado: **100/100** (manifest + SW + iconos ya están listos).
+
+**3. Click "Package For Stores"** → elige **"Android"**
+
+**4. Rellena el formulario** con estos valores exactos:
+
+| Campo | Valor |
+|---|---|
+| Package ID | `mx.hectoria.cotizador` |
+| App name | `Cotizador` |
+| Launcher name | `Cotizador` |
+| App version | `1.0.0` |
+| App version code | `1` |
+| Theme color | `#4F46E5` |
+| Background color | `#FFFFFF` |
+| Nav color | `#4F46E5` |
+| Status bar color | `#4F46E5` |
+| Icon URL | `https://cotizador.hectoria.mx/icons/icon-512.png` |
+| Maskable icon URL | `https://cotizador.hectoria.mx/icons/icon-512-maskable.png` |
+| Display mode | `standalone` |
+| Signing key | dejar **"Create new"** (PWABuilder firma con debug key) |
+
+**5. Click "Download Test Package"** (NO "Production Package").  
+   → Descarga un `.zip` con `app-release-signed.apk` dentro.
+
+### Después de descargar
 
 ```bash
-# Tu APK descargado:
-cp ~/Downloads/PWABuilder/app-release-signed.apk \
-   C:/dev/cotizador-web/public/cotizador.apk
+# Descomprime el zip y copia:
+cp ~/Downloads/app-release-signed.apk C:/dev/cotizador-web/public/cotizador.apk
 ```
 
-Commit + push → Vercel deploya → queda en `https://cotizador.hectoria.mx/cotizador.apk`.
+Luego en el repo:
+```bash
+git add public/cotizador.apk
+git commit -m "feat(android): APK sideload v1.0.0 (mx.hectoria.cotizador)"
+# NO hacer push automático — validar primero en un Android real
+git push
+```
 
-## Instrucciones para vendedores (cópialas en WhatsApp/Email)
+Vercel desplegará el APK en `https://cotizador.hectoria.mx/cotizador.apk`.
+
+**GUARDA** el `signing.keystore` y `key.json` del zip en 1Password/Bitwarden.  
+Sin estos no puedes firmar updates con la misma identidad (Android rechaza reinstalaciones con key distinta).
+
+---
+
+## Instrucciones para vendedores (copia en WhatsApp/Email)
 
 > **Instalar Cotizador en tu Android (3 minutos)**
 >
@@ -57,27 +74,24 @@ Commit + push → Vercel deploya → queda en `https://cotizador.hectoria.mx/cot
 >
 > Si algo falla, escríbenos a soporte@hectoria.mx.
 
-## Actualizar a v2 (cuando saquemos cambios)
+---
 
-1. Cambia `App version code` a `2` (+ 1 cada release) y `App version` a `1.1.0`.
-2. Regenera el APK en PWABuilder con la **MISMA signing key** (sube el `signing.keystore` y `key.json` que guardaste).
-3. Reemplaza `public/cotizador.apk` y push.
-4. Avisa a los vendedores que bajen y reinstalen (Android conserva los datos si la firma coincide).
+## Actualizar a v2
 
-**IMPORTANTE:** si firmas con una key distinta, Android rechaza el update con error. Por eso GUARDA el keystore como tesoro.
+1. En PWABuilder cambia `App version code` a `2`, `App version` a `1.1.0`.
+2. **Sube el mismo `signing.keystore` + `key.json`** que guardaste (opción "Use mine").
+3. Descarga nuevo zip → copia `app-release-signed.apk` → reemplaza `public/cotizador.apk` → push.
+4. Avisa a vendedores que reinstalen. Android conserva datos si la firma coincide.
+
+---
 
 ## Limitaciones conocidas
 
-- **Sin auto-update.** Los vendedores tienen que bajar APK nuevo manualmente. Aceptable para 5-10 usuarios piloto; si llegan a 50+ migrar a Play Store.
-- **"Fuentes desconocidas".** Android exige confirmar permiso la primera vez. UX un poco fea pero no es bloqueante.
-- **No reviews / no Google Pay.** Si en algún momento monetizas dentro de la app, considera Play Store.
-- **Sin push notifications nativas.** El TWA hereda la API Push del navegador (limitada en Android Chrome). Para push reales tipo "tu cotización está lista" mientras el teléfono está bloqueado → migrar a Capacitor.
+- **Sin auto-update.** Vendedores bajan APK nuevo manualmente. Aceptable para 5–10 usuarios piloto.
+- **"Fuentes desconocidas".** Android pide confirmar permiso la primera vez. No es bloqueante.
+- **Sin Google Pay.** Si monetizas en-app en el futuro, considera Play Store.
 
-## Cuando migrar a Play Store (futuro)
+## Cuando migrar a Play Store
 
-Cuando tengas 20+ vendedores, querrás:
-- Auto-update (Play Store maneja diff updates)
-- Verified TWA sin barra de URL de Chrome encima
-- Identidad pública (Cotizador en Play Store da confianza al cliente final del vendedor)
-
-Costo: $25 USD una vez (Play Console) + tener listo `public/.well-known/assetlinks.json` con el SHA-256 de la signing key uploaded. PWABuilder soporta este flujo con **"Production Package"** en vez de "Test Package".
+Con 20+ vendedores conviene Play Store: auto-update, TWA verificado sin barra de Chrome, identidad pública.  
+Costo: $25 USD una vez. Usa **"Production Package"** en PWABuilder y sube el `signing.keystore` existente.

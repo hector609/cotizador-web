@@ -51,3 +51,9 @@ next-env.d.ts
 /test-results/
 /e2e-results/
 /playwright/.cache/
+
+# Android TWA / signing (NUNCA commitear keystores)
+/twa/
+*.keystore
+*.jks
+key.json
