@@ -62,7 +62,7 @@ export async function POST(request: Request) {
   try {
     body = (await request.json()) as TelemetryBody;
   } catch {
-    return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
+    return NextResponse.json({ error: "Datos inválidos. Verifica los campos e intenta de nuevo." }, { status: 400 });
   }
 
   const type = typeof body.type === "string" ? body.type : "";

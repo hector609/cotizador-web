@@ -46,7 +46,7 @@ export async function GET(request: Request) {
   try {
     secret = getSessionSecret();
   } catch {
-    return errPage("Servicio no disponible. SESSION_SECRET no configurado.", 503);
+    return errPage("Estamos realizando tareas de mantenimiento. Intenta en unos minutos.", 503);
   }
 
   const [b64, sig] = token.split(".");

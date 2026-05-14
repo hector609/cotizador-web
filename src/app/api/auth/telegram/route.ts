@@ -60,20 +60,20 @@ export async function POST(request: Request) {
   if (!botToken) {
     // Server config — log internamente, no leakear el detalle.
     console.error("[auth/telegram] TELEGRAM_BOT_TOKEN no configurado");
-    return errJson("Servicio no disponible", 500);
+    return errJson("Estamos realizando tareas de mantenimiento. Intenta en unos minutos.", 500);
   }
 
   const botApiUrl = process.env.BOT_API_URL;
   if (!botApiUrl) {
     console.error("[auth/telegram] BOT_API_URL no configurado");
-    return errJson("Servicio no disponible", 500);
+    return errJson("Estamos realizando tareas de mantenimiento. Intenta en unos minutos.", 500);
   }
 
   let user: TelegramUser;
   try {
     user = (await request.json()) as TelegramUser;
   } catch {
-    return errJson("JSON inválido", 400);
+    return errJson("Datos inválidos. Verifica los campos e intenta de nuevo.", 400);
   }
 
   if (!user.id || !user.auth_date || !user.hash) {
@@ -172,7 +172,7 @@ export async function POST(request: Request) {
     sessionSecret = getSessionSecret();
   } catch (e) {
     console.error("[auth/telegram] SESSION_SECRET no configurado", e);
-    return errJson("Servicio no disponible", 500);
+    return errJson("Estamos realizando tareas de mantenimiento. Intenta en unos minutos.", 500);
   }
 
   const now = Math.floor(Date.now() / 1000);

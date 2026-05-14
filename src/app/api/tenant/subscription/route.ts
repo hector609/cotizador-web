@@ -18,14 +18,14 @@ const errJson = (msg: string, status: number) =>
 
 export async function GET(request: Request) {
   const session = getSessionFromRequest(request);
-  if (!session) return errJson("No autenticado", 401);
+  if (!session) return errJson("Tu sesión expiró. Vuelve a iniciar sesión.", 401);
 
   let authHeader: { "X-Auth": string };
   try {
     authHeader = signBackendRequest(session.distribuidor_id);
   } catch (e) {
     console.error("[api/tenant/subscription] sign error", e);
-    return errJson("Servicio no disponible", 500);
+    return errJson("Estamos realizando tareas de mantenimiento. Intenta en unos minutos.", 500);
   }
 
   try {

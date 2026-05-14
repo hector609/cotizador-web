@@ -185,7 +185,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   try {
     event = JSON.parse(rawBody) as StripeEvent;
   } catch {
-    return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
+    return NextResponse.json({ error: "Datos inválidos. Verifica los campos e intenta de nuevo." }, { status: 400 });
   }
 
   const { type, data } = event;

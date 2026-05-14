@@ -28,14 +28,14 @@ const errJson = (msg: string, status: number) =>
 
 export async function GET(request: Request) {
   const session = getSessionFromRequest(request);
-  if (!session) return errJson("No autenticado", 401);
+  if (!session) return errJson("Tu sesión expiró. Vuelve a iniciar sesión.", 401);
 
   let authHeader: { "X-Auth": string };
   try {
     authHeader = signBackendRequest(session.distribuidor_id);
   } catch (e) {
     console.error("[api/tenant/credentials] sign error", e);
-    return errJson("Servicio no disponible", 500);
+    return errJson("Estamos realizando tareas de mantenimiento. Intenta en unos minutos.", 500);
   }
 
   let upstream: Response;
@@ -50,33 +50,33 @@ export async function GET(request: Request) {
     });
   } catch (e) {
     console.error("[api/tenant/credentials] backend GET error", e);
-    return errJson("Backend no disponible", 502);
+    return errJson("No pudimos cargar tus datos. Reintenta en unos segundos.", 502);
   }
 
   if (upstream.status === 401 || upstream.status === 403) {
-    return errJson("No autorizado", 403);
+    return errJson("No tienes acceso a este recurso.", 403);
   }
-  if (upstream.status >= 500) return errJson("Backend no disponible", 502);
-  if (!upstream.ok) return errJson("Error en backend", 502);
+  if (upstream.status >= 500) return errJson("No pudimos cargar tus datos. Reintenta en unos segundos.", 502);
+  if (!upstream.ok) return errJson("Algo salió mal. Reintenta o contacta a soporte.", 502);
 
   try {
     const data = await upstream.json();
     return NextResponse.json(data, { status: 200 });
   } catch (e) {
     console.error("[api/tenant/credentials] GET parse", e);
-    return errJson("Respuesta inválida del backend", 502);
+    return errJson("Respuesta inesperada del servidor. Reintenta.", 502);
   }
 }
 
 export async function POST(request: Request) {
   const session = getSessionFromRequest(request);
-  if (!session) return errJson("No autenticado", 401);
+  if (!session) return errJson("Tu sesión expiró. Vuelve a iniciar sesión.", 401);
 
   let body: { usuario?: unknown; password?: unknown };
   try {
     body = (await request.json()) as { usuario?: unknown; password?: unknown };
   } catch {
-    return errJson("JSON inválido", 400);
+    return errJson("Datos inválidos. Verifica los campos e intenta de nuevo.", 400);
   }
 
   const usuario = String(body.usuario || "").trim();
@@ -93,7 +93,7 @@ export async function POST(request: Request) {
     authHeader = signBackendRequest(session.distribuidor_id);
   } catch (e) {
     console.error("[api/tenant/credentials] sign error", e);
-    return errJson("Servicio no disponible", 500);
+    return errJson("Estamos realizando tareas de mantenimiento. Intenta en unos minutos.", 500);
   }
 
   let upstream: Response;
@@ -110,19 +110,19 @@ export async function POST(request: Request) {
     });
   } catch (e) {
     console.error("[api/tenant/credentials] backend POST error", e);
-    return errJson("Backend no disponible", 502);
+    return errJson("No pudimos cargar tus datos. Reintenta en unos segundos.", 502);
   }
 
   if (upstream.status === 401 || upstream.status === 403) {
-    return errJson("No autorizado", 403);
+    return errJson("No tienes acceso a este recurso.", 403);
   }
-  if (upstream.status >= 500) return errJson("Backend no disponible", 502);
+  if (upstream.status >= 500) return errJson("No pudimos cargar tus datos. Reintenta en unos segundos.", 502);
   if (!upstream.ok) {
     try {
       const data = (await upstream.json()) as { error?: string };
-      return errJson(data.error || "Error en backend", upstream.status);
+      return errJson(data.error || "Algo salió mal. Reintenta o contacta a soporte.", upstream.status);
     } catch {
-      return errJson("Error en backend", upstream.status);
+      return errJson("Algo salió mal. Reintenta o contacta a soporte.", upstream.status);
     }
   }
 

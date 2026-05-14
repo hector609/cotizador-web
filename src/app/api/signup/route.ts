@@ -78,7 +78,7 @@ export async function POST(request: Request) {
   try {
     body = (await request.json()) as SignupBody;
   } catch {
-    return errJson("JSON inválido", 400);
+    return errJson("Datos inválidos. Verifica los campos e intenta de nuevo.", 400);
   }
 
   const result = validate(body);

@@ -343,7 +343,7 @@ async function llmEnrich(
 export async function POST(request: Request) {
   const session = getSessionFromRequest(request);
   if (!session) {
-    return new Response(JSON.stringify({ error: "No autenticado" }), {
+    return new Response(JSON.stringify({ error: "Tu sesión expiró. Vuelve a iniciar sesión." }), {
       status: 401,
       headers: { "Content-Type": "application/json" },
     });
@@ -368,7 +368,7 @@ export async function POST(request: Request) {
   try {
     body = (await request.json()) as SuggestionsRequestBody;
   } catch {
-    return new Response(JSON.stringify({ error: "JSON inválido" }), {
+    return new Response(JSON.stringify({ error: "Datos inválidos. Verifica los campos e intenta de nuevo." }), {
       status: 400,
       headers: { "Content-Type": "application/json" },
     });

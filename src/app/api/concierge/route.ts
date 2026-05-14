@@ -123,7 +123,7 @@ export async function POST(request: Request) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     console.error("[concierge] ANTHROPIC_API_KEY no configurada");
-    return errJson("Servicio no disponible", 503);
+    return errJson("Estamos realizando tareas de mantenimiento. Intenta en unos minutos.", 503);
   }
 
   // 1. Rate limit por IP (Vercel KV, fail-open si no configurado).
@@ -138,7 +138,7 @@ export async function POST(request: Request) {
   try {
     body = (await request.json()) as RequestBody;
   } catch {
-    return errJson("JSON inválido", 400);
+    return errJson("Datos inválidos. Verifica los campos e intenta de nuevo.", 400);
   }
 
   if (!Array.isArray(body.messages) || body.messages.length === 0) {

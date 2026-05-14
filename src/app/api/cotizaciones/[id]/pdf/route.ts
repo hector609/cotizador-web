@@ -48,14 +48,14 @@ export async function GET(
   const formato = FORMATO_VALIDOS.has(formatoRaw) ? formatoRaw : "cliente";
 
   const session = getSessionFromRequest(request);
-  if (!session) return errJson("No autenticado", 401);
+  if (!session) return errJson("Tu sesión expiró. Vuelve a iniciar sesión.", 401);
 
   let authHeader: { "X-Auth": string };
   try {
     authHeader = signBackendRequest(session.distribuidor_id);
   } catch (e) {
     console.error("[api/cotizaciones/[id]/pdf GET] sign error", e);
-    return errJson("Servicio no disponible", 500);
+    return errJson("Estamos realizando tareas de mantenimiento. Intenta en unos minutos.", 500);
   }
 
   const upstreamUrl = `${BOT_API_URL}/api/v1/cotizaciones/${encodeURIComponent(
@@ -74,11 +74,11 @@ export async function GET(
     });
   } catch (e) {
     console.error("[api/cotizaciones/[id]/pdf GET] backend fetch error", e);
-    return errJson("Backend no disponible", 502);
+    return errJson("No pudimos cargar tus datos. Reintenta en unos segundos.", 502);
   }
 
   if (upstream.status === 401 || upstream.status === 403) {
-    return errJson("No autorizado", 403);
+    return errJson("No tienes acceso a este recurso.", 403);
   }
   if (upstream.status === 404) {
     // 404 puede ser: job inexistente, archivo no en disco, formato no
@@ -107,8 +107,8 @@ export async function GET(
     }
     return errJson(msg, 409);
   }
-  if (upstream.status >= 500) return errJson("Backend no disponible", 502);
-  if (!upstream.ok) return errJson("Error en backend", 502);
+  if (upstream.status >= 500) return errJson("No pudimos cargar tus datos. Reintenta en unos segundos.", 502);
+  if (!upstream.ok) return errJson("Algo salió mal. Reintenta o contacta a soporte.", 502);
 
   // Stream pass-through: NO `.arrayBuffer()` ni `.blob()` — el body se
   // reenvía como ReadableStream. Para archivos grandes esto evita inflar

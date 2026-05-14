@@ -37,14 +37,14 @@ export async function POST(req: NextRequest) {
 
   const session = getSessionFromRequest(req);
   if (!session) {
-    return NextResponse.json({ error: "No autenticado" }, { status: 401 });
+    return NextResponse.json({ error: "Tu sesión expiró. Vuelve a iniciar sesión." }, { status: 401 });
   }
 
   let body: { plan_id?: string };
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
+    return NextResponse.json({ error: "Datos inválidos. Verifica los campos e intenta de nuevo." }, { status: 400 });
   }
 
   const { plan_id } = body;

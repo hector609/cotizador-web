@@ -66,13 +66,13 @@ interface OptimizarRequestBody {
 
 export async function POST(request: Request) {
   const session = getSessionFromRequest(request);
-  if (!session) return errJson("No autenticado", 401);
+  if (!session) return errJson("Tu sesión expiró. Vuelve a iniciar sesión.", 401);
 
   let body: OptimizarRequestBody;
   try {
     body = (await request.json()) as OptimizarRequestBody;
   } catch {
-    return errJson("JSON inválido", 400);
+    return errJson("Datos inválidos. Verifica los campos e intenta de nuevo.", 400);
   }
 
   // Validación ligera client-side antes de gastar el RTT al backend.
@@ -97,7 +97,7 @@ export async function POST(request: Request) {
     authHeader = signBackendRequest(session.distribuidor_id);
   } catch (e) {
     console.error("[api/optimizar] sign error", e);
-    return errJson("Servicio no disponible", 500);
+    return errJson("Estamos realizando tareas de mantenimiento. Intenta en unos minutos.", 500);
   }
 
   const ctrl = new AbortController();
@@ -133,13 +133,13 @@ export async function POST(request: Request) {
       return errJson("Timeout — el optimizador tardó demasiado", 504);
     }
     console.error("[api/optimizar] backend fetch error", e);
-    return errJson("Backend no disponible", 502);
+    return errJson("No pudimos cargar tus datos. Reintenta en unos segundos.", 502);
   } finally {
     clearTimeout(timer);
   }
 
   if (upstream.status === 401 || upstream.status === 403) {
-    return errJson("No autorizado", 403);
+    return errJson("No tienes acceso a este recurso.", 403);
   }
   if (upstream.status === 503) {
     // Claude no disponible upstream — fallback graceful para la UI.
@@ -169,14 +169,14 @@ export async function POST(request: Request) {
     }
     return errJson(msg, 400);
   }
-  if (upstream.status >= 500) return errJson("Backend no disponible", 502);
-  if (!upstream.ok) return errJson("Error en backend", 502);
+  if (upstream.status >= 500) return errJson("No pudimos cargar tus datos. Reintenta en unos segundos.", 502);
+  if (!upstream.ok) return errJson("Algo salió mal. Reintenta o contacta a soporte.", 502);
 
   try {
     const data = await upstream.json();
     return NextResponse.json(data, { status: 200 });
   } catch (e) {
     console.error("[api/optimizar] json parse", e);
-    return errJson("Respuesta inválida del backend", 502);
+    return errJson("Respuesta inesperada del servidor. Reintenta.", 502);
   }
 }

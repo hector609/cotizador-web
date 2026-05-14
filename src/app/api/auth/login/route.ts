@@ -40,7 +40,7 @@ export async function POST(request: Request) {
   try {
     body = await request.json();
   } catch {
-    return errJson("JSON inválido", 400);
+    return errJson("Datos inválidos. Verifica los campos e intenta de nuevo.", 400);
   }
 
   const email = (body.email || "").trim();
@@ -57,7 +57,7 @@ export async function POST(request: Request) {
   const botApiUrl = process.env.BOT_API_URL;
   if (!botApiUrl) {
     console.error("[auth/login] BOT_API_URL no configurado");
-    return errJson("Servicio no disponible", 503);
+    return errJson("Estamos realizando tareas de mantenimiento. Intenta en unos minutos.", 503);
   }
 
   let upstream: Response;
@@ -141,7 +141,7 @@ export async function POST(request: Request) {
     sessionSecret = getSessionSecret();
   } catch (e) {
     console.error("[auth/login] SESSION_SECRET no configurado", e);
-    return errJson("Servicio no disponible", 503);
+    return errJson("Estamos realizando tareas de mantenimiento. Intenta en unos minutos.", 503);
   }
 
   const now = Math.floor(Date.now() / 1000);

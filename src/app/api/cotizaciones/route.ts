@@ -62,14 +62,14 @@ const errJson = (msg: string, status: number) =>
 
 export async function GET(request: Request) {
   const session = getSessionFromRequest(request);
-  if (!session) return errJson("No autenticado", 401);
+  if (!session) return errJson("Tu sesión expiró. Vuelve a iniciar sesión.", 401);
 
   let authHeader: { "X-Auth": string };
   try {
     authHeader = signBackendRequest(session.distribuidor_id);
   } catch (e) {
     console.error("[api/cotizaciones GET] sign error", e);
-    return errJson("Servicio no disponible", 500);
+    return errJson("Estamos realizando tareas de mantenimiento. Intenta en unos minutos.", 500);
   }
 
   // Whitelist de query params al upstream (NUNCA pasar tenant_id).
@@ -97,7 +97,7 @@ export async function GET(request: Request) {
     });
   } catch (e) {
     console.error("[api/cotizaciones GET] backend fetch error", e);
-    return errJson("Backend no disponible", 502);
+    return errJson("No pudimos cargar tus datos. Reintenta en unos segundos.", 502);
   }
 
   if (upstream.status === 404) {
@@ -110,10 +110,10 @@ export async function GET(request: Request) {
     return NextResponse.json(empty, { status: 200 });
   }
   if (upstream.status === 401 || upstream.status === 403) {
-    return errJson("No autorizado", 403);
+    return errJson("No tienes acceso a este recurso.", 403);
   }
-  if (upstream.status >= 500) return errJson("Backend no disponible", 502);
-  if (!upstream.ok) return errJson("Error en backend", 502);
+  if (upstream.status >= 500) return errJson("No pudimos cargar tus datos. Reintenta en unos segundos.", 502);
+  if (!upstream.ok) return errJson("Algo salió mal. Reintenta o contacta a soporte.", 502);
 
   try {
     const data = (await upstream.json()) as ListarCotizacionesResponse;
@@ -133,13 +133,13 @@ export async function GET(request: Request) {
     return NextResponse.json(rewritten, { status: 200 });
   } catch (e) {
     console.error("[api/cotizaciones GET] json parse", e);
-    return errJson("Respuesta inválida del backend", 502);
+    return errJson("Respuesta inesperada del servidor. Reintenta.", 502);
   }
 }
 
 export async function POST(request: Request) {
   const session = getSessionFromRequest(request);
-  if (!session) return errJson("No autenticado", 401);
+  if (!session) return errJson("Tu sesión expiró. Vuelve a iniciar sesión.", 401);
 
   // F9: dedup por Idempotency-Key + distribuidor_id. Si el frontend manda
   // el mismo key dos veces (doble-click) devolvemos la respuesta cacheada
@@ -168,7 +168,7 @@ export async function POST(request: Request) {
   try {
     body = (await request.json()) as CrearCotizacionInput;
   } catch {
-    return errJson("JSON inválido", 400);
+    return errJson("Datos inválidos. Verifica los campos e intenta de nuevo.", 400);
   }
 
   // Validación server-side defensiva (la UI ya valida, pero NO se puede
@@ -282,7 +282,7 @@ export async function POST(request: Request) {
     authHeader = signBackendRequest(session.distribuidor_id);
   } catch (e) {
     console.error("[api/cotizaciones POST] sign error", e);
-    return errJson("Servicio no disponible", 500);
+    return errJson("Estamos realizando tareas de mantenimiento. Intenta en unos minutos.", 500);
   }
 
   let upstream: Response;
@@ -298,15 +298,15 @@ export async function POST(request: Request) {
     });
   } catch (e) {
     console.error("[api/cotizaciones POST] backend fetch error", e);
-    return errJson("Backend no disponible", 502);
+    return errJson("No pudimos cargar tus datos. Reintenta en unos segundos.", 502);
   }
 
   if (upstream.status === 401 || upstream.status === 403) {
-    return errJson("No autorizado", 403);
+    return errJson("No tienes acceso a este recurso.", 403);
   }
   if (upstream.status === 400 || upstream.status === 422) {
     // Pasar mensaje del backend SOLO si es string seguro (no stacktrace).
-    let msg = "Datos inválidos";
+    let msg = "Los datos no son válidos. Verifica los campos.";
     try {
       const data = await upstream.json();
       if (typeof data?.error === "string" && data.error.length < 200) {
@@ -317,15 +317,15 @@ export async function POST(request: Request) {
     }
     return errJson(msg, 400);
   }
-  if (upstream.status >= 500) return errJson("Backend no disponible", 502);
-  if (!upstream.ok) return errJson("Error en backend", 502);
+  if (upstream.status >= 500) return errJson("No pudimos cargar tus datos. Reintenta en unos segundos.", 502);
+  if (!upstream.ok) return errJson("Algo salió mal. Reintenta o contacta a soporte.", 502);
 
   let data: CrearCotizacionResponse;
   try {
     data = (await upstream.json()) as CrearCotizacionResponse;
   } catch (e) {
     console.error("[api/cotizaciones POST] json parse", e);
-    return errJson("Respuesta inválida del backend", 502);
+    return errJson("Respuesta inesperada del servidor. Reintenta.", 502);
   }
 
   // F9: cachear la respuesta exitosa para deduplicar reintentos del mismo key.

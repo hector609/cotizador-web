@@ -37,13 +37,13 @@ interface ChatRequestBody {
 
 export async function POST(request: Request) {
   const session = getSessionFromRequest(request);
-  if (!session) return errJson("No autenticado", 401);
+  if (!session) return errJson("Tu sesión expiró. Vuelve a iniciar sesión.", 401);
 
   let body: ChatRequestBody;
   try {
     body = (await request.json()) as ChatRequestBody;
   } catch {
-    return errJson("JSON inválido", 400);
+    return errJson("Datos inválidos. Verifica los campos e intenta de nuevo.", 400);
   }
 
   const message =
@@ -64,7 +64,7 @@ export async function POST(request: Request) {
     authHeader = signBackendRequest(session.distribuidor_id);
   } catch (e) {
     console.error("[api/chat/cotizar] sign error", e);
-    return errJson("Servicio no disponible", 500);
+    return errJson("Estamos realizando tareas de mantenimiento. Intenta en unos minutos.", 500);
   }
 
   const upstreamBody: Record<string, unknown> = { message };
@@ -84,7 +84,7 @@ export async function POST(request: Request) {
     });
   } catch (e) {
     console.error("[api/chat/cotizar] backend fetch error", e);
-    return errJson("Backend no disponible", 502);
+    return errJson("No pudimos cargar tus datos. Reintenta en unos segundos.", 502);
   }
 
   // Parsear JSON una sola vez; muchos status codes traen body informativo.
@@ -96,7 +96,7 @@ export async function POST(request: Request) {
   }
 
   if (upstream.status === 401 || upstream.status === 403) {
-    return errJson("No autorizado", 403);
+    return errJson("No tienes acceso a este recurso.", 403);
   }
   if (upstream.status === 429) {
     const retryAfter =
@@ -108,7 +108,7 @@ export async function POST(request: Request) {
   if (upstream.status === 503) {
     return errJson("agent_unavailable", 503);
   }
-  if (upstream.status >= 500) return errJson("Backend no disponible", 502);
+  if (upstream.status >= 500) return errJson("No pudimos cargar tus datos. Reintenta en unos segundos.", 502);
 
   // 200 (ask | validation_error) y 202 (started) pasan tal cual.
   if (upstream.status === 200 || upstream.status === 202) {
@@ -122,5 +122,5 @@ export async function POST(request: Request) {
     }
     return errJson(msg, 400);
   }
-  return errJson("Error en backend", 502);
+  return errJson("Algo salió mal. Reintenta o contacta a soporte.", 502);
 }
