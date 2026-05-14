@@ -33,6 +33,7 @@ import {
   LifeBuoy,
   ChevronsUpDown,
   Download,
+  Link2,
 } from "lucide-react";
 
 export type SidebarKey =
@@ -41,7 +42,8 @@ export type SidebarKey =
   | "historial"
   | "clientes"
   | "catalogos"
-  | "optimizar";
+  | "optimizar"
+  | "mis-links";
 
 interface SidebarLink {
   key: SidebarKey | string;
@@ -92,6 +94,13 @@ const SECONDARY_LINKS: SidebarLink[] = [
     href: "/dashboard/cotizar-excel",
     label: "Importar Excel",
     Icon: Upload,
+  },
+  {
+    key: "mis-links",
+    href: "/dashboard/mis-links",
+    label: "Mis links",
+    Icon: Link2,
+    badge: "G-1",
   },
 ];
 
