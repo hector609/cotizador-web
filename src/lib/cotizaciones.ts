@@ -54,7 +54,7 @@ const BACKEND_PDF_PATH_RE =
 const BACKEND_SCREENSHOT_PATH_RE =
   /^\/api\/v1\/cotizaciones\/([A-Za-z0-9_-]{1,64})\/screenshot$/;
 
-function rewritePdfUrl(
+export function rewritePdfUrl(
   raw: unknown,
   cotId: string,
   defaultFormato: "cliente" | "interno"
