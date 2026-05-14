@@ -1,0 +1,66 @@
+name: Build APK Android
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'App version (e.g., 1.0.0)'
+        required: false
+        default: '1.0.0'
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v2
+        with:
+          api-levels: 33
+          build-tools-version: 34.0.0
+          
+      - name: Create Gradle wrapper
+        run: |
+          mkdir -p android
+          cd android
+          cat > build.gradle << 'GRADLE_EOF'
+          android {
+              compileSdkVersion 33
+              defaultConfig {
+                  applicationId "mx.hectoria.cotizador"
+                  minSdkVersion 21
+                  targetSdkVersion 33
+                  versionCode ${{ github.run_number }}
+                  versionName "${{ github.event.inputs.version }}"
+              }
+              buildTypes {
+                  release {
+                      signingConfig signingConfigs.debug
+                  }
+              }
+          }
+          GRADLE_EOF
+          
+      - name: Build APK
+        run: |
+          echo "PWA-based APK build script"
+          echo "Manifest: https://cotizador.hectoria.mx/manifest.json"
+          echo "Package: mx.hectoria.cotizador"
+          echo "Version: ${{ github.event.inputs.version }}"
+          # Placeholder: actual build requeriría Gradle + manifest conversion
+          
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: cotizador-apk
+          path: '**/*.apk'
+          retention-days: 30
