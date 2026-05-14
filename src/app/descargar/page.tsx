@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Smartphone, Download, ShieldCheck, AlertTriangle } from "lucide-react";
+import { Smartphone, Download, ShieldCheck, AlertTriangle, BookOpen } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Descargar Cotizador para Android · Hectoria",
@@ -107,6 +107,41 @@ export default function DescargarPage() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* ── Manuales PDF ── */}
+        <div className="mt-10 rounded-3xl border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/50">
+          <div className="mb-5 flex items-center gap-3">
+            <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-cyan-500 text-white shadow-md">
+              <BookOpen className="h-5 w-5" />
+            </span>
+            <div>
+              <h2 className="text-lg font-black tracking-tight text-slate-900">Manuales (PDF)</h2>
+              <p className="text-xs text-slate-500">Guías premium para vendedores y distribuidores piloto</p>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <a
+              href="/manual-telegram.pdf"
+              download
+              className="group flex flex-1 items-center justify-center gap-3 rounded-2xl border-2 border-indigo-500 px-5 py-3 text-sm font-bold text-indigo-600 transition-all hover:bg-indigo-50 hover:shadow-md"
+            >
+              <Download className="h-4 w-4 group-hover:translate-y-0.5 transition-transform" />
+              Manual Bot Telegram
+            </a>
+            <a
+              href="/manual-web.pdf"
+              download
+              className="group flex flex-1 items-center justify-center gap-3 rounded-2xl border-2 border-cyan-500 px-5 py-3 text-sm font-bold text-cyan-600 transition-all hover:bg-cyan-50 hover:shadow-md"
+            >
+              <Download className="h-4 w-4 group-hover:translate-y-0.5 transition-transform" />
+              Manual Plataforma Web
+            </a>
+          </div>
+          <p className="mt-3 text-center text-xs text-slate-500">
+            Formato Letter · ~2 MB cada uno · 10–12 páginas
+          </p>
         </div>
 
         <div className="mt-10 text-center text-sm text-slate-500">

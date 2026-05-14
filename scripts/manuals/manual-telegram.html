@@ -1,0 +1,1249 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Manual del Bot Telegram — Cotizador Telcel</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  @page { size: Letter; margin: 15mm 12mm; }
+
+  body {
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    font-size: 11pt;
+    line-height: 1.6;
+    color: #0F172A;
+    background: #fff;
+  }
+
+  .page-break { page-break-after: always; break-after: page; }
+  .avoid-break { page-break-inside: avoid; break-inside: avoid; }
+
+  /* ─── PORTADA ─── */
+  .cover {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #4F46E5 0%, #06B6D4 100%);
+    padding: 40pt 30pt;
+    text-align: center;
+    color: #fff;
+  }
+  .cover-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6pt;
+    background: rgba(255,255,255,0.18);
+    border: 1px solid rgba(255,255,255,0.35);
+    border-radius: 100px;
+    padding: 5pt 14pt;
+    font-size: 9pt;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-bottom: 28pt;
+  }
+  .cover-icon {
+    width: 72pt;
+    height: 72pt;
+    background: rgba(255,255,255,0.15);
+    border: 2px solid rgba(255,255,255,0.4);
+    border-radius: 20pt;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 24pt;
+    font-size: 36pt;
+  }
+  .cover h1 {
+    font-size: 32pt;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    margin-bottom: 12pt;
+  }
+  .cover-sub {
+    font-size: 14pt;
+    font-weight: 500;
+    opacity: 0.88;
+    max-width: 340pt;
+    margin: 0 auto 32pt;
+  }
+  .cover-divider {
+    width: 60pt;
+    height: 3pt;
+    background: rgba(255,255,255,0.5);
+    border-radius: 2pt;
+    margin: 0 auto 28pt;
+  }
+  .cover-meta {
+    font-size: 9pt;
+    opacity: 0.75;
+    line-height: 1.8;
+  }
+  .cover-stats {
+    display: flex;
+    gap: 28pt;
+    justify-content: center;
+    margin-top: 36pt;
+  }
+  .cover-stat {
+    text-align: center;
+  }
+  .cover-stat-num {
+    font-size: 22pt;
+    font-weight: 900;
+    display: block;
+  }
+  .cover-stat-label {
+    font-size: 8pt;
+    opacity: 0.75;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  /* ─── LAYOUT GENERAL ─── */
+  .page {
+    padding: 8pt 0 24pt;
+  }
+
+  /* ─── HEADER DE SECCIÓN ─── */
+  .section-header {
+    background: linear-gradient(135deg, #4F46E5 0%, #06B6D4 100%);
+    border-radius: 12pt;
+    padding: 16pt 20pt;
+    color: #fff;
+    margin-bottom: 18pt;
+    display: flex;
+    align-items: center;
+    gap: 14pt;
+  }
+  .section-num {
+    width: 36pt;
+    height: 36pt;
+    background: rgba(255,255,255,0.2);
+    border: 2px solid rgba(255,255,255,0.4);
+    border-radius: 10pt;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16pt;
+    font-weight: 900;
+    flex-shrink: 0;
+  }
+  .section-header-text h2 {
+    font-size: 15pt;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+  .section-header-text p {
+    font-size: 9pt;
+    opacity: 0.85;
+    margin-top: 2pt;
+  }
+
+  /* ─── CONTENIDO ─── */
+  .content { padding: 0 4pt; }
+
+  p { margin-bottom: 10pt; color: #334155; }
+
+  h3 {
+    font-size: 12pt;
+    font-weight: 800;
+    color: #0F172A;
+    margin: 14pt 0 6pt;
+    letter-spacing: -0.01em;
+  }
+
+  ul, ol {
+    margin: 6pt 0 12pt 14pt;
+    color: #334155;
+  }
+  li { margin-bottom: 5pt; }
+  li strong { color: #0F172A; }
+
+  /* ─── CALLOUTS ─── */
+  .callout {
+    border-radius: 10pt;
+    padding: 10pt 14pt;
+    margin: 12pt 0;
+    display: flex;
+    gap: 10pt;
+    align-items: flex-start;
+  }
+  .callout-icon {
+    font-size: 13pt;
+    flex-shrink: 0;
+    margin-top: 1pt;
+  }
+  .callout-body { flex: 1; }
+  .callout-title {
+    font-size: 9pt;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 3pt;
+  }
+  .callout-text {
+    font-size: 9.5pt;
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  .callout-tip {
+    background: #EFF6FF;
+    border: 1px solid #BFDBFE;
+  }
+  .callout-tip .callout-title { color: #1D4ED8; }
+  .callout-tip .callout-text { color: #1E40AF; }
+
+  .callout-important {
+    background: #FFF7ED;
+    border: 1px solid #FED7AA;
+  }
+  .callout-important .callout-title { color: #C2410C; }
+  .callout-important .callout-text { color: #9A3412; }
+
+  .callout-atajo {
+    background: #F0FDF4;
+    border: 1px solid #BBF7D0;
+  }
+  .callout-atajo .callout-title { color: #15803D; }
+  .callout-atajo .callout-text { color: #166534; }
+
+  .callout-warning {
+    background: #FFF1F2;
+    border: 1px solid #FECDD3;
+  }
+  .callout-warning .callout-title { color: #BE123C; }
+  .callout-warning .callout-text { color: #9F1239; }
+
+  /* ─── MOCKUP TELEGRAM ─── */
+  .telegram-mock {
+    background: #E5DDD5;
+    border-radius: 12pt;
+    padding: 14pt 12pt;
+    margin: 12pt 0;
+    font-family: system-ui, sans-serif;
+  }
+  .tg-header {
+    background: #4F46E5;
+    border-radius: 8pt 8pt 0 0;
+    margin: -14pt -12pt 10pt;
+    padding: 8pt 12pt;
+    display: flex;
+    align-items: center;
+    gap: 8pt;
+    color: #fff;
+  }
+  .tg-avatar {
+    width: 28pt;
+    height: 28pt;
+    background: linear-gradient(135deg, #06B6D4, #4F46E5);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13pt;
+    flex-shrink: 0;
+  }
+  .tg-name { font-size: 9.5pt; font-weight: 700; }
+  .tg-status { font-size: 7.5pt; opacity: 0.8; }
+
+  .bubble-row { display: flex; margin-bottom: 6pt; }
+  .bubble-row.user { justify-content: flex-end; }
+  .bubble-row.bot { justify-content: flex-start; }
+
+  .bubble {
+    max-width: 75%;
+    padding: 6pt 9pt;
+    border-radius: 10pt;
+    font-size: 8.5pt;
+    line-height: 1.45;
+  }
+  .bubble.user {
+    background: #DCF8C6;
+    color: #0F172A;
+    border-bottom-right-radius: 3pt;
+  }
+  .bubble.bot {
+    background: #fff;
+    color: #0F172A;
+    border-bottom-left-radius: 3pt;
+    box-shadow: 0 1pt 1pt rgba(0,0,0,0.08);
+  }
+  .bubble-time {
+    font-size: 6.5pt;
+    color: #94A3B8;
+    text-align: right;
+    margin-top: 2pt;
+  }
+  .bubble strong { color: #4F46E5; }
+  .bubble .verdict-row {
+    display: flex;
+    gap: 6pt;
+    margin-top: 4pt;
+    flex-wrap: wrap;
+  }
+  .verdict-chip {
+    background: linear-gradient(135deg, #4F46E5, #06B6D4);
+    color: #fff;
+    padding: 2pt 7pt;
+    border-radius: 100px;
+    font-size: 7pt;
+    font-weight: 700;
+  }
+  .verdict-chip.green { background: linear-gradient(135deg, #10B981, #06B6D4); }
+  .verdict-chip.pink { background: linear-gradient(135deg, #EC4899, #8B5CF6); }
+
+  /* ─── COMANDOS TABLE ─── */
+  .cmd-list { list-style: none; margin: 0 0 12pt; }
+  .cmd-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10pt;
+    padding: 7pt 10pt;
+    border-radius: 8pt;
+    margin-bottom: 5pt;
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+  }
+  .cmd-tag {
+    background: linear-gradient(135deg, #4F46E5, #06B6D4);
+    color: #fff;
+    padding: 2pt 8pt;
+    border-radius: 6pt;
+    font-size: 8.5pt;
+    font-weight: 700;
+    white-space: nowrap;
+    flex-shrink: 0;
+    font-family: 'Courier New', monospace;
+  }
+  .cmd-desc {
+    font-size: 9pt;
+    color: #334155;
+    line-height: 1.4;
+  }
+  .cmd-desc strong { color: #0F172A; font-weight: 700; }
+
+  /* ─── VEREDICTO CARD ─── */
+  .verdict-card {
+    background: linear-gradient(135deg, #EDE9FE 0%, #E0F2FE 100%);
+    border: 1px solid #C4B5FD;
+    border-radius: 12pt;
+    padding: 14pt 16pt;
+    margin: 10pt 0;
+  }
+  .verdict-card-title {
+    font-size: 10pt;
+    font-weight: 800;
+    color: #4F46E5;
+    margin-bottom: 8pt;
+    letter-spacing: -0.01em;
+  }
+  .verdict-row-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8pt;
+  }
+  .verdict-kpi {
+    background: #fff;
+    border-radius: 8pt;
+    padding: 8pt 10pt;
+    border: 1px solid #E2E8F0;
+  }
+  .verdict-kpi-label {
+    font-size: 7.5pt;
+    color: #64748B;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 600;
+  }
+  .verdict-kpi-value {
+    font-size: 12pt;
+    font-weight: 900;
+    color: #0F172A;
+    letter-spacing: -0.02em;
+  }
+  .verdict-kpi-value.good { color: #10B981; }
+  .verdict-kpi-value.warn { color: #F59E0B; }
+
+  /* ─── PASOS ─── */
+  .steps { list-style: none; margin: 0 0 12pt; }
+  .step {
+    display: flex;
+    gap: 12pt;
+    margin-bottom: 10pt;
+    align-items: flex-start;
+  }
+  .step-num {
+    width: 22pt;
+    height: 22pt;
+    background: linear-gradient(135deg, #4F46E5, #06B6D4);
+    color: #fff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9pt;
+    font-weight: 800;
+    flex-shrink: 0;
+    margin-top: 1pt;
+  }
+  .step-body { flex: 1; }
+  .step-title { font-size: 10pt; font-weight: 700; color: #0F172A; }
+  .step-desc { font-size: 9pt; color: #475569; margin-top: 2pt; line-height: 1.45; }
+
+  /* ─── TROUBLESHOOT ─── */
+  .trouble-item {
+    border-radius: 10pt;
+    border: 1px solid #E2E8F0;
+    padding: 10pt 14pt;
+    margin-bottom: 8pt;
+    background: #F8FAFC;
+  }
+  .trouble-q {
+    font-size: 9.5pt;
+    font-weight: 700;
+    color: #BE123C;
+    margin-bottom: 4pt;
+  }
+  .trouble-a {
+    font-size: 9pt;
+    color: #334155;
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  /* ─── FOOTER ─── */
+  .footer {
+    margin-top: 20pt;
+    padding-top: 12pt;
+    border-top: 1px solid #E2E8F0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12pt;
+  }
+  .footer-left { font-size: 8pt; color: #94A3B8; line-height: 1.6; }
+  .footer-qr {
+    width: 50pt;
+    height: 50pt;
+    border: 2px solid #C4B5FD;
+    border-radius: 8pt;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    text-align: center;
+    padding: 4pt;
+    flex-shrink: 0;
+  }
+  .footer-qr-label { font-size: 5.5pt; color: #8B5CF6; font-weight: 600; }
+  .footer-qr-url { font-size: 5pt; color: #64748B; margin-top: 2pt; word-break: break-all; }
+
+  /* ─── PORTADA CIERRE ─── */
+  .cta-block {
+    background: linear-gradient(135deg, #4F46E5 0%, #06B6D4 100%);
+    border-radius: 14pt;
+    padding: 24pt;
+    text-align: center;
+    color: #fff;
+    margin: 16pt 0;
+  }
+  .cta-block h2 {
+    font-size: 18pt;
+    font-weight: 900;
+    margin-bottom: 8pt;
+    letter-spacing: -0.02em;
+  }
+  .cta-block p { color: rgba(255,255,255,0.85); font-size: 10pt; margin-bottom: 0; }
+
+  .inline-code {
+    background: #F1F5F9;
+    border: 1px solid #E2E8F0;
+    border-radius: 4pt;
+    padding: 1pt 5pt;
+    font-family: 'Courier New', monospace;
+    font-size: 9pt;
+    color: #4F46E5;
+  }
+
+  .highlight-box {
+    background: linear-gradient(135deg, #F0F9FF 0%, #EDE9FE 100%);
+    border: 1px solid #C4B5FD;
+    border-radius: 10pt;
+    padding: 12pt 16pt;
+    margin: 10pt 0;
+  }
+  .highlight-box p { color: #1E1B4B; margin: 0; font-size: 9.5pt; }
+
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10pt;
+    margin: 10pt 0;
+  }
+  .mini-card {
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-radius: 9pt;
+    padding: 10pt 12pt;
+  }
+  .mini-card-title {
+    font-size: 9pt;
+    font-weight: 700;
+    color: #4F46E5;
+    margin-bottom: 4pt;
+  }
+  .mini-card p { font-size: 8.5pt; color: #475569; margin: 0; line-height: 1.45; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════
+     PORTADA
+═══════════════════════════════════════════════ -->
+<div class="cover">
+  <div class="cover-badge">📱 Bot Telegram · Guía oficial</div>
+  <div class="cover-icon">✈️</div>
+  <h1>Cotizador Telcel<br>Manual del Bot Telegram</h1>
+  <p class="cover-sub">Cotiza en 60 segundos sin abrir el portal Telcel. Tu asistente siempre disponible en @CMdemobot.</p>
+  <div class="cover-divider"></div>
+  <p class="cover-meta">
+    Versión 1.0 · Mayo 2026<br>
+    Distribuidores piloto — Uso interno<br>
+    <strong>soporte@hectoria.mx</strong>
+  </p>
+  <div class="cover-stats">
+    <div class="cover-stat">
+      <span class="cover-stat-num">60s</span>
+      <span class="cover-stat-label">Por cotización</span>
+    </div>
+    <div class="cover-stat">
+      <span class="cover-stat-num">928</span>
+      <span class="cover-stat-label">Equipos</span>
+    </div>
+    <div class="cover-stat">
+      <span class="cover-stat-num">1,584</span>
+      <span class="cover-stat-label">Planes</span>
+    </div>
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- ═══════════════════════════════════════════════
+     POR QUÉ TELEGRAM
+═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-header">
+    <div class="section-num">★</div>
+    <div class="section-header-text">
+      <h2>¿Por qué usar el Bot en Telegram?</h2>
+      <p>Ventajas frente al portal Telcel y otras opciones</p>
+    </div>
+  </div>
+
+  <div class="content">
+    <p>El portal B2B de Telcel es lento, requiere VPN, y tarda entre 3 y 7 minutos por cotización. <strong>@CMdemobot</strong> automatiza todo ese proceso y te devuelve el resultado en texto, listo para compartir con el cliente.</p>
+
+    <div class="two-col">
+      <div class="mini-card">
+        <div class="mini-card-title">⚡ Velocidad</div>
+        <p>60 segundos promedio por cotización completa. El bot abre el portal, llena los campos y regresa el resultado.</p>
+      </div>
+      <div class="mini-card">
+        <div class="mini-card-title">📲 Siempre contigo</div>
+        <p>Funciona en cualquier celular con Telegram. Sin VPN adicional, sin abrir navegador de escritorio.</p>
+      </div>
+      <div class="mini-card">
+        <div class="mini-card-title">🤖 Inteligente</div>
+        <p>Entiende lenguaje natural. Escríbelo como se lo dirías a un colega y el bot lo interpreta.</p>
+      </div>
+      <div class="mini-card">
+        <div class="mini-card-title">📊 Veredicto A/B</div>
+        <p>Cada cotización incluye análisis de rentabilidad, palancas de ajuste y comparativa de planes.</p>
+      </div>
+      <div class="mini-card">
+        <div class="mini-card-title">📁 Historial</div>
+        <p>Todas tus cotizaciones quedan guardadas. Consulta, reusa o descarga el PDF en cualquier momento.</p>
+      </div>
+      <div class="mini-card">
+        <div class="mini-card-title">👥 Multi-vendedor</div>
+        <p>Cada vendedor tiene su propio acceso. El administrador ve los KPIs de todo el equipo.</p>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-icon">💡</div>
+      <div class="callout-body">
+        <div class="callout-title">Tip</div>
+        <p class="callout-text">Telegram es gratuito y no requiere número de teléfono asociado a tu cuenta de trabajo. Descárgalo de <strong>telegram.org</strong> en tu celular o PC.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <strong>Cotizador Telcel · Bot Telegram</strong><br>
+      soporte@hectoria.mx · v1.0 2026
+    </div>
+    <div class="footer-qr">
+      <div class="footer-qr-label">QR</div>
+      <div class="footer-qr-url">cotizador.hectoria.mx</div>
+    </div>
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- ═══════════════════════════════════════════════
+     PASO 1 — INSTALACIÓN
+═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-header">
+    <div class="section-num">1</div>
+    <div class="section-header-text">
+      <h2>Instalar Telegram y abrir @CMdemobot</h2>
+      <p>Primer contacto con el bot — 2 minutos</p>
+    </div>
+  </div>
+
+  <div class="content">
+    <ul class="steps">
+      <li class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">Descarga Telegram</div>
+          <div class="step-desc">Ve a <strong>telegram.org</strong> o búscalo en App Store / Play Store. Es gratuito. Instálalo con tu número celular.</div>
+        </div>
+      </li>
+      <li class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">Busca @CMdemobot</div>
+          <div class="step-desc">En el buscador de Telegram escribe <span class="inline-code">@CMdemobot</span> y toca el resultado. Es el bot oficial del Cotizador Telcel.</div>
+        </div>
+      </li>
+      <li class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">Toca el botón /start</div>
+          <div class="step-desc">El bot te saludará y mostrará el menú de bienvenida. Si ves el botón azul <strong>Iniciar</strong>, tócalo primero.</div>
+        </div>
+      </li>
+    </ul>
+
+    <!-- Mockup pantalla inicio -->
+    <div class="telegram-mock">
+      <div class="tg-header">
+        <div class="tg-avatar">🤖</div>
+        <div>
+          <div class="tg-name">CMdemobot</div>
+          <div class="tg-status">en línea</div>
+        </div>
+      </div>
+
+      <div class="bubble-row bot">
+        <div class="bubble bot">
+          👋 <strong>¡Bienvenido al Cotizador Telcel!</strong><br><br>
+          Soy tu asistente para cotizaciones B2B.<br><br>
+          Usa <strong>/login</strong> para vincular tus credenciales Telcel y comenzar.
+          <div class="bubble-time">10:01</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-important">
+      <div class="callout-icon">⚠️</div>
+      <div class="callout-body">
+        <div class="callout-title">Importante</div>
+        <p class="callout-text">Si el bot no responde al /start, asegúrate de no tener bloqueados los bots en tu configuración de Telegram. Ve a Configuración → Privacidad → Mensajes de bots.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <strong>Cotizador Telcel · Bot Telegram</strong><br>
+      soporte@hectoria.mx · v1.0 2026
+    </div>
+    <div class="footer-qr">
+      <div class="footer-qr-label">QR</div>
+      <div class="footer-qr-url">cotizador.hectoria.mx</div>
+    </div>
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- ═══════════════════════════════════════════════
+     PASO 2 — LOGIN
+═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-header">
+    <div class="section-num">2</div>
+    <div class="section-header-text">
+      <h2>Vincular tus credenciales Telcel</h2>
+      <p>Login una sola vez — el bot recuerda tu sesión</p>
+    </div>
+  </div>
+
+  <div class="content">
+    <p>El bot necesita tus credenciales del <strong>Portal B2B Telcel</strong> (las mismas que usas en el portal web). Las almacena cifradas; nunca se comparten con terceros.</p>
+
+    <ul class="steps">
+      <li class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">Escribe /login</div>
+          <div class="step-desc">El bot te preguntará tu usuario y contraseña del portal Telcel B2B por separado.</div>
+        </div>
+      </li>
+      <li class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">Envía tu usuario</div>
+          <div class="step-desc">Generalmente es tu email corporativo Telcel o tu número de distribuidor. Escríbelo y envíalo.</div>
+        </div>
+      </li>
+      <li class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">Envía tu contraseña</div>
+          <div class="step-desc">El mensaje desaparece del historial por seguridad. El bot confirma el login con un ✅.</div>
+        </div>
+      </li>
+    </ul>
+
+    <div class="telegram-mock">
+      <div class="tg-header">
+        <div class="tg-avatar">🤖</div>
+        <div>
+          <div class="tg-name">CMdemobot</div>
+          <div class="tg-status">en línea</div>
+        </div>
+      </div>
+
+      <div class="bubble-row user">
+        <div class="bubble user">/login<div class="bubble-time">10:03</div></div>
+      </div>
+      <div class="bubble-row bot">
+        <div class="bubble bot">🔐 Envía tu <strong>usuario</strong> del portal Telcel B2B:<div class="bubble-time">10:03</div></div>
+      </div>
+      <div class="bubble-row user">
+        <div class="bubble user">vendedor@distribuidor.mx<div class="bubble-time">10:03</div></div>
+      </div>
+      <div class="bubble-row bot">
+        <div class="bubble bot">Ahora envía tu <strong>contraseña</strong>:<div class="bubble-time">10:03</div></div>
+      </div>
+      <div class="bubble-row bot">
+        <div class="bubble bot">✅ <strong>Sesión iniciada correctamente.</strong><br>Ya puedes cotizar con /cotizar<div class="bubble-time">10:04</div></div>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-icon">💡</div>
+      <div class="callout-body">
+        <div class="callout-title">Tip</div>
+        <p class="callout-text">El bot guarda tu sesión por 30 días. Solo necesitas repetir el /login si cambias tu contraseña Telcel o pasan más de 30 días de inactividad.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <strong>Cotizador Telcel · Bot Telegram</strong><br>
+      soporte@hectoria.mx · v1.0 2026
+    </div>
+    <div class="footer-qr">
+      <div class="footer-qr-label">QR</div>
+      <div class="footer-qr-url">cotizador.hectoria.mx</div>
+    </div>
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- ═══════════════════════════════════════════════
+     PASO 3 — COMANDOS ESENCIALES
+═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-header">
+    <div class="section-num">3</div>
+    <div class="section-header-text">
+      <h2>Comandos esenciales</h2>
+      <p>Todo lo que puedes hacer desde el chat</p>
+    </div>
+  </div>
+
+  <div class="content">
+    <ul class="cmd-list">
+      <li class="cmd-item">
+        <span class="cmd-tag">/cotizar</span>
+        <div class="cmd-desc"><strong>Cotización nueva.</strong> Puedes usarlo con parámetros directos o dejar que el bot te guíe paso a paso.</div>
+      </li>
+      <li class="cmd-item">
+        <span class="cmd-tag">/historial</span>
+        <div class="cmd-desc"><strong>Tus cotizaciones previas.</strong> Muestra las últimas 10 con folio, fecha, cliente y monto. Toca una para ver el detalle.</div>
+      </li>
+      <li class="cmd-item">
+        <span class="cmd-tag">/clientes</span>
+        <div class="cmd-desc"><strong>Directorio de clientes.</strong> Busca por RFC o nombre. Toca un cliente para ver su historial o cotizar directamente.</div>
+      </li>
+      <li class="cmd-item">
+        <span class="cmd-tag">/perfiles</span>
+        <div class="cmd-desc"><strong>Perfiles guardados.</strong> Guarda configuraciones frecuentes (dispositivo + plan + modalidad) para cotizar aún más rápido.</div>
+      </li>
+      <li class="cmd-item">
+        <span class="cmd-tag">/optimizar</span>
+        <div class="cmd-desc"><strong>Recotización inteligente.</strong> Toma una cotización existente y propone ajustes de palancas para mejorar el margen.</div>
+      </li>
+      <li class="cmd-item">
+        <span class="cmd-tag">/kpis</span>
+        <div class="cmd-desc"><strong>Métricas del periodo.</strong> Total cotizaciones, monto acumulado y tasa de conversión de la semana o el mes.</div>
+      </li>
+      <li class="cmd-item">
+        <span class="cmd-tag">/ayuda</span>
+        <div class="cmd-desc"><strong>Lista completa de comandos</strong> con descripción corta. Siempre disponible.</div>
+      </li>
+      <li class="cmd-item">
+        <span class="cmd-tag">/cancelar</span>
+        <div class="cmd-desc"><strong>Detiene el flujo actual.</strong> Si el bot está en medio de una cotización y quieres reiniciar.</div>
+      </li>
+    </ul>
+
+    <div class="callout callout-atajo">
+      <div class="callout-icon">⌨️</div>
+      <div class="callout-body">
+        <div class="callout-title">Atajo</div>
+        <p class="callout-text">Escribe <span class="inline-code">/</span> (solo el slash) en Telegram y verás la lista de todos los comandos disponibles con descripciones. Toca el que necesitas sin escribir todo.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <strong>Cotizador Telcel · Bot Telegram</strong><br>
+      soporte@hectoria.mx · v1.0 2026
+    </div>
+    <div class="footer-qr">
+      <div class="footer-qr-label">QR</div>
+      <div class="footer-qr-url">cotizador.hectoria.mx</div>
+    </div>
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- ═══════════════════════════════════════════════
+     PASO 4 — COTIZACIÓN COMPLETA (EJEMPLO)
+═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-header">
+    <div class="section-num">4</div>
+    <div class="section-header-text">
+      <h2>Cotización completa — Ejemplo real</h2>
+      <p>De la solicitud al resultado en 60 segundos</p>
+    </div>
+  </div>
+
+  <div class="content">
+    <p>Puedes escribir la solicitud de forma <strong>natural</strong>, igual que se lo dirías a un colega. El bot interpreta RFC, equipos, plan, modalidad, plazo y cantidad en una sola oración.</p>
+
+    <div class="telegram-mock">
+      <div class="tg-header">
+        <div class="tg-avatar">🤖</div>
+        <div>
+          <div class="tg-name">CMdemobot</div>
+          <div class="tg-status">en línea</div>
+        </div>
+      </div>
+
+      <div class="bubble-row user">
+        <div class="bubble user">
+          cotiza para RFC ABCD123456789 cinco iPhone 15 Pro plan empresa controlado VPN 5 a 24 meses
+          <div class="bubble-time">10:07</div>
+        </div>
+      </div>
+      <div class="bubble-row bot">
+        <div class="bubble bot">
+          ⏳ Procesando cotización... (esto toma ~45 segundos)
+          <div class="bubble-time">10:07</div>
+        </div>
+      </div>
+      <div class="bubble-row bot">
+        <div class="bubble bot">
+          ✅ <strong>Cotización lista · Folio #2378845</strong><br><br>
+          📱 5× iPhone 15 Pro 128GB<br>
+          📋 Plan Empresa Controlado + VPN 5<br>
+          ⏱ 24 meses · RFC: ABCD123456789<br><br>
+          <div class="verdict-row">
+            <span class="verdict-chip green">✓ PROCEDE</span>
+            <span class="verdict-chip">$80,067 MXN</span>
+            <span class="verdict-chip pink">Margen 18%</span>
+          </div>
+          <div class="bubble-time">10:08</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-icon">💡</div>
+      <div class="callout-body">
+        <div class="callout-title">Tip — Lenguaje natural</div>
+        <p class="callout-text">No necesitas formato exacto. Puedes escribir: <em>"3 Galaxy S24 para Constructora Perez a 18 meses plan VPN 10"</em> y el bot lo entiende igual de bien.</p>
+      </div>
+    </div>
+
+    <div class="callout callout-atajo">
+      <div class="callout-icon">⌨️</div>
+      <div class="callout-body">
+        <div class="callout-title">Atajo — Perfil guardado</div>
+        <p class="callout-text">Si cotizas el mismo equipo con frecuencia, guarda un perfil con <span class="inline-code">/perfiles guardar</span>. La próxima vez solo di el RFC y el perfil.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <strong>Cotizador Telcel · Bot Telegram</strong><br>
+      soporte@hectoria.mx · v1.0 2026
+    </div>
+    <div class="footer-qr">
+      <div class="footer-qr-label">QR</div>
+      <div class="footer-qr-url">cotizador.hectoria.mx</div>
+    </div>
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- ═══════════════════════════════════════════════
+     PASO 5 — LEER EL VEREDICTO
+═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-header">
+    <div class="section-num">5</div>
+    <div class="section-header-text">
+      <h2>Entender el Veredicto</h2>
+      <p>Rentabilidad, palancas y cuándo ajustar</p>
+    </div>
+  </div>
+
+  <div class="content">
+    <p>El veredicto es el corazón del Cotizador. No solo te dice el precio — te dice si <strong>debes proceder</strong>, qué margen obtienes y cómo mejorar la rentabilidad.</p>
+
+    <div class="verdict-card">
+      <div class="verdict-card-title">📊 Veredicto — Folio #2378845</div>
+      <div class="verdict-row-grid">
+        <div class="verdict-kpi">
+          <div class="verdict-kpi-label">Veredicto</div>
+          <div class="verdict-kpi-value good">✓ PROCEDE</div>
+        </div>
+        <div class="verdict-kpi">
+          <div class="verdict-kpi-label">Total cliente</div>
+          <div class="verdict-kpi-value">$80,067</div>
+        </div>
+        <div class="verdict-kpi">
+          <div class="verdict-kpi-label">Margen bruto</div>
+          <div class="verdict-kpi-value good">18.4%</div>
+        </div>
+        <div class="verdict-kpi">
+          <div class="verdict-kpi-label">Comisión est.</div>
+          <div class="verdict-kpi-value">$14,732</div>
+        </div>
+      </div>
+    </div>
+
+    <h3>¿Qué significa cada veredicto?</h3>
+    <ul>
+      <li><strong>✓ PROCEDE</strong> — El margen es suficiente. Cierra el trato con confianza.</li>
+      <li><strong>⚠ REVISAR</strong> — El margen es ajustado. Considera cambiar palancas antes de cerrar.</li>
+      <li><strong>✗ NO PROCEDE</strong> — La cotización está por debajo del umbral mínimo de rentabilidad.</li>
+    </ul>
+
+    <h3>Palancas disponibles</h3>
+    <p>Las palancas son las variables que puedes ajustar para mejorar el margen sin cambiar el equipo:</p>
+    <ul>
+      <li><strong>Plazo</strong>: pasar de 12 a 24 meses generalmente mejora el margen.</li>
+      <li><strong>Plan</strong>: planes con más datos o servicios adicionales (VPN, seguridad) aumentan la comisión.</li>
+      <li><strong>Modalidad</strong>: Controlado vs Pospago tiene impacto diferente por cliente.</li>
+      <li><strong>Cantidad</strong>: volumen mayor puede activar descuentos B2B.</li>
+    </ul>
+
+    <div class="callout callout-tip">
+      <div class="callout-icon">💡</div>
+      <div class="callout-body">
+        <div class="callout-title">Tip — Optimizar automáticamente</div>
+        <p class="callout-text">Usa <span class="inline-code">/optimizar [folio]</span> y el bot probará combinaciones de palancas para encontrar la configuración con mejor margen. Te muestra las opciones A/B ordenadas.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <strong>Cotizador Telcel · Bot Telegram</strong><br>
+      soporte@hectoria.mx · v1.0 2026
+    </div>
+    <div class="footer-qr">
+      <div class="footer-qr-label">QR</div>
+      <div class="footer-qr-url">cotizador.hectoria.mx</div>
+    </div>
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- ═══════════════════════════════════════════════
+     PASO 6 — DESCARGAR PDF
+═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-header">
+    <div class="section-num">6</div>
+    <div class="section-header-text">
+      <h2>Descargar PDFs</h2>
+      <p>Propuesta para el cliente + documento interno</p>
+    </div>
+  </div>
+
+  <div class="content">
+    <p>Cada cotización genera <strong>dos PDFs</strong>: uno para presentar al cliente (con precios y resumen comercial) y otro interno (con margen, comisión y detalles técnicos).</p>
+
+    <ul class="steps">
+      <li class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">Busca el botón de descarga</div>
+          <div class="step-desc">Después del veredicto, el bot envía dos botones: <strong>PDF Cliente</strong> y <strong>PDF Interno</strong>.</div>
+        </div>
+      </li>
+      <li class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">Toca el botón correspondiente</div>
+          <div class="step-desc">El bot genera el PDF al momento y te lo envía como archivo en el chat. Toca para abrirlo o descargarlo.</div>
+        </div>
+      </li>
+      <li class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">Comparte al cliente</div>
+          <div class="step-desc">Desde Telegram puedes reenviar el PDF directamente al chat de WhatsApp, email o Drive del cliente.</div>
+        </div>
+      </li>
+    </ul>
+
+    <div class="callout callout-atajo">
+      <div class="callout-icon">⌨️</div>
+      <div class="callout-body">
+        <div class="callout-title">Atajo — PDF de cotización anterior</div>
+        <p class="callout-text">¿Necesitas el PDF de una cotización de hace días? Usa <span class="inline-code">/historial</span>, encuentra el folio y toca <strong>Descargar PDF</strong> desde ahí.</p>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-icon">💡</div>
+      <div class="callout-body">
+        <div class="callout-title">Tip</div>
+        <p class="callout-text">También puedes ver y descargar los PDFs desde la web en <strong>cotizador.hectoria.mx → Historial</strong>. Los archivos son idénticos.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <strong>Cotizador Telcel · Bot Telegram</strong><br>
+      soporte@hectoria.mx · v1.0 2026
+    </div>
+    <div class="footer-qr">
+      <div class="footer-qr-label">QR</div>
+      <div class="footer-qr-url">cotizador.hectoria.mx</div>
+    </div>
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- ═══════════════════════════════════════════════
+     TIPS PREMIUM
+═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-header">
+    <div class="section-num">★</div>
+    <div class="section-header-text">
+      <h2>Tips Premium</h2>
+      <p>Saca el máximo provecho del bot</p>
+    </div>
+  </div>
+
+  <div class="content">
+    <h3>Hablarle al bot de forma natural</h3>
+    <p>El bot entiende español conversacional. No necesitas formato rígido. Ejemplos que funcionan:</p>
+    <ul>
+      <li>"dame cotización para 10 iPhone 16 a 24 meses plan VPN para OABC123456789"</li>
+      <li>"cotiza Samsung Galaxy S24 Ultra 3 equipos empresa controlado 12 meses"</li>
+      <li>"quiero ver el historial de la semana pasada"</li>
+      <li>"optimiza la cotización 2378845"</li>
+    </ul>
+
+    <h3>Qué hacer si Telcel está saturado</h3>
+    <div class="callout callout-important">
+      <div class="callout-icon">⚠️</div>
+      <div class="callout-body">
+        <div class="callout-title">Importante — Portal Telcel saturado</div>
+        <p class="callout-text">En horarios pico (10-12am y 4-6pm) el portal B2B puede tardar más. Si el bot dice "cotización demoró más de lo esperado", espera 2 minutos y vuelve a intentarlo. El resultado estará guardado aunque el mensaje tarde.</p>
+      </div>
+    </div>
+
+    <h3>Atajos de productividad</h3>
+    <div class="two-col">
+      <div class="mini-card">
+        <div class="mini-card-title">Perfiles guardados</div>
+        <p>Crea un perfil con el dispositivo y plan más frecuente. Cotiza con solo el RFC del cliente.</p>
+      </div>
+      <div class="mini-card">
+        <div class="mini-card-title">Cotización con perfil</div>
+        <p>Escribe: <em>"cotiza para RFC XXXX con perfil iPhone-VPN-5"</em>. El bot usa la config guardada.</p>
+      </div>
+      <div class="mini-card">
+        <div class="mini-card-title">Ver KPIs semanales</div>
+        <p>Usa <span class="inline-code">/kpis semana</span> para ver tu resumen. Comparte pantalla con tu jefe directo.</p>
+      </div>
+      <div class="mini-card">
+        <div class="mini-card-title">Buscar cliente rápido</div>
+        <p>Escribe <span class="inline-code">/clientes [nombre o RFC]</span> para acceder directo al expediente.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <strong>Cotizador Telcel · Bot Telegram</strong><br>
+      soporte@hectoria.mx · v1.0 2026
+    </div>
+    <div class="footer-qr">
+      <div class="footer-qr-label">QR</div>
+      <div class="footer-qr-url">cotizador.hectoria.mx</div>
+    </div>
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- ═══════════════════════════════════════════════
+     TROUBLESHOOTING
+═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-header">
+    <div class="section-num">!</div>
+    <div class="section-header-text">
+      <h2>Solución de Problemas</h2>
+      <p>Errores frecuentes y cómo resolverlos</p>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="trouble-item">
+      <div class="trouble-q">❓ El bot no responde o dice "error"</div>
+      <p class="trouble-a">Espera 30 segundos y escribe <span class="inline-code">/start</span> de nuevo. Si persiste, escribe a soporte@hectoria.mx con una captura de pantalla.</p>
+    </div>
+    <div class="trouble-item">
+      <div class="trouble-q">❓ La cotización falla con "portal no disponible"</div>
+      <p class="trouble-a">El portal B2B de Telcel puede tener mantenimiento. Espera 10 minutos y reintenta. Suele ocurrir de 1am a 4am o en mantenimientos los domingos.</p>
+    </div>
+    <div class="trouble-item">
+      <div class="trouble-q">❓ El bot dice "credenciales inválidas" o "sesión expirada"</div>
+      <p class="trouble-a">Tu contraseña Telcel B2B puede haber cambiado. Usa <span class="inline-code">/login</span> de nuevo con las credenciales actualizadas. Si no recuerdas la contraseña, recupérala en el portal Telcel.</p>
+    </div>
+    <div class="trouble-item">
+      <div class="trouble-q">❓ El RFC no aparece en Telcel</div>
+      <p class="trouble-a">Verifica que el RFC sea exactamente como está en el portal Telcel (mayúsculas, sin espacios). Si el cliente es nuevo en cartera Telcel, el RFC puede tardar 24-48h en sincronizarse.</p>
+    </div>
+    <div class="trouble-item">
+      <div class="trouble-q">❓ El PDF no se genera o llega incompleto</div>
+      <p class="trouble-a">Escribe <span class="inline-code">/historial</span>, localiza el folio y vuelve a solicitar el PDF. Si el problema persiste, contáctanos con el número de folio.</p>
+    </div>
+    <div class="trouble-item">
+      <div class="trouble-q">❓ No veo el equipo que quiero cotizar</div>
+      <p class="trouble-a">El catálogo se actualiza mensualmente. Verifica el nombre exacto del modelo con <span class="inline-code">/catalogo [marca]</span>. Si el equipo no aparece, puede no estar disponible en el portal B2B aún.</p>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-icon">📞</div>
+      <div class="callout-body">
+        <div class="callout-title">Soporte directo</div>
+        <p class="callout-text">Para cualquier problema no resuelto: <strong>soporte@hectoria.mx</strong> — respuesta en menos de 4 horas en horario laboral (lunes-viernes 9am-7pm).</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <strong>Cotizador Telcel · Bot Telegram</strong><br>
+      soporte@hectoria.mx · v1.0 2026
+    </div>
+    <div class="footer-qr">
+      <div class="footer-qr-label">QR</div>
+      <div class="footer-qr-url">cotizador.hectoria.mx</div>
+    </div>
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- ═══════════════════════════════════════════════
+     CIERRE / CTA
+═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="cta-block">
+    <h2>¡Empieza a cotizar ahora!</h2>
+    <p>Abre Telegram → Busca <strong>@CMdemobot</strong> → Escribe /start</p>
+  </div>
+
+  <div class="two-col" style="margin-top: 16pt;">
+    <div class="mini-card">
+      <div class="mini-card-title">🌐 También en la web</div>
+      <p>Accede a todas las funciones desde tu navegador en <strong>cotizador.hectoria.mx</strong>. Historial completo, KPIs y optimización con palancas.</p>
+    </div>
+    <div class="mini-card">
+      <div class="mini-card-title">📱 App Android</div>
+      <p>Descarga el APK desde <strong>cotizador.hectoria.mx/descargar</strong> para tenerlo instalado como app nativa en tu celular.</p>
+    </div>
+  </div>
+
+  <div class="highlight-box" style="margin-top: 16pt; text-align: center;">
+    <p style="font-size: 11pt; font-weight: 700; color: #4F46E5; margin-bottom: 8pt;">soporte@hectoria.mx</p>
+    <p style="color: #475569; font-size: 9.5pt;">Soporte lunes-viernes 9am-7pm · Respuesta &lt;4 horas</p>
+  </div>
+
+  <div style="margin-top: 20pt; display: flex; justify-content: center;">
+    <div class="footer-qr" style="width: 80pt; height: 80pt; font-size: 8pt;">
+      <div class="footer-qr-label" style="font-size: 7pt;">Escanea para abrir la web</div>
+      <div style="margin: 6pt 0; font-size: 22pt;">▦</div>
+      <div class="footer-qr-url">cotizador.hectoria.mx</div>
+    </div>
+  </div>
+
+  <div class="footer" style="margin-top: 24pt;">
+    <div class="footer-left">
+      <strong>Cotizador Telcel · Manual del Bot Telegram v1.0</strong><br>
+      © 2026 Hectoria · Distribución restringida a pilotos autorizados<br>
+      soporte@hectoria.mx
+    </div>
+    <div class="footer-qr">
+      <div class="footer-qr-label">QR</div>
+      <div class="footer-qr-url">cotizador.hectoria.mx</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

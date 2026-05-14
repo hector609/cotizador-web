@@ -1,0 +1,1222 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Manual de la Web — Cotizador Telcel</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  @page { size: Letter; margin: 15mm 12mm; }
+
+  body {
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    font-size: 11pt;
+    line-height: 1.6;
+    color: #0F172A;
+    background: #fff;
+  }
+
+  .page-break { page-break-after: always; break-after: page; }
+  .avoid-break { page-break-inside: avoid; break-inside: avoid; }
+
+  /* ─── PORTADA ─── */
+  .cover {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #06B6D4 0%, #4F46E5 60%, #EC4899 100%);
+    padding: 40pt 30pt;
+    text-align: center;
+    color: #fff;
+  }
+  .cover-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6pt;
+    background: rgba(255,255,255,0.18);
+    border: 1px solid rgba(255,255,255,0.35);
+    border-radius: 100px;
+    padding: 5pt 14pt;
+    font-size: 9pt;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-bottom: 28pt;
+  }
+  .cover-icon {
+    width: 72pt;
+    height: 72pt;
+    background: rgba(255,255,255,0.15);
+    border: 2px solid rgba(255,255,255,0.4);
+    border-radius: 20pt;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 24pt;
+    font-size: 36pt;
+  }
+  .cover h1 {
+    font-size: 30pt;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    margin-bottom: 12pt;
+  }
+  .cover-sub {
+    font-size: 13pt;
+    font-weight: 500;
+    opacity: 0.88;
+    max-width: 340pt;
+    margin: 0 auto 32pt;
+  }
+  .cover-divider {
+    width: 60pt;
+    height: 3pt;
+    background: rgba(255,255,255,0.5);
+    border-radius: 2pt;
+    margin: 0 auto 28pt;
+  }
+  .cover-meta {
+    font-size: 9pt;
+    opacity: 0.75;
+    line-height: 1.8;
+  }
+  .cover-stats {
+    display: flex;
+    gap: 28pt;
+    justify-content: center;
+    margin-top: 36pt;
+  }
+  .cover-stat { text-align: center; }
+  .cover-stat-num {
+    font-size: 22pt;
+    font-weight: 900;
+    display: block;
+  }
+  .cover-stat-label {
+    font-size: 8pt;
+    opacity: 0.75;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  /* ─── LAYOUT GENERAL ─── */
+  .page { padding: 8pt 0 24pt; }
+
+  /* ─── HEADER DE SECCIÓN ─── */
+  .section-header {
+    background: linear-gradient(135deg, #06B6D4 0%, #4F46E5 100%);
+    border-radius: 12pt;
+    padding: 16pt 20pt;
+    color: #fff;
+    margin-bottom: 18pt;
+    display: flex;
+    align-items: center;
+    gap: 14pt;
+  }
+  .section-num {
+    width: 36pt;
+    height: 36pt;
+    background: rgba(255,255,255,0.2);
+    border: 2px solid rgba(255,255,255,0.4);
+    border-radius: 10pt;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16pt;
+    font-weight: 900;
+    flex-shrink: 0;
+  }
+  .section-header-text h2 {
+    font-size: 15pt;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+  .section-header-text p {
+    font-size: 9pt;
+    opacity: 0.85;
+    margin-top: 2pt;
+  }
+
+  /* ─── CONTENIDO ─── */
+  .content { padding: 0 4pt; }
+  p { margin-bottom: 10pt; color: #334155; }
+  h3 { font-size: 12pt; font-weight: 800; color: #0F172A; margin: 14pt 0 6pt; letter-spacing: -0.01em; }
+  ul, ol { margin: 6pt 0 12pt 14pt; color: #334155; }
+  li { margin-bottom: 5pt; }
+  li strong { color: #0F172A; }
+
+  /* ─── CALLOUTS ─── */
+  .callout {
+    border-radius: 10pt;
+    padding: 10pt 14pt;
+    margin: 12pt 0;
+    display: flex;
+    gap: 10pt;
+    align-items: flex-start;
+  }
+  .callout-icon { font-size: 13pt; flex-shrink: 0; margin-top: 1pt; }
+  .callout-body { flex: 1; }
+  .callout-title { font-size: 9pt; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 3pt; }
+  .callout-text { font-size: 9.5pt; line-height: 1.5; margin: 0; }
+
+  .callout-tip { background: #EFF6FF; border: 1px solid #BFDBFE; }
+  .callout-tip .callout-title { color: #1D4ED8; }
+  .callout-tip .callout-text { color: #1E40AF; }
+
+  .callout-important { background: #FFF7ED; border: 1px solid #FED7AA; }
+  .callout-important .callout-title { color: #C2410C; }
+  .callout-important .callout-text { color: #9A3412; }
+
+  .callout-atajo { background: #F0FDF4; border: 1px solid #BBF7D0; }
+  .callout-atajo .callout-title { color: #15803D; }
+  .callout-atajo .callout-text { color: #166534; }
+
+  .callout-aria {
+    background: linear-gradient(135deg, #EDE9FE 0%, #E0F2FE 100%);
+    border: 1px solid #C4B5FD;
+  }
+  .callout-aria .callout-title { color: #5B21B6; }
+  .callout-aria .callout-text { color: #4C1D95; }
+
+  /* ─── WEB MOCKUP ─── */
+  .web-mock {
+    background: #F1F5F9;
+    border-radius: 12pt;
+    padding: 0;
+    margin: 12pt 0;
+    overflow: hidden;
+    border: 1px solid #E2E8F0;
+  }
+  .web-mock-bar {
+    background: #0F172A;
+    padding: 6pt 10pt;
+    display: flex;
+    align-items: center;
+    gap: 8pt;
+  }
+  .web-mock-dots { display: flex; gap: 4pt; }
+  .web-mock-dot { width: 7pt; height: 7pt; border-radius: 50%; }
+  .dot-red { background: #EF4444; }
+  .dot-yellow { background: #F59E0B; }
+  .dot-green { background: #10B981; }
+  .web-mock-url {
+    background: #1E293B;
+    border-radius: 4pt;
+    padding: 3pt 8pt;
+    font-size: 7.5pt;
+    color: #94A3B8;
+    flex: 1;
+    font-family: 'Courier New', monospace;
+  }
+  .web-mock-body { padding: 10pt 12pt; }
+
+  /* Nav mock */
+  .nav-mock {
+    background: rgba(255,255,255,0.95);
+    border-bottom: 1px solid #E2E8F0;
+    padding: 6pt 12pt;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: -10pt -12pt 10pt;
+  }
+  .nav-logo { font-size: 10pt; font-weight: 900; color: #4F46E5; }
+  .nav-links { display: flex; gap: 10pt; }
+  .nav-link { font-size: 7.5pt; color: #64748B; }
+  .nav-cta { background: linear-gradient(135deg, #4F46E5, #06B6D4); color: #fff; padding: 3pt 8pt; border-radius: 6pt; font-size: 7.5pt; font-weight: 700; }
+
+  /* Dashboard mock */
+  .dash-kpis {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 6pt;
+    margin-bottom: 8pt;
+  }
+  .dash-kpi {
+    background: #fff;
+    border: 1px solid #E2E8F0;
+    border-radius: 8pt;
+    padding: 7pt 9pt;
+  }
+  .dash-kpi-label { font-size: 6.5pt; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+  .dash-kpi-val { font-size: 13pt; font-weight: 900; color: #0F172A; letter-spacing: -0.02em; }
+  .dash-kpi-val.cyan { color: #06B6D4; }
+  .dash-kpi-val.indigo { color: #4F46E5; }
+  .dash-kpi-val.pink { color: #EC4899; }
+
+  /* Chat mock */
+  .chat-mock {
+    background: #fff;
+    border: 1px solid #E2E8F0;
+    border-radius: 10pt;
+    padding: 8pt;
+    margin: 8pt 0;
+  }
+  .chat-header {
+    display: flex;
+    align-items: center;
+    gap: 7pt;
+    padding-bottom: 7pt;
+    border-bottom: 1px solid #F1F5F9;
+    margin-bottom: 7pt;
+  }
+  .chat-avatar {
+    width: 22pt;
+    height: 22pt;
+    background: linear-gradient(135deg, #4F46E5, #EC4899);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 10pt;
+  }
+  .chat-name { font-size: 8.5pt; font-weight: 700; color: #0F172A; }
+  .chat-sub { font-size: 7pt; color: #64748B; }
+
+  .msg-row { display: flex; margin-bottom: 5pt; }
+  .msg-row.user { justify-content: flex-end; }
+  .msg { max-width: 78%; padding: 5pt 8pt; border-radius: 8pt; font-size: 8pt; line-height: 1.45; }
+  .msg.user { background: linear-gradient(135deg, #4F46E5, #06B6D4); color: #fff; border-bottom-right-radius: 2pt; }
+  .msg.aria { background: #F8FAFC; color: #0F172A; border: 1px solid #E2E8F0; border-bottom-left-radius: 2pt; }
+  .msg strong { font-weight: 700; }
+  .msg-time { font-size: 6pt; opacity: 0.6; margin-top: 2pt; }
+
+  /* Pasos */
+  .steps { list-style: none; margin: 0 0 12pt; }
+  .step { display: flex; gap: 12pt; margin-bottom: 10pt; align-items: flex-start; }
+  .step-num {
+    width: 22pt; height: 22pt;
+    background: linear-gradient(135deg, #06B6D4, #4F46E5);
+    color: #fff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9pt;
+    font-weight: 800;
+    flex-shrink: 0;
+    margin-top: 1pt;
+  }
+  .step-body { flex: 1; }
+  .step-title { font-size: 10pt; font-weight: 700; color: #0F172A; }
+  .step-desc { font-size: 9pt; color: #475569; margin-top: 2pt; line-height: 1.45; }
+
+  /* Comandos */
+  .kbd {
+    background: #F1F5F9;
+    border: 1px solid #CBD5E1;
+    border-bottom: 2px solid #94A3B8;
+    border-radius: 4pt;
+    padding: 1pt 5pt;
+    font-family: 'Courier New', monospace;
+    font-size: 8.5pt;
+    color: #0F172A;
+    display: inline-block;
+  }
+
+  .cmd-list { list-style: none; margin: 0 0 12pt; }
+  .cmd-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10pt;
+    padding: 7pt 10pt;
+    border-radius: 8pt;
+    margin-bottom: 5pt;
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+  }
+  .cmd-tag {
+    background: linear-gradient(135deg, #06B6D4, #4F46E5);
+    color: #fff;
+    padding: 2pt 8pt;
+    border-radius: 6pt;
+    font-size: 8.5pt;
+    font-weight: 700;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .cmd-desc { font-size: 9pt; color: #334155; line-height: 1.4; }
+  .cmd-desc strong { color: #0F172A; font-weight: 700; }
+
+  /* Trouble */
+  .trouble-item { border-radius: 10pt; border: 1px solid #E2E8F0; padding: 10pt 14pt; margin-bottom: 8pt; background: #F8FAFC; }
+  .trouble-q { font-size: 9.5pt; font-weight: 700; color: #BE123C; margin-bottom: 4pt; }
+  .trouble-a { font-size: 9pt; color: #334155; line-height: 1.5; margin: 0; }
+
+  /* Two col */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10pt; margin: 10pt 0; }
+  .mini-card { background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 9pt; padding: 10pt 12pt; }
+  .mini-card-title { font-size: 9pt; font-weight: 700; color: #06B6D4; margin-bottom: 4pt; }
+  .mini-card p { font-size: 8.5pt; color: #475569; margin: 0; line-height: 1.45; }
+
+  /* Highlight */
+  .highlight-box {
+    background: linear-gradient(135deg, #E0F2FE 0%, #EDE9FE 100%);
+    border: 1px solid #A5F3FC;
+    border-radius: 10pt;
+    padding: 12pt 16pt;
+    margin: 10pt 0;
+  }
+  .highlight-box p { color: #0C4A6E; margin: 0; font-size: 9.5pt; }
+
+  .inline-code {
+    background: #F1F5F9;
+    border: 1px solid #E2E8F0;
+    border-radius: 4pt;
+    padding: 1pt 5pt;
+    font-family: 'Courier New', monospace;
+    font-size: 9pt;
+    color: #06B6D4;
+  }
+
+  /* CTA */
+  .cta-block {
+    background: linear-gradient(135deg, #06B6D4 0%, #4F46E5 60%, #EC4899 100%);
+    border-radius: 14pt;
+    padding: 24pt;
+    text-align: center;
+    color: #fff;
+    margin: 16pt 0;
+  }
+  .cta-block h2 { font-size: 18pt; font-weight: 900; margin-bottom: 8pt; letter-spacing: -0.02em; }
+  .cta-block p { color: rgba(255,255,255,0.85); font-size: 10pt; margin-bottom: 0; }
+
+  /* Footer */
+  .footer {
+    margin-top: 20pt;
+    padding-top: 12pt;
+    border-top: 1px solid #E2E8F0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12pt;
+  }
+  .footer-left { font-size: 8pt; color: #94A3B8; line-height: 1.6; }
+  .footer-qr {
+    width: 50pt; height: 50pt;
+    border: 2px solid #A5F3FC;
+    border-radius: 8pt;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    text-align: center;
+    padding: 4pt;
+    flex-shrink: 0;
+  }
+  .footer-qr-label { font-size: 5.5pt; color: #06B6D4; font-weight: 600; }
+  .footer-qr-url { font-size: 5pt; color: #64748B; margin-top: 2pt; word-break: break-all; }
+
+  /* Slider palancas mock */
+  .slider-mock { background: #fff; border: 1px solid #E2E8F0; border-radius: 10pt; padding: 10pt; margin: 8pt 0; }
+  .slider-row { margin-bottom: 8pt; }
+  .slider-label { font-size: 7.5pt; font-weight: 700; color: #0F172A; margin-bottom: 3pt; display: flex; justify-content: space-between; }
+  .slider-label span { color: #06B6D4; }
+  .slider-track { height: 5pt; background: #E2E8F0; border-radius: 3pt; position: relative; }
+  .slider-fill { height: 100%; background: linear-gradient(90deg, #4F46E5, #06B6D4); border-radius: 3pt; }
+  .slider-thumb { width: 9pt; height: 9pt; background: #4F46E5; border: 2px solid #fff; border-radius: 50%; position: absolute; top: -2pt; box-shadow: 0 1pt 3pt rgba(79,70,229,0.4); }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════
+     PORTADA
+═══════════════════════════════════════════════ -->
+<div class="cover">
+  <div class="cover-badge">🌐 Plataforma Web · Guía oficial</div>
+  <div class="cover-icon">💻</div>
+  <h1>Cotizador Web<br>Tu oficina de cotizaciones</h1>
+  <p class="cover-sub">Dashboard visual, Aria AI siempre disponible, historial de clientes y optimización inteligente de palancas en cotizador.hectoria.mx.</p>
+  <div class="cover-divider"></div>
+  <p class="cover-meta">
+    Versión 1.0 · Mayo 2026<br>
+    Distribuidores piloto — Uso interno<br>
+    <strong>soporte@hectoria.mx</strong>
+  </p>
+  <div class="cover-stats">
+    <div class="cover-stat">
+      <span class="cover-stat-num">⌘K</span>
+      <span class="cover-stat-label">Aria siempre</span>
+    </div>
+    <div class="cover-stat">
+      <span class="cover-stat-num">100%</span>
+      <span class="cover-stat-label">En navegador</span>
+    </div>
+    <div class="cover-stat">
+      <span class="cover-stat-num">PWA</span>
+      <span class="cover-stat-label">Instalable</span>
+    </div>
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- ═══════════════════════════════════════════════
+     POR QUÉ LA WEB
+═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-header">
+    <div class="section-num">★</div>
+    <div class="section-header-text">
+      <h2>¿Por qué usar la plataforma web?</h2>
+      <p>El complemento perfecto para el bot Telegram</p>
+    </div>
+  </div>
+
+  <div class="content">
+    <p>La web de cotizador.hectoria.mx es tu <strong>oficina digital completa</strong>. Mientras el bot Telegram es ideal para cotizaciones rápidas desde el celular, la web te da dashboard, análisis, historial completo y herramientas de optimización.</p>
+
+    <div class="two-col">
+      <div class="mini-card">
+        <div class="mini-card-title">🤖 Aria AI</div>
+        <p>Asistente conversacional disponible con <strong>⌘K</strong> desde cualquier pantalla. Cotiza, consulta historial y optimiza con lenguaje natural.</p>
+      </div>
+      <div class="mini-card">
+        <div class="mini-card-title">📊 Dashboard Visual</div>
+        <p>KPIs en tiempo real: total cotizaciones, monto acumulado, tasa de conversión y comparativa semanal.</p>
+      </div>
+      <div class="mini-card">
+        <div class="mini-card-title">🗂 Historial completo</div>
+        <p>Todas las cotizaciones con filtros por fecha, RFC, equipo y estado. Descarga PDFs en un clic.</p>
+      </div>
+      <div class="mini-card">
+        <div class="mini-card-title">🎛 Palancas A/B</div>
+        <p>Sliders visuales para ajustar plazo, plan y modalidad. Preview del impacto en margen antes de recotizar.</p>
+      </div>
+      <div class="mini-card">
+        <div class="mini-card-title">👥 Clientes</div>
+        <p>Ficha por RFC con expediente completo, historial de cotizaciones y botón "Cotizar para este cliente".</p>
+      </div>
+      <div class="mini-card">
+        <div class="mini-card-title">📱 PWA instalable</div>
+        <p>Instálala como app nativa en Android o iOS desde el navegador. Sin App Store, sin Play Store.</p>
+      </div>
+    </div>
+
+    <div class="callout callout-aria">
+      <div class="callout-icon">✨</div>
+      <div class="callout-body">
+        <div class="callout-title">Aria AI — Tu asistente inteligente</div>
+        <p class="callout-text">Aria es el cerebro de la plataforma. Presiona <span class="inline-code">⌘K</span> (Mac) o <span class="inline-code">Ctrl+K</span> (Windows) en cualquier pantalla para abrir el chat. Puedes cotizar, buscar clientes, ver historial y pedir optimizaciones sin salir de donde estás.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <strong>Cotizador Web · Plataforma Hectoria</strong><br>
+      soporte@hectoria.mx · v1.0 2026
+    </div>
+    <div class="footer-qr">
+      <div class="footer-qr-label">QR</div>
+      <div class="footer-qr-url">cotizador.hectoria.mx</div>
+    </div>
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- ═══════════════════════════════════════════════
+     PASO 1 — ACCEDER
+═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-header">
+    <div class="section-num">1</div>
+    <div class="section-header-text">
+      <h2>Abrir la plataforma</h2>
+      <p>Navegador o app Android — sin instalación adicional</p>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="two-col">
+      <div class="mini-card">
+        <div class="mini-card-title">🌐 Desde el navegador</div>
+        <p>Abre <strong>cotizador.hectoria.mx</strong> en Chrome, Safari o Edge. Funciona en celular y computadora.</p>
+      </div>
+      <div class="mini-card">
+        <div class="mini-card-title">📱 Desde Android</div>
+        <p>Si instalaste el APK, busca el icono <strong>Cotizador</strong> en tu pantalla de inicio. Es la misma app.</p>
+      </div>
+    </div>
+
+    <div class="web-mock">
+      <div class="web-mock-bar">
+        <div class="web-mock-dots">
+          <div class="web-mock-dot dot-red"></div>
+          <div class="web-mock-dot dot-yellow"></div>
+          <div class="web-mock-dot dot-green"></div>
+        </div>
+        <div class="web-mock-url">cotizador.hectoria.mx</div>
+      </div>
+      <div class="web-mock-body">
+        <div style="text-align:center; padding: 14pt 0;">
+          <div style="font-size: 22pt; font-weight: 900; background: linear-gradient(135deg, #4F46E5, #06B6D4); -webkit-background-clip: text; color: #4F46E5; letter-spacing: -0.02em; margin-bottom: 6pt;">Cotizador</div>
+          <div style="font-size: 9pt; color: #64748B; margin-bottom: 14pt;">Telcel · Distribuidores autorizados</div>
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10pt; padding: 14pt 20pt; max-width: 220pt; margin: 0 auto;">
+            <div style="font-size: 8.5pt; color: #64748B; margin-bottom: 5pt; text-align: left;">Email</div>
+            <div style="background: #fff; border: 1px solid #C4B5FD; border-radius: 6pt; padding: 6pt 10pt; font-size: 8.5pt; color: #0F172A; margin-bottom: 8pt;">vendedor@distribuidor.mx</div>
+            <div style="font-size: 8.5pt; color: #64748B; margin-bottom: 5pt; text-align: left;">Contraseña</div>
+            <div style="background: #fff; border: 1px solid #E2E8F0; border-radius: 6pt; padding: 6pt 10pt; font-size: 8.5pt; color: #94A3B8; margin-bottom: 12pt;">••••••••</div>
+            <div style="background: linear-gradient(135deg, #4F46E5, #06B6D4); color: #fff; border-radius: 8pt; padding: 8pt; text-align: center; font-size: 9pt; font-weight: 700;">Entrar al Cotizador</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-icon">💡</div>
+      <div class="callout-body">
+        <div class="callout-title">Tip — Instalar como PWA</div>
+        <p class="callout-text">En Chrome: toca el ícono de instalación en la barra de URL (o menú → "Agregar a pantalla de inicio"). La app funciona como nativa sin ocupar espacio de Play Store.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <strong>Cotizador Web · Plataforma Hectoria</strong><br>
+      soporte@hectoria.mx · v1.0 2026
+    </div>
+    <div class="footer-qr">
+      <div class="footer-qr-label">QR</div>
+      <div class="footer-qr-url">cotizador.hectoria.mx</div>
+    </div>
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- ═══════════════════════════════════════════════
+     PASO 2 — LOGIN
+═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-header">
+    <div class="section-num">2</div>
+    <div class="section-header-text">
+      <h2>Iniciar sesión</h2>
+      <p>Email + contraseña de tu cuenta Hectoria</p>
+    </div>
+  </div>
+
+  <div class="content">
+    <p>El login de la web usa tu cuenta <strong>Hectoria</strong> (distinta a las credenciales Telcel). Tu distribuidor o Hectoria te habrá enviado las credenciales al registrarte.</p>
+
+    <ul class="steps">
+      <li class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">Escribe tu email y contraseña</div>
+          <div class="step-desc">Son las credenciales que recibiste al registrarte. Si no las tienes, escribe a soporte@hectoria.mx.</div>
+        </div>
+      </li>
+      <li class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">Haz clic en "Entrar al Cotizador"</div>
+          <div class="step-desc">La plataforma carga tu dashboard con tus KPIs y accesos rápidos.</div>
+        </div>
+      </li>
+      <li class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">La sesión dura 30 días</div>
+          <div class="step-desc">No necesitas volver a hacer login en el mismo navegador durante un mes.</div>
+        </div>
+      </li>
+    </ul>
+
+    <div class="callout callout-important">
+      <div class="callout-icon">⚠️</div>
+      <div class="callout-body">
+        <div class="callout-title">Importante — Dos tipos de credenciales</div>
+        <p class="callout-text">La web usa tu cuenta <strong>Hectoria</strong> (email+contraseña de la plataforma). El bot Telegram usa tus credenciales <strong>Telcel B2B</strong>. Son distintas. La web gestiona la conexión Telcel por ti internamente.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <strong>Cotizador Web · Plataforma Hectoria</strong><br>
+      soporte@hectoria.mx · v1.0 2026
+    </div>
+    <div class="footer-qr">
+      <div class="footer-qr-label">QR</div>
+      <div class="footer-qr-url">cotizador.hectoria.mx</div>
+    </div>
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- ═══════════════════════════════════════════════
+     PASO 3 — DASHBOARD
+═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-header">
+    <div class="section-num">3</div>
+    <div class="section-header-text">
+      <h2>El Dashboard</h2>
+      <p>KPIs, accesos rápidos y Aria AI</p>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="web-mock">
+      <div class="web-mock-bar">
+        <div class="web-mock-dots">
+          <div class="web-mock-dot dot-red"></div>
+          <div class="web-mock-dot dot-yellow"></div>
+          <div class="web-mock-dot dot-green"></div>
+        </div>
+        <div class="web-mock-url">cotizador.hectoria.mx/dashboard</div>
+      </div>
+      <div class="web-mock-body">
+        <div class="nav-mock">
+          <div class="nav-logo">Cotizador</div>
+          <div class="nav-links">
+            <span class="nav-link">Dashboard</span>
+            <span class="nav-link">Historial</span>
+            <span class="nav-link">Clientes</span>
+          </div>
+          <span class="nav-cta">⌘K Aria</span>
+        </div>
+        <div style="font-size: 9pt; font-weight: 700; color: #0F172A; margin-bottom: 8pt;">Buenos días, Vendedor ☀️</div>
+        <div class="dash-kpis">
+          <div class="dash-kpi">
+            <div class="dash-kpi-label">Esta semana</div>
+            <div class="dash-kpi-val cyan">12</div>
+          </div>
+          <div class="dash-kpi">
+            <div class="dash-kpi-label">Monto acum.</div>
+            <div class="dash-kpi-val indigo">$487k</div>
+          </div>
+          <div class="dash-kpi">
+            <div class="dash-kpi-label">Tasa conv.</div>
+            <div class="dash-kpi-val pink">68%</div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 6pt;">
+          <div style="flex:1; background: linear-gradient(135deg, #4F46E5, #06B6D4); color: #fff; border-radius: 8pt; padding: 8pt 10pt; font-size: 8pt; font-weight: 700; text-align: center;">+ Nueva cotización</div>
+          <div style="flex:1; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8pt; padding: 8pt 10pt; font-size: 8pt; font-weight: 600; color: #475569; text-align: center;">Ver historial</div>
+          <div style="flex:1; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8pt; padding: 8pt 10pt; font-size: 8pt; font-weight: 600; color: #475569; text-align: center;">Mis clientes</div>
+        </div>
+      </div>
+    </div>
+
+    <h3>¿Qué encuentras en el dashboard?</h3>
+    <ul>
+      <li><strong>KPIs de la semana</strong>: cotizaciones totales, monto acumulado y tasa de conversión.</li>
+      <li><strong>Accesos rápidos</strong>: botones directos a cotizar, historial y clientes.</li>
+      <li><strong>Aria AI</strong>: presiona <kbd class="kbd">⌘K</kbd> para abrir el chat y cotizar sin navegar.</li>
+      <li><strong>Últimas cotizaciones</strong>: las 5 más recientes con estado y monto.</li>
+    </ul>
+
+    <div class="callout callout-aria">
+      <div class="callout-icon">✨</div>
+      <div class="callout-body">
+        <div class="callout-title">Aria — Acceso universal</div>
+        <p class="callout-text">Aria aparece en la esquina superior derecha como botón <strong>⌘K</strong>. Está disponible en TODAS las pantallas — no necesitas volver al dashboard para cotizar.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <strong>Cotizador Web · Plataforma Hectoria</strong><br>
+      soporte@hectoria.mx · v1.0 2026
+    </div>
+    <div class="footer-qr">
+      <div class="footer-qr-label">QR</div>
+      <div class="footer-qr-url">cotizador.hectoria.mx</div>
+    </div>
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- ═══════════════════════════════════════════════
+     PASO 4 — COTIZAR CON ARIA
+═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-header">
+    <div class="section-num">4</div>
+    <div class="section-header-text">
+      <h2>Cotizar con Aria</h2>
+      <p>Chat paso a paso con tu asistente inteligente</p>
+    </div>
+  </div>
+
+  <div class="content">
+    <p>Presiona <kbd class="kbd">⌘K</kbd> o el botón <strong>"+ Nueva cotización"</strong> del dashboard. Aria te guía o acepta la solicitud completa en una sola oración.</p>
+
+    <div class="chat-mock">
+      <div class="chat-header">
+        <div class="chat-avatar">A</div>
+        <div>
+          <div class="chat-name">Aria · Asistente Cotizador</div>
+          <div class="chat-sub">en línea · responde en segundos</div>
+        </div>
+      </div>
+
+      <div class="msg-row">
+        <div class="msg aria">
+          Hola 👋 ¿Qué cotizamos hoy? Puedes decirme el equipo, RFC del cliente, plan y plazo directamente.
+          <div class="msg-time">10:14</div>
+        </div>
+      </div>
+      <div class="msg-row user">
+        <div class="msg user">
+          3 Samsung Galaxy S24 Ultra para RFC XABC850312AB7 plan VPN 10 controlado 24 meses
+          <div class="msg-time">10:14</div>
+        </div>
+      </div>
+      <div class="msg-row">
+        <div class="msg aria">
+          ⏳ Procesando… (~45 s)
+          <div class="msg-time">10:14</div>
+        </div>
+      </div>
+      <div class="msg-row">
+        <div class="msg aria">
+          ✅ <strong>Cotización lista · Folio #2379102</strong><br><br>
+          📱 3× Galaxy S24 Ultra 256GB<br>
+          📋 VPN 10 Controlado · 24 meses<br>
+          💰 Total: <strong>$67,850 MXN</strong><br>
+          📈 Margen: <strong>21.3%</strong> · ✓ PROCEDE
+          <div class="msg-time">10:15</div>
+        </div>
+      </div>
+      <div style="display: flex; gap: 6pt; margin-top: 6pt;">
+        <div style="flex:1; background: linear-gradient(135deg, #4F46E5, #06B6D4); color: #fff; border-radius: 6pt; padding: 5pt 8pt; font-size: 7.5pt; font-weight: 700; text-align: center;">PDF Cliente</div>
+        <div style="flex:1; background: linear-gradient(135deg, #EC4899, #8B5CF6); color: #fff; border-radius: 6pt; padding: 5pt 8pt; font-size: 7.5pt; font-weight: 700; text-align: center;">PDF Interno</div>
+        <div style="flex:1; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6pt; padding: 5pt 8pt; font-size: 7.5pt; font-weight: 600; color: #475569; text-align: center;">Optimizar</div>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-icon">💡</div>
+      <div class="callout-body">
+        <div class="callout-title">Tip — También en /dashboard/chat</div>
+        <p class="callout-text">La pantalla <strong>Chat</strong> del menú es idéntica al ⌘K de Aria. Si prefieres la vista completa con historial de conversación visible, úsala desde el menú principal.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <strong>Cotizador Web · Plataforma Hectoria</strong><br>
+      soporte@hectoria.mx · v1.0 2026
+    </div>
+    <div class="footer-qr">
+      <div class="footer-qr-label">QR</div>
+      <div class="footer-qr-url">cotizador.hectoria.mx</div>
+    </div>
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- ═══════════════════════════════════════════════
+     PASO 5 — HISTORIAL
+═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-header">
+    <div class="section-num">5</div>
+    <div class="section-header-text">
+      <h2>Historial de cotizaciones</h2>
+      <p>Busca, filtra y descarga cualquier cotización</p>
+    </div>
+  </div>
+
+  <div class="content">
+    <p>Ve a <strong>Historial</strong> en el menú lateral. Verás todas tus cotizaciones con filtros por fecha, RFC, equipo y estado del veredicto.</p>
+
+    <ul class="steps">
+      <li class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">Usa los filtros</div>
+          <div class="step-desc">Filtra por rango de fechas, RFC del cliente, modelo de equipo o veredicto (PROCEDE / REVISAR). Los filtros se combinan.</div>
+        </div>
+      </li>
+      <li class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">Abre el detalle</div>
+          <div class="step-desc">Haz clic en cualquier fila para ver el veredicto completo, desglose de precios y opciones de descarga.</div>
+        </div>
+      </li>
+      <li class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">Descarga el PDF</div>
+          <div class="step-desc">Botones PDF Cliente y PDF Interno disponibles en cada cotización. Descarga directa al navegador.</div>
+        </div>
+      </li>
+      <li class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <div class="step-title">Exportar a Excel</div>
+          <div class="step-desc">El botón "Exportar Excel" en la barra de filtros descarga el historial filtrado como .xlsx para análisis.</div>
+        </div>
+      </li>
+    </ul>
+
+    <div class="callout callout-atajo">
+      <div class="callout-icon">⌨️</div>
+      <div class="callout-body">
+        <div class="callout-title">Atajo</div>
+        <p class="callout-text">Presiona <kbd class="kbd">⌘P</kbd> para abrir la paleta de comandos. Escribe "historial" y accede directo sin navegar por el menú.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <strong>Cotizador Web · Plataforma Hectoria</strong><br>
+      soporte@hectoria.mx · v1.0 2026
+    </div>
+    <div class="footer-qr">
+      <div class="footer-qr-label">QR</div>
+      <div class="footer-qr-url">cotizador.hectoria.mx</div>
+    </div>
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- ═══════════════════════════════════════════════
+     PASO 6 — CLIENTES
+═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-header">
+    <div class="section-num">6</div>
+    <div class="section-header-text">
+      <h2>Directorio de Clientes</h2>
+      <p>Ficha por RFC con expediente y cotizaciones</p>
+    </div>
+  </div>
+
+  <div class="content">
+    <p>La sección <strong>Clientes</strong> agrupa todas tus cotizaciones por RFC. Cada cliente tiene su ficha con el historial completo y un botón para cotizar directamente.</p>
+
+    <h3>¿Qué muestra la ficha de cliente?</h3>
+    <ul>
+      <li><strong>RFC y nombre</strong>: identificación principal del cliente.</li>
+      <li><strong>Total cotizaciones</strong>: cuántas veces has cotizado para este RFC.</li>
+      <li><strong>Última cotización</strong>: fecha, equipo y monto del último folio.</li>
+      <li><strong>Historial propio</strong>: todas las cotizaciones de ese RFC con acceso a sus PDFs.</li>
+      <li><strong>Botón "Cotizar para este cliente"</strong>: abre Aria con el RFC ya pre-cargado.</li>
+    </ul>
+
+    <div class="web-mock">
+      <div class="web-mock-bar">
+        <div class="web-mock-dots">
+          <div class="web-mock-dot dot-red"></div>
+          <div class="web-mock-dot dot-yellow"></div>
+          <div class="web-mock-dot dot-green"></div>
+        </div>
+        <div class="web-mock-url">cotizador.hectoria.mx/clientes/XABC850312AB7</div>
+      </div>
+      <div class="web-mock-body">
+        <div style="display: flex; align-items: center; gap: 10pt; margin-bottom: 10pt;">
+          <div style="width: 32pt; height: 32pt; background: linear-gradient(135deg, #4F46E5, #EC4899); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 14pt; font-weight: 700;">X</div>
+          <div>
+            <div style="font-size: 10pt; font-weight: 800; color: #0F172A;">Constructora XYZ S.A. de C.V.</div>
+            <div style="font-size: 7.5pt; color: #64748B;">RFC: XABC850312AB7 · 8 cotizaciones</div>
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6pt; margin-bottom: 10pt;">
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 7pt; padding: 6pt 8pt;">
+            <div style="font-size: 6.5pt; color: #94A3B8; font-weight: 600; text-transform: uppercase;">Cotizaciones</div>
+            <div style="font-size: 13pt; font-weight: 900; color: #4F46E5;">8</div>
+          </div>
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 7pt; padding: 6pt 8pt;">
+            <div style="font-size: 6.5pt; color: #94A3B8; font-weight: 600; text-transform: uppercase;">Monto total</div>
+            <div style="font-size: 13pt; font-weight: 900; color: #06B6D4;">$380k</div>
+          </div>
+          <div style="background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 7pt; padding: 6pt 8pt;">
+            <div style="font-size: 6.5pt; color: #94A3B8; font-weight: 600; text-transform: uppercase;">Última</div>
+            <div style="font-size: 9pt; font-weight: 700; color: #0F172A;">13 May 26</div>
+          </div>
+        </div>
+        <div style="background: linear-gradient(135deg, #4F46E5, #06B6D4); color: #fff; border-radius: 8pt; padding: 8pt; text-align: center; font-size: 9pt; font-weight: 700;">+ Cotizar para este cliente</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <strong>Cotizador Web · Plataforma Hectoria</strong><br>
+      soporte@hectoria.mx · v1.0 2026
+    </div>
+    <div class="footer-qr">
+      <div class="footer-qr-label">QR</div>
+      <div class="footer-qr-url">cotizador.hectoria.mx</div>
+    </div>
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- ═══════════════════════════════════════════════
+     PASO 7 — OPTIMIZAR PALANCAS
+═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-header">
+    <div class="section-num">7</div>
+    <div class="section-header-text">
+      <h2>Optimizar con Palancas</h2>
+      <p>Ajusta variables y maximiza tu margen</p>
+    </div>
+  </div>
+
+  <div class="content">
+    <p>Desde el detalle de cualquier cotización, el botón <strong>"Optimizar"</strong> abre el panel de palancas. Puedes ajustar variables con sliders y ver el impacto estimado en el margen <em>antes</em> de recotizar.</p>
+
+    <div class="slider-mock">
+      <div style="font-size: 8.5pt; font-weight: 700; color: #0F172A; margin-bottom: 10pt;">Optimizador de palancas — Folio #2379102</div>
+      <div class="slider-row">
+        <div class="slider-label">Plazo <span>24 meses</span></div>
+        <div class="slider-track">
+          <div class="slider-fill" style="width: 75%;"></div>
+          <div class="slider-thumb" style="left: 72%;"></div>
+        </div>
+      </div>
+      <div class="slider-row" style="margin-top: 8pt;">
+        <div class="slider-label">Plan <span>VPN 10</span></div>
+        <div class="slider-track">
+          <div class="slider-fill" style="width: 60%;"></div>
+          <div class="slider-thumb" style="left: 57%;"></div>
+        </div>
+      </div>
+      <div class="slider-row" style="margin-top: 8pt;">
+        <div class="slider-label">Cantidad <span>3 equipos</span></div>
+        <div class="slider-track">
+          <div class="slider-fill" style="width: 30%;"></div>
+          <div class="slider-thumb" style="left: 27%;"></div>
+        </div>
+      </div>
+      <div style="margin-top: 10pt; display: grid; grid-template-columns: 1fr 1fr; gap: 6pt;">
+        <div style="background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 7pt; padding: 7pt 9pt;">
+          <div style="font-size: 7pt; color: #15803D; font-weight: 600; text-transform: uppercase;">Margen estimado</div>
+          <div style="font-size: 14pt; font-weight: 900; color: #15803D;">24.1%</div>
+        </div>
+        <div style="background: linear-gradient(135deg, #4F46E5, #06B6D4); border-radius: 7pt; padding: 7pt 9pt; display: flex; align-items: center; justify-content: center;">
+          <div style="color: #fff; font-size: 9pt; font-weight: 700;">Recotizar con esto</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-icon">💡</div>
+      <div class="callout-body">
+        <div class="callout-title">Tip — Optimización automática</div>
+        <p class="callout-text">El botón <strong>"Auto-optimizar"</strong> prueba combinaciones de palancas en segundo plano y te presenta las 3 configuraciones con mejor margen para que elijas.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <strong>Cotizador Web · Plataforma Hectoria</strong><br>
+      soporte@hectoria.mx · v1.0 2026
+    </div>
+    <div class="footer-qr">
+      <div class="footer-qr-label">QR</div>
+      <div class="footer-qr-url">cotizador.hectoria.mx</div>
+    </div>
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- ═══════════════════════════════════════════════
+     PASO 8 — COMANDOS RÁPIDOS
+═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-header">
+    <div class="section-num">8</div>
+    <div class="section-header-text">
+      <h2>Comandos rápidos y atajos</h2>
+      <p>⌘K Aria · ⌘P Palette · Micrófono</p>
+    </div>
+  </div>
+
+  <div class="content">
+    <ul class="cmd-list">
+      <li class="cmd-item">
+        <span class="cmd-tag">⌘K</span>
+        <div class="cmd-desc"><strong>Aria AI.</strong> Abre el chat de asistente desde cualquier pantalla. Cotiza, busca clientes y consulta historial con lenguaje natural.</div>
+      </li>
+      <li class="cmd-item">
+        <span class="cmd-tag">⌘P</span>
+        <div class="cmd-desc"><strong>Paleta de comandos.</strong> Búsqueda instantánea de funciones, páginas y clientes. Empieza a escribir lo que buscas.</div>
+      </li>
+      <li class="cmd-item">
+        <span class="cmd-tag">🎙 Voz</span>
+        <div class="cmd-desc"><strong>Entrada por micrófono.</strong> Toca el ícono de micrófono en el chat de Aria. Dicta la cotización en voz alta y Aria la transcribe.</div>
+      </li>
+      <li class="cmd-item">
+        <span class="cmd-tag">Ctrl+H</span>
+        <div class="cmd-desc"><strong>Historial rápido.</strong> Atajo directo a la pantalla de historial filtrado por hoy.</div>
+      </li>
+      <li class="cmd-item">
+        <span class="cmd-tag">Ctrl+N</span>
+        <div class="cmd-desc"><strong>Nueva cotización.</strong> Abre Aria directamente en modo cotización.</div>
+      </li>
+    </ul>
+
+    <h3>Tips premium de productividad</h3>
+    <div class="two-col">
+      <div class="mini-card">
+        <div class="mini-card-title">Instalar como PWA</div>
+        <p>Chrome → ícono en URL bar → "Instalar". Queda en tu pantalla de inicio sin Play Store.</p>
+      </div>
+      <div class="mini-card">
+        <div class="mini-card-title">Exportar Excel</div>
+        <p>Historial → aplica filtros → "Exportar .xlsx". Abre en Excel o Sheets para análisis de equipo.</p>
+      </div>
+      <div class="mini-card">
+        <div class="mini-card-title">Cotizar desde cliente</div>
+        <p>Abre ficha del cliente → "Cotizar para este cliente". El RFC viene pre-llenado en Aria.</p>
+      </div>
+      <div class="mini-card">
+        <div class="mini-card-title">⌘K desde cualquier lado</div>
+        <p>No necesitas estar en el dashboard. ⌘K funciona en historial, clientes, optimizador — siempre.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <strong>Cotizador Web · Plataforma Hectoria</strong><br>
+      soporte@hectoria.mx · v1.0 2026
+    </div>
+    <div class="footer-qr">
+      <div class="footer-qr-label">QR</div>
+      <div class="footer-qr-url">cotizador.hectoria.mx</div>
+    </div>
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- ═══════════════════════════════════════════════
+     TROUBLESHOOTING
+═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-header">
+    <div class="section-num">!</div>
+    <div class="section-header-text">
+      <h2>Solución de Problemas</h2>
+      <p>Errores frecuentes en la plataforma web</p>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="trouble-item">
+      <div class="trouble-q">❓ La página no carga o muestra error 503</div>
+      <p class="trouble-a">Espera 30 segundos y recarga (F5). Si persiste más de 2 minutos, escribe a soporte@hectoria.mx — puede ser un deploy en curso.</p>
+    </div>
+    <div class="trouble-item">
+      <div class="trouble-q">❓ No puedo iniciar sesión ("credenciales incorrectas")</div>
+      <p class="trouble-a">Verifica que tu email no tenga espacios. Si olvidaste tu contraseña, escribe a soporte@hectoria.mx para restablecerla. Recuerda que son credenciales Hectoria, no Telcel.</p>
+    </div>
+    <div class="trouble-item">
+      <div class="trouble-q">❓ Aria dice "no pude completar la cotización"</div>
+      <p class="trouble-a">El portal B2B Telcel puede estar saturado. Espera 2-3 minutos y vuelve a pedir la cotización. Si el error persiste, usa /cotizar desde el bot Telegram que puede intentarlo de otro modo.</p>
+    </div>
+    <div class="trouble-item">
+      <div class="trouble-q">❓ No veo mis cotizaciones en el historial</div>
+      <p class="trouble-a">Verifica que el filtro de fechas no esté limitando los resultados. Por defecto muestra los últimos 30 días. Amplia el rango o quita todos los filtros con "Limpiar filtros".</p>
+    </div>
+    <div class="trouble-item">
+      <div class="trouble-q">❓ El PDF no descarga o está en blanco</div>
+      <p class="trouble-a">Asegúrate de que tu navegador no esté bloqueando las descargas automáticas. En Chrome: Configuración → Privacidad → Permisos del sitio → Descargas → permite cotizador.hectoria.mx.</p>
+    </div>
+    <div class="trouble-item">
+      <div class="trouble-q">❓ ⌘K no abre Aria</div>
+      <p class="trouble-a">En Windows usa Ctrl+K. Si el atajo está en conflicto con otra app, prueba hacer clic directo en el botón "Aria" de la barra superior derecha.</p>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-icon">📞</div>
+      <div class="callout-body">
+        <div class="callout-title">Soporte directo</div>
+        <p class="callout-text">Para cualquier problema no resuelto: <strong>soporte@hectoria.mx</strong> — respuesta en menos de 4 horas en horario laboral (lunes-viernes 9am-7pm). Incluye captura de pantalla del error.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-left">
+      <strong>Cotizador Web · Plataforma Hectoria</strong><br>
+      soporte@hectoria.mx · v1.0 2026
+    </div>
+    <div class="footer-qr">
+      <div class="footer-qr-label">QR</div>
+      <div class="footer-qr-url">cotizador.hectoria.mx</div>
+    </div>
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+<!-- ═══════════════════════════════════════════════
+     CIERRE / CTA
+═══════════════════════════════════════════════ -->
+<div class="page">
+  <div class="cta-block">
+    <h2>¡Tu oficina de cotizaciones te espera!</h2>
+    <p>Abre <strong>cotizador.hectoria.mx</strong> y presiona <strong>⌘K</strong> para empezar</p>
+  </div>
+
+  <div class="two-col" style="margin-top: 16pt;">
+    <div class="mini-card">
+      <div class="mini-card-title">✈️ También en Telegram</div>
+      <p>Cotizaciones rápidas desde el celular con <strong>@CMdemobot</strong>. Mismo resultado, interfaz conversacional.</p>
+    </div>
+    <div class="mini-card">
+      <div class="mini-card-title">📱 App Android</div>
+      <p>Descarga el APK desde <strong>cotizador.hectoria.mx/descargar</strong> para tenerlo como app nativa.</p>
+    </div>
+  </div>
+
+  <div class="highlight-box" style="margin-top: 16pt; text-align: center;">
+    <p style="font-size: 11pt; font-weight: 700; color: #06B6D4; margin-bottom: 8pt;">soporte@hectoria.mx</p>
+    <p style="color: #0C4A6E; font-size: 9.5pt;">Soporte lunes-viernes 9am-7pm · Respuesta &lt;4 horas</p>
+  </div>
+
+  <div style="margin-top: 20pt; display: flex; justify-content: center;">
+    <div class="footer-qr" style="width: 80pt; height: 80pt; font-size: 8pt; border-color: #A5F3FC;">
+      <div class="footer-qr-label" style="font-size: 7pt; color: #06B6D4;">Escanea para abrir la web</div>
+      <div style="margin: 6pt 0; font-size: 22pt;">▦</div>
+      <div class="footer-qr-url">cotizador.hectoria.mx</div>
+    </div>
+  </div>
+
+  <div class="footer" style="margin-top: 24pt;">
+    <div class="footer-left">
+      <strong>Cotizador Web · Manual v1.0</strong><br>
+      © 2026 Hectoria · Distribución restringida a pilotos autorizados<br>
+      soporte@hectoria.mx
+    </div>
+    <div class="footer-qr">
+      <div class="footer-qr-label">QR</div>
+      <div class="footer-qr-url">cotizador.hectoria.mx</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
