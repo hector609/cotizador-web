@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { getSessionFromRequest } from "@/lib/auth";
 import { signBackendRequest } from "@/lib/backend-auth";
+import { rewritePdfUrl } from "@/lib/cotizaciones";
 import type {
   CrearCotizacionInput,
   ListarCotizacionesResponse,
   CrearCotizacionResponse,
+  Cotizacion,
 } from "@/types/cotizacion";
 import { RFC_REGEX } from "@/types/cotizacion";
 
@@ -115,7 +117,20 @@ export async function GET(request: Request) {
 
   try {
     const data = (await upstream.json()) as ListarCotizacionesResponse;
-    return NextResponse.json(data, { status: 200 });
+    // Reescribe pdf_url / pdf_url_interno al proxy frontend
+    const rewritten = {
+      ...data,
+      cotizaciones: data.cotizaciones.map((c): Cotizacion => {
+        const pdfUrl = rewritePdfUrl(c.pdf_url, c.id, "cliente");
+        const pdfUrlInterno = rewritePdfUrl(c.pdf_url_interno, c.id, "interno");
+        return {
+          ...c,
+          pdf_url: pdfUrl,
+          pdf_url_interno: pdfUrlInterno,
+        };
+      }),
+    };
+    return NextResponse.json(rewritten, { status: 200 });
   } catch (e) {
     console.error("[api/cotizaciones GET] json parse", e);
     return errJson("Respuesta inválida del backend", 502);
