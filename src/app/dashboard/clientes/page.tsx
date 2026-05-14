@@ -105,14 +105,27 @@ export default function ClientesPage() {
     try {
       const res = await apiFetch("/api/clientes");
       if (!res.ok) {
-        throw new Error(`Error ${res.status}: ${res.statusText}`);
+        // Status 402 ya disparó SubscriptionExpiredModal global — no duplicar.
+        if (res.status === 402) return;
+        if (res.status === 401 || res.status === 403) {
+          throw new Error("Tu sesión expiró. Vuelve a iniciar sesión.");
+        }
+        if (res.status === 404) {
+          // Cartera vacía es comportamiento válido (tenant nuevo sin scrape).
+          setClientes([]);
+          setTotal(0);
+          return;
+        }
+        throw new Error("No pudimos cargar tus clientes. Reintenta en unos segundos.");
       }
       const data: ClientesResponse = await res.json();
       setClientes(data.clientes ?? []);
       setTotal(data.total ?? 0);
       setFechaActualizacion(data.fecha_actualizacion ?? null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error desconocido");
+      // subscription_expired ya manejado arriba; aquí solo errores legibles.
+      if (err instanceof Error && err.message === "subscription_expired") return;
+      setError(err instanceof Error ? err.message : "No pudimos cargar tus clientes. Reintenta.");
     } finally {
       setLoading(false);
     }
