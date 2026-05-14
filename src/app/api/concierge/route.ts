@@ -1,6 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextResponse } from "next/server";
 
+import { rateLimit } from "@/lib/rate-limit";
+
 /**
  * POST /api/concierge — chat público "Aria" para visitantes pre-login.
  *
@@ -22,9 +24,11 @@ import { NextResponse } from "next/server";
  *   - Cada `content` ≤ 2000 chars, role ∈ {user, assistant}.
  *   - Último mensaje DEBE ser role=user (sino 400).
  *
- * Rate limit: 30 mensajes / 10 minutos por IP. In-memory Map (reset al
- * reinicio del lambda — aceptable para un widget público pre-MVP; si
- * abusan en producción migramos a Upstash Redis).
+ * Rate limit: 30 mensajes / 10 minutos por IP. Vercel KV (Upstash Redis) via
+ * `src/lib/rate-limit.ts`. Si KV no está configurado en env (`KV_REST_API_URL`
+ * ausente) el helper hace fallback fail-open — no bloquea. Esto preserva dev
+ * local sin KV. En producción con KV activo, el contador persiste entre cold
+ * starts del lambda.
  *
  * Privacidad: NO se persiste el thread del lado del servidor. El cliente
  * usa sessionStorage si quiere conservar el contexto entre refreshes.
@@ -50,7 +54,7 @@ const MAX_CONTENT_LEN = 2000;
 const MAX_TOTAL_CHARS = 8000;
 const MAX_OUTPUT_TOKENS = 400;
 
-const RATE_WINDOW_MS = 10 * 60 * 1000; // 10 min
+const RATE_WINDOW_SEC = 10 * 60; // 10 min
 const RATE_MAX_HITS = 30;
 
 const SYSTEM_PROMPT = `Eres Aria, asistente virtual del cotizador Hectoria — una herramienta SaaS para distribuidores autorizados Telcel (DATs) en México.
@@ -74,33 +78,8 @@ REGLAS ESTRICTAS:
 - Máximo 4 líneas por respuesta. Sin emojis. Sin Markdown pesado (puedes usar saltos de línea y guiones).
 - Cuando sea natural, invita a probar la demo: "Puedes crear cuenta gratis y probarlo en 2 minutos."`;
 
-// -- Rate limit en memoria ---------------------------------------------
-
-type Bucket = { count: number; resetAt: number };
-const rateBuckets = new Map<string, Bucket>();
-
-function rateLimit(ip: string): { ok: boolean; retryAfter?: number } {
-  const now = Date.now();
-  const b = rateBuckets.get(ip);
-  if (!b || b.resetAt < now) {
-    rateBuckets.set(ip, { count: 1, resetAt: now + RATE_WINDOW_MS });
-    return { ok: true };
-  }
-  if (b.count >= RATE_MAX_HITS) {
-    return { ok: false, retryAfter: Math.ceil((b.resetAt - now) / 1000) };
-  }
-  b.count += 1;
-  return { ok: true };
-}
-
-// GC ligero para no acumular IPs viejas para siempre.
-function gcRateBuckets() {
-  if (rateBuckets.size < 5000) return;
-  const now = Date.now();
-  for (const [ip, b] of rateBuckets.entries()) {
-    if (b.resetAt < now) rateBuckets.delete(ip);
-  }
-}
+// -- Rate limit (Vercel KV) --------------------------------------------
+// Delegado a `src/lib/rate-limit.ts`. Si KV no está en env, fail-open.
 
 function getIp(request: Request): string {
   const h = request.headers;
@@ -147,11 +126,10 @@ export async function POST(request: Request) {
     return errJson("Servicio no disponible", 503);
   }
 
-  // 1. Rate limit por IP.
-  gcRateBuckets();
+  // 1. Rate limit por IP (Vercel KV, fail-open si no configurado).
   const ip = getIp(request);
-  const rl = rateLimit(ip);
-  if (!rl.ok) {
+  const rl = await rateLimit(`aria:concierge:${ip}`, RATE_MAX_HITS, RATE_WINDOW_SEC);
+  if (!rl.allowed) {
     return errJson("rate_limited", 429, { retry_after: rl.retryAfter });
   }
 

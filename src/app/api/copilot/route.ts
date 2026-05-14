@@ -13,9 +13,9 @@
  *     con X-Auth dentro de las herramientas read-only.
  *
  * Rate limit:
- *   - 60 msgs / 10 min POR USER (vendedor_id). En memoria del runtime de
- *     Vercel; suficiente para single-region. TODO(KV): mover a Upstash si
- *     pasamos a multi-region.
+ *   - 60 msgs / 10 min POR USER (vendedor_id). Vercel KV (Upstash Redis) via
+ *     `src/lib/rate-limit.ts`. Si `KV_REST_API_URL` no está en env, el helper
+ *     hace fail-open (no bloquea) — útil para dev local sin KV.
  *
  * Streaming:
  *   - Server-Sent Events (SSE). El cliente parsea `data: <json>\n\n` y
@@ -43,6 +43,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { getSessionFromRequest } from "@/lib/auth";
 import { signBackendRequest } from "@/lib/backend-auth";
+import { rateLimit } from "@/lib/rate-limit";
 
 // --- Config ---
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
@@ -53,28 +54,10 @@ const MAX_MESSAGES = 30; // ventana de historial enviada al modelo
 const MAX_MESSAGE_LEN = 2000;
 const MAX_TOOL_ITERS = 5;
 
-// --- Rate limit (in-memory, user-scoped) ---
-interface RateBucket {
-  count: number;
-  resetAt: number;
-}
-const rateBuckets = new Map<string, RateBucket>();
+// --- Rate limit (Vercel KV, user-scoped) ---
+// Delegado a `src/lib/rate-limit.ts`. Si KV no está en env, fail-open.
 const RATE_LIMIT = 60;
-const RATE_WINDOW_MS = 10 * 60 * 1000;
-
-function rateLimitCheck(userId: string): { ok: boolean; retryAfter?: number } {
-  const now = Date.now();
-  const bucket = rateBuckets.get(userId);
-  if (!bucket || bucket.resetAt < now) {
-    rateBuckets.set(userId, { count: 1, resetAt: now + RATE_WINDOW_MS });
-    return { ok: true };
-  }
-  if (bucket.count >= RATE_LIMIT) {
-    return { ok: false, retryAfter: Math.ceil((bucket.resetAt - now) / 1000) };
-  }
-  bucket.count += 1;
-  return { ok: true };
-}
+const RATE_WINDOW_SEC = 10 * 60;
 
 // --- Types ---
 interface CopilotMessage {
@@ -399,8 +382,12 @@ export async function POST(request: Request) {
   }
 
   const userKey = String(session.vendedor_id);
-  const rl = rateLimitCheck(userKey);
-  if (!rl.ok) {
+  const rl = await rateLimit(
+    `aria:copilot:${userKey}`,
+    RATE_LIMIT,
+    RATE_WINDOW_SEC,
+  );
+  if (!rl.allowed) {
     return new Response(
       JSON.stringify({ error: "rate_limited", retry_after: rl.retryAfter }),
       {
