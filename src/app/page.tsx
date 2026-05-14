@@ -1102,18 +1102,18 @@ function Footer() {
           </span>
         </div>
         <div className="flex gap-6 text-sm">
-          <Link href="#" className="text-slate-500 hover:text-indigo-600 transition-colors">
+          <Link href="/privacidad" className="text-slate-500 hover:text-indigo-600 transition-colors">
             Privacidad
           </Link>
-          <Link href="#" className="text-slate-500 hover:text-indigo-600 transition-colors">
+          <Link href="/terminos" className="text-slate-500 hover:text-indigo-600 transition-colors">
             Términos
           </Link>
-          <Link href="#" className="text-slate-500 hover:text-indigo-600 transition-colors">
+          <a href="mailto:hola@hectoria.mx" className="text-slate-500 hover:text-indigo-600 transition-colors">
             Contacto
-          </Link>
-          <Link href="#" className="text-slate-500 hover:text-indigo-600 transition-colors">
+          </a>
+          <a href="mailto:soporte@hectoria.mx" className="text-slate-500 hover:text-indigo-600 transition-colors">
             Soporte
-          </Link>
+          </a>
         </div>
         <div className="text-sm text-slate-500 flex items-center gap-2">
           <span>© 2026 Hectoria.</span>
