@@ -24,9 +24,10 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://cotizador.hectoria.m
 
 // Price IDs por plan. Setear en .env.local / Vercel env vars.
 const PLAN_PRICE_MAP: Record<string, string | undefined> = {
-  starter: process.env.STRIPE_PRICE_STARTER,
-  pro:     process.env.STRIPE_PRICE_PRO,
-  empresa: process.env.STRIPE_PRICE_EMPRESA,
+  starter:         process.env.STRIPE_PRICE_STARTER,
+  pro:             process.env.STRIPE_PRICE_PRO,
+  empresa:         process.env.STRIPE_PRICE_EMPRESA,
+  vendedor_telcel: process.env.STRIPE_PRICE_VENDEDOR_TELCEL,
 };
 
 export async function POST(req: NextRequest) {
@@ -58,7 +59,7 @@ export async function POST(req: NextRequest) {
 
   if (!priceId) {
     return NextResponse.json(
-      { error: `Plan desconocido: ${plan_id}. Usa starter, pro o empresa.` },
+      { error: `Plan desconocido: ${plan_id}. Usa starter, pro, empresa o vendedor_telcel.` },
       { status: 400 }
     );
   }
@@ -71,12 +72,19 @@ export async function POST(req: NextRequest) {
       "line_items[0][price]": priceId,
       "line_items[0][quantity]": "1",
       mode: "subscription",
-      // P0-2: Forzar moneda MXN y locale LATAM para la UI de Stripe Checkout.
+      // P0-2: Forzar moneda MXN y locale es-MX para la UI de Stripe Checkout.
       // Nota: el currency del Price object en Stripe Dashboard también debe ser
       // MXN. Si el Price ya tiene currency definida, Stripe la respeta —
       // currency aquí actúa como validación adicional (Stripe rechazará si no coincide).
       currency: "mxn",
-      locale: "es-419",
+      locale: "es-MX",
+      // Métodos de pago: tarjeta + OXXO (voucher en efectivo 72h).
+      "payment_method_types[0]": "card",
+      "payment_method_types[1]": "oxxo",
+      // OXXO voucher expira 3 días naturales.
+      "payment_method_options[oxxo][expires_after_days]": "3",
+      // Los precios YA incluyen IVA 16% — Stripe NO debe agregarlo encima.
+      "automatic_tax[enabled]": "false",
       success_url: `${APP_URL}/dashboard/billing?checkout=success`,
       cancel_url: `${APP_URL}/dashboard/billing?checkout=canceled`,
       // Metadatos para asociar la sesión al tenant en el webhook.

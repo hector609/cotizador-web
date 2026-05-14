@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
 import NumberFlow from "@number-flow/react";
 import {
@@ -325,7 +325,7 @@ function Hero({
         <motion.div variants={fadeUp}>
           <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white border border-indigo-200 text-indigo-700 text-xs font-semibold uppercase tracking-wider shadow-sm">
             <span className="w-1.5 h-1.5 rounded-full bg-cyan-500 animate-pulse" />
-            Planes y precios · MXN sin IVA
+            Planes y precios · Precios con IVA incluido
           </span>
         </motion.div>
 
@@ -416,6 +416,15 @@ function BillingPill({
 function PlanesSection({ billing }: { billing: Billing }) {
   const [checkingOut, setCheckingOut] = useState<string | null>(null);
   const [checkoutErr, setCheckoutErr] = useState<string | null>(null);
+  const [vendedorCount, setVendedorCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    // Fetch count of vendedor_telcel signups to show "X/100 cupos"
+    fetch("/api/billing/vendedor-count")
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => { if (d && typeof d.count === "number") setVendedorCount(d.count); })
+      .catch(() => {});
+  }, []);
 
   const handleCheckout = useCallback(async (planKey: string) => {
     setCheckingOut(planKey);
@@ -454,6 +463,22 @@ function PlanesSection({ billing }: { billing: Billing }) {
             {checkoutErr}
           </div>
         )}
+
+        {/* Vendedor Telcel — oferta especial de lanzamiento (encima de los 3 tiers) */}
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, amount: 0.2 }}
+          variants={fadeUp}
+          className="mb-10"
+        >
+          <VendedorTelcelCard
+            onCheckout={handleCheckout}
+            checkingOut={checkingOut}
+            vendedorCount={vendedorCount}
+          />
+        </motion.div>
+
         <motion.div
           initial="hidden"
           whileInView="visible"
@@ -560,7 +585,7 @@ function PlanCard({
         <span className="text-sm text-slate-500">{periodLabel}</span>
       </div>
       <p className="text-[11px] text-slate-400 mt-1">
-        MXN sin IVA
+        Precio incluye IVA 16%
       </p>
 
       <ul className="mt-7 space-y-3 flex-1">
@@ -610,6 +635,120 @@ function PlanCard({
           </span>
         </button>
       )}
+    </motion.div>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/* VendedorTelcelCard — oferta especial de lanzamiento                    */
+/* ---------------------------------------------------------------------- */
+
+function VendedorTelcelCard({
+  onCheckout,
+  checkingOut,
+  vendedorCount,
+}: {
+  onCheckout: (planKey: string) => void;
+  checkingOut: string | null;
+  vendedorCount: number | null;
+}) {
+  const isLoading = checkingOut === "vendedor_telcel";
+  const cuposUsados = vendedorCount ?? 0;
+  const cuposDisponibles = 100 - cuposUsados;
+  const mostrarCupos = cuposDisponibles > 0;
+
+  const vendedorFeatures = [
+    "Bot Telegram + Web App",
+    "1 vendedor individual",
+    "100 cotizaciones/mes",
+    "Aria AI conversacional",
+    "PDFs oficiales descargables",
+    "Historial de cotizaciones",
+    "Sin permanencia — cancela cuando quieras",
+  ];
+
+  return (
+    <motion.div
+      initial={false}
+      whileHover={{ scale: 1.01, transition: { duration: 0.2 } }}
+      className="relative bg-gradient-to-br from-amber-50 via-white to-orange-50 rounded-3xl ring-4 ring-amber-400 shadow-2xl shadow-amber-500/40 p-8 overflow-hidden"
+    >
+      {/* Shimmer overlay */}
+      <span
+        aria-hidden
+        className="absolute inset-0 -translate-x-full hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-amber-100/30 to-transparent pointer-events-none"
+      />
+
+      <div className="relative z-10 flex flex-col md:flex-row md:items-center gap-8">
+        {/* Left: badge + name + tagline */}
+        <div className="flex-1 space-y-4">
+          {/* Animated badge */}
+          <div className="inline-flex">
+            <motion.span
+              animate={{ opacity: [1, 0.65, 1] }}
+              transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-400 text-white text-[11px] font-bold uppercase tracking-widest shadow-[0_4px_16px_rgba(251,146,60,0.5)]"
+            >
+              <span>⭐</span> OFERTA ESPECIAL DE LANZAMIENTO
+            </motion.span>
+          </div>
+
+          <div>
+            <h3 className="text-3xl font-extrabold text-slate-900 tracking-tight">
+              Vendedor Telcel
+            </h3>
+            <p className="text-slate-600 mt-1.5 leading-relaxed">
+              Para vendedores internos Telcel Empresas. Cotiza 10x más rápido que tus compañeros — sin abrir el portal.
+            </p>
+          </div>
+
+          {/* Price */}
+          <div className="flex items-baseline gap-3">
+            <span className="text-5xl font-extrabold text-slate-900 tracking-tight">
+              $399
+            </span>
+            <span className="text-lg text-slate-400 line-through">$599</span>
+            <span className="text-sm text-slate-500">/mes · IVA incluido</span>
+          </div>
+
+          {/* Cupos */}
+          {mostrarCupos && (
+            <p className="text-sm text-amber-700 font-semibold">
+              Cupo limitado: {cuposUsados}/100 ocupados — {cuposDisponibles} disponibles
+            </p>
+          )}
+
+          <p className="text-xs text-slate-500">
+            Cancela cuando quieras, sin permanencia.
+          </p>
+        </div>
+
+        {/* Right: features + CTA */}
+        <div className="flex-1 space-y-5">
+          <ul className="space-y-2.5">
+            {vendedorFeatures.map((f) => (
+              <li key={f} className="flex items-start gap-2.5 text-sm text-slate-700">
+                <CheckCircleIcon className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                <span>{f}</span>
+              </li>
+            ))}
+          </ul>
+
+          <Link
+            href="/signup?plan=vendedor_telcel"
+            className="group/cta relative inline-flex items-center justify-center w-full px-4 py-3.5 font-bold rounded-full bg-gradient-to-r from-amber-400 to-orange-500 text-white hover:scale-[1.02] active:scale-95 shadow-[0_8px_24px_-6px_rgba(251,146,60,0.6)] hover:shadow-[0_10px_30px_-4px_rgba(251,146,60,0.7)] transition-all duration-300 overflow-hidden text-base"
+          >
+            <span className="absolute inset-0 -translate-x-full group-hover/cta:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/30 to-transparent" />
+            <span className="relative">
+              {isLoading ? "Redirigiendo..." : "Empezar gratis 14 días →"}
+            </span>
+          </Link>
+
+          <p className="text-center text-xs text-slate-500">
+            Sin tarjeta para empezar · 14 días de prueba gratis
+          </p>
+        </div>
+      </div>
     </motion.div>
   );
 }
