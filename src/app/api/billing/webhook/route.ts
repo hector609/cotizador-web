@@ -172,13 +172,14 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   const sigHeader = req.headers.get("stripe-signature") ?? "";
 
   // 1) Verificar firma
-  if (STRIPE_WEBHOOK_SECRET) {
-    if (!verifyStripeSignature(rawBody, sigHeader, STRIPE_WEBHOOK_SECRET)) {
-      console.warn("[billing/webhook] Firma Stripe inválida");
-      return NextResponse.json({ error: "Firma inválida" }, { status: 400 });
-    }
-  } else {
-    console.warn("[billing/webhook] STRIPE_WEBHOOK_SECRET no configurado — omitiendo verificación");
+  if (!STRIPE_WEBHOOK_SECRET) {
+    console.error("[billing/webhook] STRIPE_WEBHOOK_SECRET missing — rejecting webhook");
+    return NextResponse.json({ error: "webhook not configured" }, { status: 503 });
+  }
+
+  if (!verifyStripeSignature(rawBody, sigHeader, STRIPE_WEBHOOK_SECRET)) {
+    console.warn("[billing/webhook] Firma Stripe inválida");
+    return NextResponse.json({ error: "Firma inválida" }, { status: 400 });
   }
 
   let event: StripeEvent;
