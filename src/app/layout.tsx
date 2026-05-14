@@ -33,7 +33,7 @@ export const metadata: Metadata = {
     title: "Cotizador Inteligente — Telcel en minutos",
     description:
       "Cotiza Telcel en minutos. Compara planes, equipos y plazos con un agente conversacional.",
-    images: ["/brand/og.png"],
+    images: ["/og.png"],
     type: "website",
     locale: "es_MX",
   },

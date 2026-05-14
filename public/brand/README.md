@@ -19,9 +19,12 @@
 
 Tipografía wordmark: **Geist 800**, `letter-spacing -0.02em`.
 
-## OG image — TODO (no generada en este patch)
+## OG image — generada en `public/og.png`
 
-Spec para `public/brand/og.png` (mandar a diseñar o generar con script):
+Se genera con `node scripts/generate-pwa-icons.mjs` (idempotente, overwrite).
+Output: `public/og.png` (1200x630). Layout.tsx referencia `/og.png`.
+
+Spec original:
 
 - **Dimensiones**: 1200 x 630 (Open Graph estándar).
 - **Background**: gradient diagonal `#4F46E5` → `#06B6D4` (top-left a bottom-right).
@@ -38,11 +41,12 @@ no requiere cambios de código.
 
 ## Iconos PWA
 
-Los `public/icons/icon-{192,512}{,-maskable}.png` actuales fueron generados
-en la era branding `#0066b3` (azul Telcel). Pendiente regenerarlos a partir
-del nuevo `logo-cotizador-mark.svg` para que la PWA instalada se vea con
-LUMINA. Mientras tanto siguen siendo válidos (manifest los referencia y son
-PNG), solo desentonan visualmente del nuevo theme_color.
+Los 4 iconos (`icon-192.png`, `icon-512.png`, `icon-192-maskable.png`,
+`icon-512-maskable.png`) se regeneran con
+`node scripts/generate-pwa-icons.mjs` desde `logo-cotizador-mark.svg`.
 
-TODO: regenerar `icon-192.png`, `icon-512.png`, `icon-192-maskable.png`,
-`icon-512-maskable.png` desde `logo-cotizador-mark.svg`.
+Los maskable usan 60% safe zone centrado sobre el gradient indigo→cyan
+fullbleed, cumpliendo la spec PWA (el SO recorta los bordes en círculos
+/ squircles según el launcher).
+
+Re-ejecutar el script si cambia el logo o la paleta.
