@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
 import NumberFlow from "@number-flow/react";
 import {
@@ -26,27 +26,31 @@ type Billing = "monthly" | "yearly";
 
 interface Plan {
   nombre: string;
+  /** Clave interna para Stripe checkout (coincide con STRIPE_PRICE_<PLAN> env var name). */
+  planKey: string;
   tagline: string;
   price: number; // /mes en MXN
   yearlyPrice: number; // /año en MXN (price * 12 * 0.85, redondeado)
   destacado: boolean;
   cta: string;
+  ctaHref?: string; // Si existe, es un Link en vez de botón checkout
   features: string[];
 }
 
 const planes: Plan[] = [
   {
     nombre: "Starter",
+    planKey: "starter",
     tagline:
       "Para el que vende solo y quiere recuperar la mañana.",
-    price: 99,
-    yearlyPrice: Math.round(99 * 12 * 0.85),
+    price: 999,
+    yearlyPrice: Math.round(999 * 12 * 0.85),
     destacado: false,
     cta: "Empezar prueba",
     features: [
       "Bot Telegram + Web App",
-      "1 usuario vendedor",
-      "Hasta 100 cotizaciones/mes",
+      "1-3 vendedores",
+      "100 cotizaciones/mes",
       "Multi-cliente en cartera",
       "PDFs oficiales",
       "Soporte por email",
@@ -54,38 +58,40 @@ const planes: Plan[] = [
   },
   {
     nombre: "Pro",
+    planKey: "pro",
     tagline:
-      "Para el equipo de 2 a 5 vendedores que ya no cabe en una hoja de Excel.",
-    price: 299,
-    yearlyPrice: Math.round(299 * 12 * 0.85),
+      "Para el equipo de 2 a 10 vendedores que ya no cabe en una hoja de Excel.",
+    price: 2499,
+    yearlyPrice: Math.round(2499 * 12 * 0.85),
     destacado: true,
     cta: "Probar Pro 14 días",
     features: [
       "Todo lo de Starter +",
-      "Hasta 5 vendedores",
-      "500 cotizaciones/mes",
-      "Calibrador A/B automático",
+      "Hasta 10 vendedores",
+      "Cotizaciones ilimitadas",
+      "Aria AI conversacional",
+      "Exportar Excel",
       "Dashboard con métricas",
-      "Facturación CFDI",
       "Soporte prioritario",
     ],
   },
   {
     nombre: "Empresa",
+    planKey: "empresa",
     tagline:
       "Para la operación que ya no puede permitirse cuellos de botella.",
-    price: 999,
-    yearlyPrice: Math.round(999 * 12 * 0.85),
+    price: 4999,
+    yearlyPrice: Math.round(4999 * 12 * 0.85),
     destacado: false,
     cta: "Hablar con ventas",
+    ctaHref: "https://instagram.com/hectoria.mx",
     features: [
       "Todo lo de Pro +",
       "Vendedores ilimitados",
-      "Cotizaciones ilimitadas",
-      "Subdominio personalizado (próximamente)",
-      "Branding propio (próximamente)",
-      "Facturación CFDI",
-      "Soporte 24/7 + onboarding",
+      "Multi-distribuidor",
+      "Optimizador palancas premium",
+      "Priority support 24/7",
+      "Onboarding 1-a-1",
     ],
   },
 ];
@@ -408,9 +414,46 @@ function BillingPill({
 /* ---------------------------------------------------------------------- */
 
 function PlanesSection({ billing }: { billing: Billing }) {
+  const [checkingOut, setCheckingOut] = useState<string | null>(null);
+  const [checkoutErr, setCheckoutErr] = useState<string | null>(null);
+
+  const handleCheckout = useCallback(async (planKey: string) => {
+    setCheckingOut(planKey);
+    setCheckoutErr(null);
+    try {
+      const resp = await fetch("/api/billing/create-checkout-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan_id: planKey }),
+      });
+      const data = (await resp.json()) as { url?: string; error?: string };
+      if (!resp.ok) {
+        // Si 401: no logueado → redirigir al signup
+        if (resp.status === 401) {
+          window.location.href = `/signup?plan=${planKey}`;
+          return;
+        }
+        setCheckoutErr(data.error ?? `Error ${resp.status}`);
+        return;
+      }
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch {
+      setCheckoutErr("Error de red. Intenta de nuevo.");
+    } finally {
+      setCheckingOut(null);
+    }
+  }, []);
+
   return (
     <section className="py-16 md:py-24 px-6 bg-white">
       <div className="max-w-6xl mx-auto">
+        {checkoutErr && (
+          <div className="mb-6 max-w-xl mx-auto bg-red-50 border border-red-200 text-red-700 rounded-xl px-5 py-3 text-sm text-center">
+            {checkoutErr}
+          </div>
+        )}
         <motion.div
           initial="hidden"
           whileInView="visible"
@@ -420,7 +463,12 @@ function PlanesSection({ billing }: { billing: Billing }) {
         >
           {planes.map((p) => (
             <motion.div key={p.nombre} variants={cardItem}>
-              <PlanCard plan={p} billing={billing} />
+              <PlanCard
+                plan={p}
+                billing={billing}
+                onCheckout={handleCheckout}
+                checkingOut={checkingOut}
+              />
             </motion.div>
           ))}
         </motion.div>
@@ -445,10 +493,25 @@ function PlanesSection({ billing }: { billing: Billing }) {
   );
 }
 
-function PlanCard({ plan, billing }: { plan: Plan; billing: Billing }) {
+function PlanCard({
+  plan,
+  billing,
+  onCheckout,
+  checkingOut,
+}: {
+  plan: Plan;
+  billing: Billing;
+  onCheckout: (planKey: string) => void;
+  checkingOut: string | null;
+}) {
   const isFeatured = plan.destacado;
   const value = billing === "monthly" ? plan.price : plan.yearlyPrice;
   const periodLabel = billing === "monthly" ? "/mes" : "/año";
+  const isLoading = checkingOut === plan.planKey;
+
+  const ctaBaseClass = isFeatured
+    ? "group/cta relative mt-8 inline-flex items-center justify-center w-full px-4 py-3 font-semibold rounded-full bg-gradient-to-r from-indigo-600 to-cyan-500 text-white hover:scale-[1.02] active:scale-95 shadow-[0_8px_24px_-6px_rgba(79,70,229,0.55)] hover:shadow-[0_10px_30px_-4px_rgba(6,182,212,0.55)] transition-all duration-300 overflow-hidden"
+    : "group/cta relative mt-8 inline-flex items-center justify-center w-full px-4 py-3 font-semibold rounded-full border border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:border-indigo-300 transition-all duration-300";
 
   return (
     <motion.div
@@ -472,7 +535,7 @@ function PlanCard({ plan, billing }: { plan: Plan; billing: Billing }) {
 
       {isFeatured && (
         <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-500 text-white text-[10px] font-bold uppercase tracking-wider shadow-[0_4px_20px_rgba(45,212,191,0.5)]">
-          Más popular
+          Mas popular
         </div>
       )}
 
@@ -497,7 +560,7 @@ function PlanCard({ plan, billing }: { plan: Plan; billing: Billing }) {
         <span className="text-sm text-slate-500">{periodLabel}</span>
       </div>
       <p className="text-[11px] text-slate-400 mt-1">
-        MXN sin IVA · Facturación CFDI en Pro y Empresa
+        MXN sin IVA
       </p>
 
       <ul className="mt-7 space-y-3 flex-1">
@@ -519,22 +582,34 @@ function PlanCard({ plan, billing }: { plan: Plan; billing: Billing }) {
         </AnimatePresence>
       </ul>
 
-      <Link
-        href="/signup"
-        className={
-          isFeatured
-            ? "group/cta relative mt-8 inline-flex items-center justify-center w-full px-4 py-3 font-semibold rounded-full bg-gradient-to-r from-indigo-600 to-cyan-500 text-white hover:scale-[1.02] active:scale-95 shadow-[0_8px_24px_-6px_rgba(79,70,229,0.55)] hover:shadow-[0_10px_30px_-4px_rgba(6,182,212,0.55)] transition-all duration-300 overflow-hidden"
-            : "group/cta relative mt-8 inline-flex items-center justify-center w-full px-4 py-3 font-semibold rounded-full border border-indigo-200 text-indigo-700 hover:bg-indigo-50 hover:border-indigo-300 transition-all duration-300"
-        }
-      >
-        {isFeatured && (
-          <span
-            aria-hidden
-            className="absolute inset-0 -translate-x-full group-hover/cta:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/30 to-transparent"
-          />
-        )}
-        <span className="relative">{plan.cta}</span>
-      </Link>
+      {/* CTA: link externo para Empresa, checkout Stripe para Starter/Pro */}
+      {plan.ctaHref ? (
+        <a
+          href={plan.ctaHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={ctaBaseClass}
+        >
+          <span className="relative">{plan.cta}</span>
+        </a>
+      ) : (
+        <button
+          type="button"
+          disabled={isLoading || checkingOut !== null}
+          onClick={() => onCheckout(plan.planKey)}
+          className={[ctaBaseClass, isLoading ? "opacity-75 cursor-not-allowed" : ""].join(" ")}
+        >
+          {isFeatured && (
+            <span
+              aria-hidden
+              className="absolute inset-0 -translate-x-full group-hover/cta:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+            />
+          )}
+          <span className="relative">
+            {isLoading ? "Redirigiendo..." : plan.cta}
+          </span>
+        </button>
+      )}
     </motion.div>
   );
 }
