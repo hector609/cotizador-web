@@ -61,6 +61,17 @@ export async function GET(request: Request) {
 
   try {
     const data = await upstream.json();
+    // Normalise client shape: the scraper may produce `razon_social` instead
+    // of `nombre` depending on the tenant's scrape path (huvasi vs celumaster).
+    // Always expose `nombre` so the frontend never crashes on undefined.
+    if (Array.isArray(data.clientes)) {
+      data.clientes = data.clientes.map(
+        (c: Record<string, unknown>) => ({
+          ...c,
+          nombre: (c.nombre as string) || (c.razon_social as string) || (c.rfc as string) || "—",
+        })
+      );
+    }
     return NextResponse.json(data, { status: 200 });
   } catch (e) {
     console.error("[api/clientes] backend json parse", e);

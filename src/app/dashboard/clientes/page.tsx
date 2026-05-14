@@ -39,7 +39,10 @@ import { Sidebar } from "@/components/admin/Sidebar";
 
 type Cliente = {
   rfc: string;
-  nombre: string;
+  /** Guaranteed by /api/clientes proxy (maps razon_social → nombre for tenants
+   *  whose scrape produced the richer huvasi shape). Defensive rendering guards
+   *  against any residual undefined in case of cache staleness. */
+  nombre?: string;
   // Campos opcionales por si el backend los expone en el futuro — la UI
   // se adapta sin tener que cambiar el shape del state.
   cotizaciones?: number;
@@ -74,9 +77,10 @@ function fmtFecha(iso: string | undefined): string {
   });
 }
 
-function initials(nombre: string): string {
-  const parts = nombre.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
+function initials(nombre: string | undefined | null): string {
+  const safe = (nombre ?? "").trim();
+  if (!safe) return "?";
+  const parts = safe.split(/\s+/).filter(Boolean);
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return (parts[0][0] + parts[1][0]).toUpperCase();
 }
@@ -122,8 +126,8 @@ export default function ClientesPage() {
     if (!q) return clientes;
     return clientes.filter(
       (c) =>
-        c.rfc.toLowerCase().includes(q) ||
-        c.nombre.toLowerCase().includes(q)
+        (c.rfc ?? "").toLowerCase().includes(q) ||
+        (c.nombre ?? "").toLowerCase().includes(q)
     );
   }, [clientes, query]);
 
@@ -269,9 +273,9 @@ function ClienteCard({ c, delayIndex }: { c: Cliente; delayIndex: number }) {
           <div className="min-w-0 flex-1">
             <p
               className="font-bold text-slate-900 truncate text-base leading-tight"
-              title={c.nombre}
+              title={c.nombre ?? c.rfc}
             >
-              {c.nombre}
+              {c.nombre || c.rfc}
             </p>
             <p className="font-mono text-xs text-cyan-600 font-semibold mt-1">
               {c.rfc}
