@@ -33,21 +33,31 @@ import type { TTSProvider, TTSSynthesizeOptions } from "./types";
 const ELEVENLABS_TTS_ENDPOINT = "https://api.elevenlabs.io/v1/text-to-speech";
 
 /**
- * Voice ID default. `pNInz6obpgDQGcFmaJgB` = "Adam" (male, US English) —
- * placeholder mientras Hector selecciona una voz MX premium (clone latino
- * o voice design). El override desde la UI/route es `options.voiceId`.
+ * Voice ID default — RESOLUCIÓN POR PRIORIDAD:
+ *   1. `options.voiceId` del request (override por llamada).
+ *   2. `process.env.ELEVENLABS_DEFAULT_VOICE_ID` (set en Vercel env vars).
+ *   3. `FALLBACK_VOICE_ID` (Adam — único voice_id 100% verificable en docs
+ *      públicas de ElevenLabs, hablará español con eleven_multilingual_v2
+ *      aunque con acento neutro/no-latino).
  *
- * TODO(voice-mx): Hector debe escoger un voiceId latino real de la library
- * ElevenLabs (recomendado: search "spanish mexico" en la voice library o
- * crear un voice design custom). Una vez confirmado, actualizar este
- * constante. Por ahora dejamos Adam para que el endpoint sea testeable
- * end-to-end aunque la voz no sea ideal.
+ * Para activar voz MX REAL:
+ *   a) Crea cuenta en https://elevenlabs.io con plan Starter ($5/mes).
+ *   b) Busca voz en https://elevenlabs.io/voice-library filtrando:
+ *      - Language: Spanish
+ *      - Accent: Mexican / Latin American
+ *      - Recomendados: "Mateo" (masc), "Valentina" (fem), "Carolina" (fem).
+ *   c) "Add to VoiceLab" → copia el voice_id (formato `XXXXXXXX...`).
+ *   d) En Vercel: `vercel env add ELEVENLABS_DEFAULT_VOICE_ID` →
+ *      pega voice_id → Production + Preview + Development.
+ *   e) Redeploy. El default queda como la voz MX sin tocar código.
+ *
+ * También puedes hacer GET /api/tts/voices (con auth) para listar las voces
+ * disponibles en TU cuenta filtradas por idioma español.
  */
-export const DEFAULT_ELEVENLABS_VOICE_ID = "pNInz6obpgDQGcFmaJgB";
+const FALLBACK_VOICE_ID = "pNInz6obpgDQGcFmaJgB"; // Adam — verificable, neutro
 
-/** Histórico: voiceId "Bella" (female warm US English). Conservado por si se
- *  quiere A/B testear contra Adam mientras se elige la voz MX final. */
-export const LEGACY_BELLA_VOICE_ID = "21m00Tcm4TlvDq8ikWAM";
+export const DEFAULT_ELEVENLABS_VOICE_ID =
+  process.env.ELEVENLABS_DEFAULT_VOICE_ID?.trim() || FALLBACK_VOICE_ID;
 
 /**
  * Modelo. `eleven_multilingual_v2` soporta español con buena prosodia.
