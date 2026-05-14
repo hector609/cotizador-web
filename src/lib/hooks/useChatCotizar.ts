@@ -341,10 +341,15 @@ export function useChatCotizar(): UseChatCotizarResult {
         const c = data.cotizacion;
         if (c.estado === "completada") {
           clearPolling();
+          // El backend devuelve pdf_url como path relativo del bot
+          // (/api/v1/cotizaciones/<folio>/pdf). El frontend debe descargar
+          // a través del proxy web (/api/cotizaciones/<folio>/pdf?formato=cliente)
+          // para que la cookie de sesión se valide y se firme X-Auth.
+          const { rewritePdfUrl } = await import("@/lib/cotizaciones");
           setJob({
             kind: "completed",
             id: c.id,
-            pdfUrl: c.pdf_url,
+            pdfUrl: rewritePdfUrl(c.pdf_url, c.id, "cliente"),
             screenshotUrl: c.screenshot_url,
           });
           let copy: string;
