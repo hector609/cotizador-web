@@ -53,7 +53,6 @@ import {
 } from "lucide-react";
 import { Sidebar } from "@/components/admin/Sidebar";
 import { TrialBanner } from "@/components/admin/TrialBanner";
-import { QuickPayButton } from "@/components/billing/QuickPayButton";
 import { RFC_REGEX } from "@/types/cotizacion";
 
 // ────────────────────────────────────────────────────────────────────
@@ -927,7 +926,6 @@ export default function OptimizarPage() {
             </div>
           </div>
         </div>
-        <QuickPayButton />
       </main>
 
       {/* Estilos del slider LUMINA */}

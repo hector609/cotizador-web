@@ -52,7 +52,6 @@ import {
 import type { CrearCotizacionResponse } from "@/types/cotizacion";
 import { Sidebar, type SidebarKey } from "@/components/admin/Sidebar";
 import { TrialBanner } from "@/components/admin/TrialBanner";
-import { QuickPayButton } from "@/components/billing/QuickPayButton";
 
 /**
  * Fases del banner progresivo. Idéntico al patrón en useChatCotizar —
@@ -801,7 +800,6 @@ export default function CotizarExcelPage() {
             </AnimatePresence>
           </motion.section>
         </div>
-        <QuickPayButton />
       </main>
     </div>
   );

@@ -35,7 +35,6 @@ import {
 } from "lucide-react";
 import { Sidebar } from "@/components/admin/Sidebar";
 import { TrialBanner } from "@/components/admin/TrialBanner";
-import { QuickPayButton } from "@/components/billing/QuickPayButton";
 
 /* ---------- Tipos ---------- */
 
@@ -186,7 +185,6 @@ export default function CatalogosPage() {
             </div>
           )}
         </div>
-        <QuickPayButton />
       </main>
     </div>
   );

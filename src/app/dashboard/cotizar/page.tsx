@@ -2,7 +2,6 @@ import { getSession } from "@/lib/auth";
 import { CotizarLayout } from "@/components/chat/CotizarLayout";
 import { Sidebar } from "@/components/admin/Sidebar";
 import { TrialBanner } from "@/components/admin/TrialBanner";
-import { QuickPayButton } from "@/components/billing/QuickPayButton";
 
 /**
  * /dashboard/cotizar — chat UI conversacional + panel lateral de catálogo.
@@ -55,7 +54,6 @@ export default async function CotizarPage() {
           <TrialBanner />
         </div>
         <CotizarLayout />
-        <QuickPayButton />
       </main>
     </div>
   );

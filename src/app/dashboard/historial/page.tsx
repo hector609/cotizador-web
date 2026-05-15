@@ -25,7 +25,6 @@ import { listarCotizaciones, maskRfc } from "@/lib/cotizaciones";
 import type { Cotizacion, EstadoCotizacion } from "@/types/cotizacion";
 import { Sidebar } from "@/components/admin/Sidebar";
 import { TrialBanner } from "@/components/admin/TrialBanner";
-import { QuickPayButton } from "@/components/billing/QuickPayButton";
 import {
   Download,
   RotateCw,
@@ -191,7 +190,6 @@ export default async function HistorialPage({ searchParams }: PageProps) {
             </>
           )}
         </div>
-        <QuickPayButton />
       </main>
     </div>
   );
