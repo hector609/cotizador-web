@@ -99,7 +99,12 @@ export async function POST(req: NextRequest) {
       // "customer_creation can only be used in payment mode".
       "billing_address_collection": "required",
       "phone_number_collection[enabled]": "true",
-      "consent_collection[terms_of_service]": "required",
+      // consent_collection requires Terms of Service URL set in Stripe Dashboard
+      // Settings → Public → Terms of service. Hasta que owner lo setee, Stripe
+      // rechaza el checkout. Re-activar tras setear:
+      // https://dashboard.stripe.com/settings/public → Terms of service URL =
+      // https://cotizador.hectoria.mx/terminos
+      // "consent_collection[terms_of_service]": "required",
     });
 
     const stripeResp = await fetch(
