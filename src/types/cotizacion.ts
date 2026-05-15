@@ -65,6 +65,11 @@ export interface Cotizacion {
   /** ISO-8601 UTC. */
   created_at: string;
   /**
+   * Rentabilidad A/B real devuelta por el backend (string como "22.5%" o "22.5").
+   * Solo presente en cotizaciones completadas donde el bot la calculó.
+   */
+  rentabilidad?: string;
+  /**
    * Lista de perfiles cuando la cotización es multi-equipo. Solo presente si
    * el POST original incluyó `perfiles[]`; en single-perfil queda undefined.
    */

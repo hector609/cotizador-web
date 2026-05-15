@@ -25,6 +25,7 @@ import {
   Package,
   TrendingUp,
   Upload,
+  FileText,
   Search,
   LogOut,
   Menu,
@@ -43,7 +44,8 @@ export type SidebarKey =
   | "clientes"
   | "catalogos"
   | "optimizar"
-  | "mis-links";
+  | "mis-links"
+  | "cotizar-pdf";
 
 interface SidebarLink {
   key: SidebarKey | string;
@@ -94,6 +96,12 @@ const SECONDARY_LINKS: SidebarLink[] = [
     href: "/dashboard/cotizar-excel",
     label: "Importar Excel",
     Icon: Upload,
+  },
+  {
+    key: "cotizar-pdf",
+    href: "/dashboard/cotizar-pdf",
+    label: "Re-cotizar PDF",
+    Icon: FileText,
   },
   {
     key: "mis-links",

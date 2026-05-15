@@ -341,9 +341,13 @@ function RecienteRow({ c }: { c: Cotizacion }) {
   const plan = Number.isFinite(c.plan) ? c.plan : 0;
   const monto = plan * lineas;
 
-  // A/B proxy: depende del estado. Sin métrica real exponemos un valor
-  // estable derivado del folio para evitar hydration mismatch.
-  const ab = Math.max(8, Math.min(35, (folio.charCodeAt(0) % 20) + 12));
+  // A/B real: viene del backend como string "22.5%" o "22.5".
+  // Normalizamos a número solo para la barra visual; mostramos el string original.
+  const abRaw = c.rentabilidad ?? null;
+  const abNum = abRaw
+    ? parseFloat(abRaw.replace("%", "").replace(",", "."))
+    : NaN;
+  const abHasValue = abRaw && Number.isFinite(abNum) && abNum >= 0;
 
   return (
     <tr className="group transition-colors hover:bg-indigo-50/30">
@@ -358,20 +362,24 @@ function RecienteRow({ c }: { c: Cotizacion }) {
         {monto > 0 ? formatMxnShort(monto) : "—"}
       </td>
       <td className="px-6 py-4">
-        <div className="flex items-center gap-2 min-w-[80px]">
-          <span className="text-xs font-semibold text-slate-700 tabular-nums w-8">
-            {ab}%
-          </span>
-          <span
-            className="h-1.5 flex-1 max-w-[60px] rounded-full bg-slate-100 overflow-hidden"
-            aria-hidden="true"
-          >
+        {abHasValue ? (
+          <div className="flex items-center gap-2 min-w-[80px]">
+            <span className="text-xs font-semibold text-slate-700 tabular-nums w-8">
+              {abNum.toFixed(1)}%
+            </span>
             <span
-              className="block h-full bg-gradient-to-r from-indigo-500 to-cyan-400"
-              style={{ width: `${Math.min(100, ab * 3)}%` }}
-            />
-          </span>
-        </div>
+              className="h-1.5 flex-1 max-w-[60px] rounded-full bg-slate-100 overflow-hidden"
+              aria-hidden="true"
+            >
+              <span
+                className="block h-full bg-gradient-to-r from-indigo-500 to-cyan-400"
+                style={{ width: `${Math.min(100, abNum * 3)}%` }}
+              />
+            </span>
+          </div>
+        ) : (
+          <span className="text-xs text-slate-300">—</span>
+        )}
       </td>
       <td className="px-6 py-4">
         <EstadoChip estado={c.estado} />
