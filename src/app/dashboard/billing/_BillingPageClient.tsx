@@ -162,6 +162,7 @@ function CurrentSubscriptionCard({
   portalLoading,
   cancelLoading,
   portalError,
+  isAdmin,
 }: {
   status: BillingStatus;
   onPortal: () => void;
@@ -169,6 +170,7 @@ function CurrentSubscriptionCard({
   portalLoading: boolean;
   cancelLoading: boolean;
   portalError: string | null;
+  isAdmin: boolean;
 }) {
   const sub = status.subscription_status;
   const plan = status.subscription_plan;
@@ -255,8 +257,8 @@ function CurrentSubscriptionCard({
         )}
       </div>
 
-      {/* Botones de acción */}
-      {hasStripe && (
+      {/* Botones de acción (solo admins) */}
+      {hasStripe && isAdmin && (
         <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex flex-wrap gap-3">
           <button
             type="button"
@@ -274,6 +276,12 @@ function CurrentSubscriptionCard({
           >
             {cancelLoading ? "Cargando..." : "Cancelar suscripción"}
           </button>
+        </div>
+      )}
+      {/* Vendedores ven aviso read-only */}
+      {!isAdmin && hasStripe && (
+        <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 text-xs text-slate-500">
+          Contacta al administrador para cambiar el plan o la forma de pago.
         </div>
       )}
     </div>
@@ -367,7 +375,11 @@ function LoadingSkeleton() {
 
 /* ---------- Página principal ---------- */
 
-export default function BillingPageClient() {
+interface BillingPageClientProps {
+  isAdmin?: boolean;
+}
+
+export default function BillingPageClient({ isAdmin = false }: BillingPageClientProps) {
   const { status, loading, error } = useBillingStatus();
 
   const [upgrading, setUpgrading] = useState<string | null>(null);
@@ -517,6 +529,7 @@ export default function BillingPageClient() {
                 portalLoading={portalLoading}
                 cancelLoading={cancelLoading}
                 portalError={portalError}
+                isAdmin={isAdmin}
               />
             </motion.section>
 

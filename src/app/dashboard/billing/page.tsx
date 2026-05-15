@@ -1,21 +1,16 @@
 /**
- * /dashboard/billing — Server Component wrapper que impone role === "admin" (P1-5).
+ * /dashboard/billing — Gestión de suscripción.
  *
  * Si la sesión no existe → redirect /login (via getSession).
- * Si el role no es "admin" → redirect /dashboard.
- * Si pasa ambos checks → renderiza el Client Component de facturación.
+ * Todos los roles (admin, vendedor) pueden ver su suscripción.
+ * Los vendedores ven la página en lectura (sin botones de cambio/cancelación).
  */
 
-import { redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import BillingPageClient from "./_BillingPageClient";
 
 export default async function BillingPage() {
   const session = await getSession(); // redirige a /login si no hay sesión
 
-  if (session.role !== "admin") {
-    redirect("/dashboard");
-  }
-
-  return <BillingPageClient />;
+  return <BillingPageClient isAdmin={session.role === "admin"} />;
 }

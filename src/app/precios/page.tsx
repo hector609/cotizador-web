@@ -46,7 +46,7 @@ const planes: Plan[] = [
     price: 999,
     yearlyPrice: Math.round(999 * 12 * 0.85),
     destacado: false,
-    cta: "Empezar prueba",
+    cta: "Probar Starter 14 días",
     features: [
       "Bot Telegram + Web App",
       "1-3 vendedores",
@@ -83,8 +83,7 @@ const planes: Plan[] = [
     price: 4999,
     yearlyPrice: Math.round(4999 * 12 * 0.85),
     destacado: false,
-    cta: "Hablar con ventas",
-    ctaHref: "https://instagram.com/hectoria.mx",
+    cta: "Probar Empresa 14 días",
     features: [
       "Todo lo de Pro +",
       "Vendedores ilimitados",
@@ -92,6 +91,22 @@ const planes: Plan[] = [
       "Optimizador palancas premium",
       "Priority support 24/7",
       "Onboarding 1-a-1",
+    ],
+  },
+  {
+    nombre: "Vendedor Telcel",
+    planKey: "vendedor_telcel",
+    tagline: "Cotizaciones simplificadas en el portal oficial de Telcel.",
+    price: 399,
+    yearlyPrice: Math.round(399 * 12 * 0.85),
+    destacado: true,
+    cta: "Probar Vendedor Telcel 14 días",
+    features: [
+      "Cotizador IA en portal Telcel",
+      "PDFs descargables",
+      "Historial completamente seguro",
+      "Sin vendedores adicionales",
+      "Soporte por email",
     ],
   },
 ];

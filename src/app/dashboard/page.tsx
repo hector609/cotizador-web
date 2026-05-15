@@ -24,6 +24,7 @@ import type { Cotizacion } from "@/types/cotizacion";
 import { Sidebar } from "@/components/admin/Sidebar";
 import { DashboardKpiCards } from "@/components/admin/DashboardKpiCards";
 import { DashboardActionTiles } from "@/components/admin/DashboardActionTiles";
+import { TrialBanner } from "@/components/admin/TrialBanner";
 
 const TELEGRAM_BOT_URL = "https://t.me/CotizadorInteligenteBot";
 const KPI_LIMIT = 100;
@@ -140,6 +141,9 @@ export default async function DashboardPage() {
 
       <main className="relative lg:ml-64 pt-14 lg:pt-0 min-h-screen">
         <div className="max-w-7xl mx-auto px-6 md:px-16 py-10 md:py-16 space-y-12">
+          {/* Trial Banner */}
+          <TrialBanner />
+
           {/* Header */}
           <header>
             <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900">

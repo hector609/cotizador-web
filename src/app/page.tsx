@@ -338,6 +338,14 @@ function Hero() {
             una cotización perfecta en segundos. Diseñado para distribuidores premium.
           </motion.p>
 
+          {/* Trial info */}
+          <motion.p
+            variants={fadeUp}
+            className="text-sm text-slate-500 max-w-2xl mx-auto"
+          >
+            Prueba gratis 14 días. Después $399/mes. Cancela cuando quieras.
+          </motion.p>
+
           {/* CTAs */}
           <motion.div
             variants={fadeUp}
@@ -348,7 +356,7 @@ function Hero() {
               className="group relative w-full sm:w-auto inline-flex items-center justify-center gap-2 px-8 py-4 rounded-full bg-gradient-to-r from-indigo-600 to-cyan-500 text-white font-semibold text-lg shadow-[0_18px_40px_-12px_rgba(79,70,229,0.55)] hover:shadow-[0_22px_48px_-10px_rgba(6,182,212,0.6)] hover:scale-105 active:scale-95 transition-all duration-300 overflow-hidden"
             >
               <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/35 to-transparent" />
-              <span className="relative">Comenzar ahora</span>
+              <span className="relative">Empieza gratis 14 días</span>
               <ArrowRightIcon className="relative w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </Link>
             <Link

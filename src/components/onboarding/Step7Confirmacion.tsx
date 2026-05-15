@@ -107,6 +107,24 @@ export function Step7Confirmacion({ data, onChange, errors }: Props) {
         />
       </div>
 
+      {/* Trial info card */}
+      <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-4">
+        <div className="flex gap-3">
+          <div className="shrink-0 text-indigo-600 mt-0.5">
+            <span className="text-xl">📅</span>
+          </div>
+          <div>
+            <h3 className="font-semibold text-indigo-900 mb-1">Tu período de prueba</h3>
+            <p className="text-sm text-indigo-800 mb-2">
+              Tendrás 14 días gratis a partir de ahora. Después se cobrará <strong>$399 MXN/mes</strong>.
+            </p>
+            <p className="text-xs text-indigo-700">
+              Tu prueba termina el <strong>{new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toLocaleDateString("es-MX", { year: "numeric", month: "long", day: "numeric" })}</strong>. Puedes cancelar en cualquier momento desde el panel de configuración.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Terms checkbox */}
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
         <label

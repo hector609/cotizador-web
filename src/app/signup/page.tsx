@@ -34,6 +34,20 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_REGEX = /^\d{10}$/;
 const TG_USERNAME_REGEX = /^@?[A-Za-z0-9_]{3,32}$/;
 
+function TrialEndDate() {
+  const endDate = new Date();
+  endDate.setDate(endDate.getDate() + 14);
+  return (
+    <>
+      {endDate.toLocaleDateString("es-MX", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })}
+    </>
+  );
+}
+
 interface FormState {
   email: string;
   rfc_empresa: string;
@@ -164,13 +178,20 @@ export default function SignupPage() {
             <CheckCircleIcon className="w-8 h-8 text-white" aria-hidden />
           </motion.div>
           <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900 mb-3">
-            Solicitud enviada
+            ¡Cuenta creada!
           </h1>
-          <p className="text-slate-600 leading-relaxed mb-6 font-medium">
-            Recibimos tu solicitud. Validamos cada cuenta a mano para evitar
-            abusos del portal Telcel — te avisamos en menos de 24h hábiles por
-            correo y/o Telegram con tus credenciales de acceso.
-          </p>
+          <div className="text-slate-600 leading-relaxed mb-6 font-medium space-y-3">
+            <p>
+              Tu cuenta está lista. Tienes <strong>14 días gratis</strong> para probar el cotizador.
+            </p>
+            <p className="text-indigo-700 font-bold">
+              Tu prueba termina el{" "}
+              <TrialEndDate />
+            </p>
+            <p className="text-sm text-slate-500">
+              Después se cobrará $399 MXN mensuales. Puedes cancelar cuando quieras desde el panel de configuración.
+            </p>
+          </div>
           <Link
             href="/"
             className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-gradient-to-r from-indigo-600 to-cyan-500 hover:from-indigo-700 hover:to-cyan-600 text-white font-bold shadow-[0_10px_30px_rgba(79,70,229,0.3)] hover:shadow-[0_12px_34px_rgba(79,70,229,0.4)] transition-all"
