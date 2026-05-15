@@ -368,12 +368,19 @@ export function useChatCotizar(): UseChatCotizarResult {
           appendMessage("agent", copy);
         } else if (c.estado === "fallida") {
           clearPolling();
+          // Si el backend mandó un error útil (con sugerencias de planes,
+          // razones específicas, etc), lo mostramos completo. Solo caemos al
+          // genérico si el error es vacío o crash interno crudo (stack trace).
+          const rawErr = (c.error || "").trim();
+          const looksLikeStackTrace =
+            rawErr.startsWith("Traceback") ||
+            rawErr.includes("Error: ") && rawErr.includes("\n  at ");
           const msg =
-            c.error && c.error.length < 300
-              ? c.error
-              : "La cotización falló en el portal del operador.";
+            rawErr && rawErr.length < 1200 && !looksLikeStackTrace
+              ? rawErr
+              : "La cotización falló en el portal del operador. Intenta de nuevo o pídele al admin que revise.";
           setJob({ kind: "failed", id: c.id, message: msg });
-          appendMessage("agent", `No pude completar la cotización: ${msg}`);
+          appendMessage("agent", msg);
         }
         // estado=pendiente → seguimos pollando.
       } catch (e) {
