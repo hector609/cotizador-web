@@ -130,7 +130,7 @@ const SECTIONS: Section[] = [
       },
       {
         q: "¿Cómo agrego vendedores a mi cuenta?",
-        a: "Desde el panel en /dashboard puedes invitar vendedores por correo electrónico. Cada vendedor recibe un acceso independiente bajo tu misma cuenta de distribuidor. El número de vendedores incluidos depende de tu plan (Starter: hasta 3, Pro: hasta 10, Empresa: ilimitados).",
+        a: "Para agregar vendedores a tu equipo, contacta a soporte en hector@hectoria.mx con los detalles del vendedor (nombre y correo). Cada vendedor recibe un acceso independiente bajo tu misma cuenta de distribuidor. El número de vendedores incluidos depende de tu plan (Starter: hasta 3, Pro: hasta 10, Empresa: ilimitados).",
       },
     ],
   },
@@ -176,7 +176,7 @@ const SECTIONS: Section[] = [
       },
       {
         q: "¿Cómo agrego otros vendedores al bot?",
-        a: "Como administrador de tu cuenta, puedes invitar vendedores desde /dashboard. Cada vendedor recibe un enlace de registro donde crea su acceso y conecta su propio Telegram. Así cada uno cotiza con su propio acceso pero bajo la misma cuenta de distribuidor.",
+        a: "Para agregar vendedores que tengan acceso al bot, contacta a soporte en hector@hectoria.mx con los detalles del vendedor. Cada vendedor recibe credenciales de acceso independientes y conecta su propio Telegram. Así cada uno cotiza con su propio acceso pero bajo la misma cuenta de distribuidor.",
       },
     ],
   },

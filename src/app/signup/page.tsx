@@ -3,24 +3,17 @@
 /**
  * /signup — solicitud pública de acceso self-service.
  *
- * Form para que un distribuidor potencial pida acceso. Submit → POST /api/signup
- * → la web app firma con HMAC y proxea a POST /api/v1/signup del bot, que
- * persiste pendiente y manda Telegram al super-admin con botones aprobar/rechazar.
+ * Bifurca según ?plan=vendedor_telcel:
+ *   - vendedor_telcel → form individual (nombre completo, RFC PF 13 chars, correo, tel, telegram)
+ *   - distribuidor / sin param → form empresa (RFC empresa + nombre distribuidor + contacto)
  *
- * Validaciones espejadas con server (defense-in-depth):
- *   email: regex básica.
- *   rfc_empresa: regex RFC mexicano (12 ó 13 chars).
- *   nombre_distribuidor: 2-80 chars.
- *   telefono: 10 dígitos exactos.
- *   telegram_username: opcional, regex Telegram.
- *
- * Tras enviar muestra "Solicitud enviada, te avisamos en 24h" — sin info
- * sensible (ni request_id) para no dar señal a bots de qué requests son válidos.
+ * Submit envía tenant_type al endpoint para que el bot distinga el tipo de cuenta.
  */
 
 import Link from "next/link";
 import { AnimatePresence, motion, type Variants } from "framer-motion";
-import { useId, useState } from "react";
+import { useId, useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   ArrowRightIcon,
   ArrowTrendingUpIcon,
@@ -29,7 +22,8 @@ import {
   DocumentTextIcon,
 } from "@/components/icons";
 
-const RFC_REGEX = /^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/;
+const RFC_EMPRESA_REGEX = /^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/;
+const RFC_PF_REGEX = /^[A-ZÑ&]{4}\d{6}[A-Z0-9]{3}$/; // PF: 4 letras + 6 dígitos + 3 = 13 chars
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_REGEX = /^\d{10}$/;
 const TG_USERNAME_REGEX = /^@?[A-Za-z0-9_]{3,32}$/;
@@ -48,7 +42,10 @@ function TrialEndDate() {
   );
 }
 
-interface FormState {
+/* ------------------------------------------------------------------ */
+/* Form state — distribuidor                                            */
+/* ------------------------------------------------------------------ */
+interface DistribuidorState {
   email: string;
   rfc_empresa: string;
   nombre_distribuidor: string;
@@ -56,7 +53,7 @@ interface FormState {
   telegram_username: string;
 }
 
-const INITIAL: FormState = {
+const INITIAL_DIST: DistribuidorState = {
   email: "",
   rfc_empresa: "",
   nombre_distribuidor: "",
@@ -64,27 +61,60 @@ const INITIAL: FormState = {
   telegram_username: "",
 };
 
-function validate(state: FormState): string | null {
-  if (!EMAIL_REGEX.test(state.email.trim().toLowerCase())) {
+function validateDistribuidor(s: DistribuidorState): string | null {
+  if (!EMAIL_REGEX.test(s.email.trim().toLowerCase()))
     return "Email no parece válido. Revisa el formato (ej: tu@empresa.com).";
-  }
-  if (!RFC_REGEX.test(state.rfc_empresa.trim().toUpperCase())) {
+  if (!RFC_EMPRESA_REGEX.test(s.rfc_empresa.trim().toUpperCase()))
     return "RFC inválido. Debe ser RFC mexicano (12 o 13 caracteres, mayúsculas).";
-  }
-  const nombre = state.nombre_distribuidor.trim();
-  if (nombre.length < 2 || nombre.length > 80) {
+  const nombre = s.nombre_distribuidor.trim();
+  if (nombre.length < 2 || nombre.length > 80)
     return "Nombre del distribuidor debe tener entre 2 y 80 caracteres.";
-  }
-  if (!PHONE_REGEX.test(state.telefono.trim())) {
+  if (!PHONE_REGEX.test(s.telefono.trim()))
     return "Teléfono debe ser exactamente 10 dígitos (sin espacios ni guiones).";
-  }
-  const tg = state.telegram_username.trim();
-  if (tg && !TG_USERNAME_REGEX.test(tg)) {
+  const tg = s.telegram_username.trim();
+  if (tg && !TG_USERNAME_REGEX.test(tg))
     return "Usuario de Telegram inválido (3-32 chars, letras/números/guion bajo).";
-  }
   return null;
 }
 
+/* ------------------------------------------------------------------ */
+/* Form state — vendedor individual                                     */
+/* ------------------------------------------------------------------ */
+interface VendedorState {
+  email: string;
+  nombre_completo: string;
+  rfc_personal: string;
+  telefono: string;
+  telegram_username: string;
+}
+
+const INITIAL_VEND: VendedorState = {
+  email: "",
+  nombre_completo: "",
+  rfc_personal: "",
+  telefono: "",
+  telegram_username: "",
+};
+
+function validateVendedor(s: VendedorState): string | null {
+  if (!EMAIL_REGEX.test(s.email.trim().toLowerCase()))
+    return "Email no parece válido. Revisa el formato (ej: tu@correo.com).";
+  const nombre = s.nombre_completo.trim();
+  if (nombre.length < 2 || nombre.length > 80)
+    return "Nombre completo debe tener entre 2 y 80 caracteres.";
+  if (!RFC_PF_REGEX.test(s.rfc_personal.trim().toUpperCase()))
+    return "RFC personal inválido. Debe ser RFC de persona física (13 caracteres, mayúsculas).";
+  if (!PHONE_REGEX.test(s.telefono.trim()))
+    return "Teléfono debe ser exactamente 10 dígitos (sin espacios ni guiones).";
+  const tg = s.telegram_username.trim();
+  if (tg && !TG_USERNAME_REGEX.test(tg))
+    return "Usuario de Telegram inválido (3-32 chars, letras/números/guion bajo).";
+  return null;
+}
+
+/* ------------------------------------------------------------------ */
+/* Framer variants                                                      */
+/* ------------------------------------------------------------------ */
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
   visible: {
@@ -102,8 +132,19 @@ const itemVariants: Variants = {
   },
 };
 
-export default function SignupPage() {
-  const [state, setState] = useState<FormState>(INITIAL);
+/* ------------------------------------------------------------------ */
+/* Inner page — reads searchParams                                      */
+/* ------------------------------------------------------------------ */
+function SignupPageInner() {
+  const searchParams = useSearchParams();
+  const plan = searchParams.get("plan") ?? "";
+  const isVendedor = plan === "vendedor_telcel";
+
+  /* --- estado distribuidor --- */
+  const [dist, setDist] = useState<DistribuidorState>(INITIAL_DIST);
+  /* --- estado vendedor --- */
+  const [vend, setVend] = useState<VendedorState>(INITIAL_VEND);
+
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -112,8 +153,11 @@ export default function SignupPage() {
   const errorId = useId();
   const termsId = useId();
 
-  function update<K extends keyof FormState>(key: K, value: string) {
-    setState((s) => ({ ...s, [key]: value }));
+  function updateDist<K extends keyof DistribuidorState>(key: K, value: string) {
+    setDist((s) => ({ ...s, [key]: value }));
+  }
+  function updateVend<K extends keyof VendedorState>(key: K, value: string) {
+    setVend((s) => ({ ...s, [key]: value }));
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -121,30 +165,43 @@ export default function SignupPage() {
     setError(null);
 
     if (!acceptedTerms) {
-      setError(
-        "Debes aceptar los términos de servicio antes de enviar la solicitud.",
-      );
+      setError("Debes aceptar los términos de servicio antes de enviar la solicitud.");
       return;
     }
 
-    const err = validate(state);
-    if (err) {
-      setError(err);
-      return;
+    if (isVendedor) {
+      const err = validateVendedor(vend);
+      if (err) { setError(err); return; }
+    } else {
+      const err = validateDistribuidor(dist);
+      if (err) { setError(err); return; }
     }
 
     setSubmitting(true);
     try {
+      const payload = isVendedor
+        ? {
+            tenant_type: "individual",
+            email: vend.email.trim().toLowerCase(),
+            nombre_completo: vend.nombre_completo.trim(),
+            rfc_empresa: vend.rfc_personal.trim().toUpperCase(),
+            nombre_distribuidor: vend.nombre_completo.trim(),
+            telefono: vend.telefono.trim(),
+            telegram_username: vend.telegram_username.trim().replace(/^@/, ""),
+          }
+        : {
+            tenant_type: "distribuidor",
+            email: dist.email.trim().toLowerCase(),
+            rfc_empresa: dist.rfc_empresa.trim().toUpperCase(),
+            nombre_distribuidor: dist.nombre_distribuidor.trim(),
+            telefono: dist.telefono.trim(),
+            telegram_username: dist.telegram_username.trim().replace(/^@/, ""),
+          };
+
       const res = await fetch("/api/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: state.email.trim().toLowerCase(),
-          rfc_empresa: state.rfc_empresa.trim().toUpperCase(),
-          nombre_distribuidor: state.nombre_distribuidor.trim(),
-          telefono: state.telefono.trim(),
-          telegram_username: state.telegram_username.trim().replace(/^@/, ""),
-        }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
@@ -189,7 +246,9 @@ export default function SignupPage() {
               <TrialEndDate />
             </p>
             <p className="text-sm text-slate-500">
-              Después se cobrará $399 MXN mensuales. Puedes cancelar cuando quieras desde el panel de configuración.
+              {isVendedor
+                ? "Al terminar el periodo de prueba, se cobrará según tu plan de vendedor individual. Puedes cancelar cuando quieras desde el panel de configuración."
+                : "Al terminar el periodo de prueba, se cobrará según el plan que seleccionaste. Puedes cancelar cuando quieras desde el panel de configuración."}
             </p>
           </div>
           <Link
@@ -234,19 +293,39 @@ export default function SignupPage() {
             animate="visible"
             variants={containerVariants}
           >
-            <motion.h1
-              variants={itemVariants}
-              className="text-4xl md:text-4xl font-extrabold tracking-tight text-slate-900"
-            >
-              Crear cuenta
-            </motion.h1>
-            <motion.p
-              variants={itemVariants}
-              className="text-slate-600 mt-3 leading-relaxed font-medium"
-            >
-              Distribuidor autorizado Telcel. Validamos cada cuenta a mano y
-              respondemos en menos de 24h hábiles.
-            </motion.p>
+            {isVendedor ? (
+              /* ---- HEADING vendedor individual ---- */
+              <>
+                <motion.h1
+                  variants={itemVariants}
+                  className="text-4xl md:text-4xl font-extrabold tracking-tight text-slate-900"
+                >
+                  Soy vendedor Telcel individual
+                </motion.h1>
+                <motion.p
+                  variants={itemVariants}
+                  className="text-slate-600 mt-3 leading-relaxed font-medium"
+                >
+                  Cuenta personal para vendedores independientes. Validamos cada solicitud a mano y respondemos en menos de 24h hábiles.
+                </motion.p>
+              </>
+            ) : (
+              /* ---- HEADING distribuidor ---- */
+              <>
+                <motion.h1
+                  variants={itemVariants}
+                  className="text-4xl md:text-4xl font-extrabold tracking-tight text-slate-900"
+                >
+                  Soy distribuidor Telcel
+                </motion.h1>
+                <motion.p
+                  variants={itemVariants}
+                  className="text-slate-600 mt-3 leading-relaxed font-medium"
+                >
+                  Distribuidor autorizado Telcel. Validamos cada cuenta a mano y respondemos en menos de 24h hábiles.
+                </motion.p>
+              </>
+            )}
 
             <motion.form
               variants={containerVariants}
@@ -255,61 +334,126 @@ export default function SignupPage() {
               noValidate
               aria-describedby={error ? errorId : undefined}
             >
-              <Field
-                label="Email de contacto"
-                type="email"
-                autoComplete="email"
-                value={state.email}
-                onChange={(v) => update("email", v)}
-                placeholder="tu@empresa.com"
-                required
-                hasError={!!error}
-                errorId={errorId}
-              />
-              <Field
-                label="RFC de la empresa"
-                value={state.rfc_empresa}
-                onChange={(v) => update("rfc_empresa", v.toUpperCase())}
-                placeholder="ABC123456XY7"
-                maxLength={13}
-                required
-                hint="RFC con homoclave (12 o 13 caracteres)."
-                hasError={!!error}
-                errorId={errorId}
-              />
-              <Field
-                label="Nombre del distribuidor"
-                value={state.nombre_distribuidor}
-                onChange={(v) => update("nombre_distribuidor", v)}
-                placeholder="Distribuidores Huvasi SA de CV"
-                maxLength={80}
-                required
-                hasError={!!error}
-                errorId={errorId}
-              />
-              <Field
-                label="Teléfono"
-                type="tel"
-                inputMode="numeric"
-                autoComplete="tel"
-                value={state.telefono}
-                onChange={(v) => update("telefono", v.replace(/\D/g, ""))}
-                placeholder="5512345678"
-                maxLength={10}
-                required
-                hint="10 dígitos sin espacios ni guiones."
-                hasError={!!error}
-                errorId={errorId}
-              />
-              <Field
-                label="Usuario de Telegram (opcional)"
-                value={state.telegram_username}
-                onChange={(v) => update("telegram_username", v)}
-                placeholder="@tuusuario"
-                hint="Si lo das, te avisamos por Telegram cuando aprobemos."
-                hasError={!!error}
-                errorId={errorId}
-              />
+              {isVendedor ? (
+                /* ---- CAMPOS vendedor individual ---- */
+                <>
+                  <Field
+                    label="Correo electrónico"
+                    type="email"
+                    autoComplete="email"
+                    value={vend.email}
+                    onChange={(v) => updateVend("email", v)}
+                    placeholder="tu@correo.com"
+                    required
+                    hasError={!!error}
+                    errorId={errorId}
+                  />
+                  <Field
+                    label="Nombre completo"
+                    autoComplete="name"
+                    value={vend.nombre_completo}
+                    onChange={(v) => updateVend("nombre_completo", v)}
+                    placeholder="Juan Pérez López"
+                    maxLength={80}
+                    required
+                    hasError={!!error}
+                    errorId={errorId}
+                  />
+                  <Field
+                    label="RFC personal"
+                    value={vend.rfc_personal}
+                    onChange={(v) => updateVend("rfc_personal", v.toUpperCase())}
+                    placeholder="PELJ831214ABC"
+                    maxLength={13}
+                    required
+                    hint="RFC de persona física con homoclave (13 caracteres)."
+                    hasError={!!error}
+                    errorId={errorId}
+                  />
+                  <Field
+                    label="Teléfono"
+                    type="tel"
+                    inputMode="numeric"
+                    autoComplete="tel"
+                    value={vend.telefono}
+                    onChange={(v) => updateVend("telefono", v.replace(/\D/g, ""))}
+                    placeholder="5512345678"
+                    maxLength={10}
+                    required
+                    hint="10 dígitos sin espacios ni guiones."
+                    hasError={!!error}
+                    errorId={errorId}
+                  />
+                  <Field
+                    label="Usuario de Telegram (opcional)"
+                    value={vend.telegram_username}
+                    onChange={(v) => updateVend("telegram_username", v)}
+                    placeholder="@tuusuario"
+                    hint="Si lo das, te avisamos por Telegram cuando aprobemos."
+                    hasError={!!error}
+                    errorId={errorId}
+                  />
+                </>
+              ) : (
+                /* ---- CAMPOS distribuidor ---- */
+                <>
+                  <Field
+                    label="Email de contacto"
+                    type="email"
+                    autoComplete="email"
+                    value={dist.email}
+                    onChange={(v) => updateDist("email", v)}
+                    placeholder="tu@empresa.com"
+                    required
+                    hasError={!!error}
+                    errorId={errorId}
+                  />
+                  <Field
+                    label="RFC de la empresa"
+                    value={dist.rfc_empresa}
+                    onChange={(v) => updateDist("rfc_empresa", v.toUpperCase())}
+                    placeholder="ABC123456XY7"
+                    maxLength={13}
+                    required
+                    hint="RFC con homoclave (12 o 13 caracteres)."
+                    hasError={!!error}
+                    errorId={errorId}
+                  />
+                  <Field
+                    label="Nombre del distribuidor"
+                    value={dist.nombre_distribuidor}
+                    onChange={(v) => updateDist("nombre_distribuidor", v)}
+                    placeholder="Distribuidores Huvasi SA de CV"
+                    maxLength={80}
+                    required
+                    hasError={!!error}
+                    errorId={errorId}
+                  />
+                  <Field
+                    label="Teléfono"
+                    type="tel"
+                    inputMode="numeric"
+                    autoComplete="tel"
+                    value={dist.telefono}
+                    onChange={(v) => updateDist("telefono", v.replace(/\D/g, ""))}
+                    placeholder="5512345678"
+                    maxLength={10}
+                    required
+                    hint="10 dígitos sin espacios ni guiones."
+                    hasError={!!error}
+                    errorId={errorId}
+                  />
+                  <Field
+                    label="Usuario de Telegram (opcional)"
+                    value={dist.telegram_username}
+                    onChange={(v) => updateDist("telegram_username", v)}
+                    placeholder="@tuusuario"
+                    hint="Si lo das, te avisamos por Telegram cuando aprobemos."
+                    hasError={!!error}
+                    errorId={errorId}
+                  />
+                </>
+              )}
 
               <motion.div variants={itemVariants} className="flex items-start gap-3 pt-1">
                 <input
@@ -461,6 +605,17 @@ export default function SignupPage() {
         </div>
       </aside>
     </main>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Default export — Suspense boundary requerido por useSearchParams    */
+/* ------------------------------------------------------------------ */
+export default function SignupPage() {
+  return (
+    <Suspense fallback={null}>
+      <SignupPageInner />
+    </Suspense>
   );
 }
 

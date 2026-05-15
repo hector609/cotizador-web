@@ -10,9 +10,9 @@ import { signBackendRequest } from "@/lib/backend-auth";
  * mantiene el esquema unificado por si en el futuro queremos restringir
  * ese endpoint a llamadas autenticadas.
  *
- * Mismo conjunto de validaciones que `/signup/page.tsx` y que el bot
- * (signup_requests.validate_signup_payload). Triple validación es overkill,
- * pero el costo es marginal y nos protege de proxies/CDNs maliciosos.
+ * tenant_type:
+ *   - "individual"   → vendedor Telcel persona física (RFC PF 13 chars)
+ *   - "distribuidor" → distribuidor empresa (RFC PM/PF 12-13 chars)
  *
  * Rate-limit: pendiente. Como mitigación trivial, max-bytes 4KB en el bot.
  * Si vemos abuso, agregar rate-limit por IP en la edge.
@@ -20,7 +20,8 @@ import { signBackendRequest } from "@/lib/backend-auth";
 
 const BOT_API_URL = process.env.BOT_API_URL || "https://cmdemobot.fly.dev";
 
-const RFC_REGEX = /^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/;
+const RFC_EMPRESA_REGEX = /^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/;
+const RFC_PF_REGEX = /^[A-ZÑ&]{4}\d{6}[A-Z0-9]{3}$/; // PF estricto: 4 letras = 13 chars
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_REGEX = /^\d{10}$/;
 const TG_USERNAME_REGEX = /^@?[A-Za-z0-9_]{3,32}$/;
@@ -29,6 +30,7 @@ const errJson = (msg: string, status: number) =>
   NextResponse.json({ error: msg }, { status });
 
 interface SignupBody {
+  tenant_type?: unknown;
   email?: unknown;
   rfc_empresa?: unknown;
   nombre_distribuidor?: unknown;
@@ -39,11 +41,20 @@ interface SignupBody {
 function validate(body: SignupBody):
   | { ok: true; payload: Record<string, string> }
   | { ok: false; error: string } {
+  const tenantType = String(body.tenant_type || "distribuidor").trim();
+  const isIndividual = tenantType === "individual";
+
   const email = String(body.email || "").trim().toLowerCase();
   if (!EMAIL_REGEX.test(email)) return { ok: false, error: "email inválido" };
 
   const rfc = String(body.rfc_empresa || "").trim().toUpperCase();
-  if (!RFC_REGEX.test(rfc)) return { ok: false, error: "rfc_empresa inválido" };
+  if (isIndividual) {
+    if (!RFC_PF_REGEX.test(rfc))
+      return { ok: false, error: "rfc_empresa inválido — se espera RFC persona física (13 chars)" };
+  } else {
+    if (!RFC_EMPRESA_REGEX.test(rfc))
+      return { ok: false, error: "rfc_empresa inválido" };
+  }
 
   const nombre = String(body.nombre_distribuidor || "").trim();
   if (nombre.length < 2 || nombre.length > 80) {
@@ -64,6 +75,7 @@ function validate(body: SignupBody):
   return {
     ok: true,
     payload: {
+      tenant_type: isIndividual ? "individual" : "distribuidor",
       email,
       rfc_empresa: rfc,
       nombre_distribuidor: nombre,

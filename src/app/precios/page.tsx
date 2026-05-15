@@ -174,7 +174,7 @@ const faqs = [
   },
   {
     q: "¿Funciona si tengo varios vendedores?",
-    a: "Sí, y de hecho ahí es donde más se nota la diferencia. Cada vendedor entra con su propio acceso y cotiza en paralelo sin pisarse con los demás; los datos quedan aislados por usuario y como dueño ves todo en un dashboard consolidado. El plan Pro incluye hasta 5 vendedores, Empresa no tiene tope. Si necesitas controlar permisos finos por vendedor, eso llega en la Fase 2 del roadmap.",
+    a: "Sí, y de hecho ahí es donde más se nota la diferencia. Cada vendedor entra con su propio acceso y cotiza en paralelo sin pisarse con los demás; los datos quedan aislados por usuario y como dueño ves todo en un dashboard consolidado. El plan Pro incluye hasta 10 vendedores, Empresa no tiene tope. Si necesitas controlar permisos finos por vendedor, eso llega en la Fase 2 del roadmap.",
   },
   {
     q: "¿Puedo cancelar?",
