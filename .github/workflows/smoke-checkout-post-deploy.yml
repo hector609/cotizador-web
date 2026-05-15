@@ -1,0 +1,124 @@
+name: Smoke — Stripe Checkout post-deploy
+
+# Verifica que /api/billing/create-checkout-session vive y devuelve URL de Stripe
+# DESPUÉS de que Vercel terminó de deployar.
+#
+# Secrets requeridos (GitHub → Settings → Secrets and variables → Actions):
+#   SMOKE_SESSION_COOKIE   — cookie `session` de una cuenta test activa en prod
+#                            (obtener con DevTools en cotizador.hectoria.mx)
+#   TELEGRAM_BOT_TOKEN     — token del bot CMdemobot (para notif si falla)
+#   TELEGRAM_OWNER_ID      — chat_id del owner (ADMIN_TELEGRAM_ID en Fly)
+#
+# Sin SMOKE_SESSION_COOKIE el step espera 401 y pasa igualmente (endpoint vive).
+# Con la cookie espera 200 + {"url":"https://checkout.stripe.com/..."}.
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+    inputs:
+      wait_seconds:
+        description: "Segundos a esperar antes del smoke (default: 120)"
+        required: false
+        default: "120"
+
+jobs:
+  smoke-checkout:
+    name: POST /api/billing/create-checkout-session
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+
+    env:
+      TARGET_URL: "https://cotizador.hectoria.mx/api/billing/create-checkout-session"
+      WAIT_SECS: ${{ github.event.inputs.wait_seconds || '120' }}
+
+    steps:
+      - name: "Esperar deploy Vercel (build + alias promote ~2 min)"
+        run: |
+          echo "Esperando ${WAIT_SECS}s para que Vercel termine el deploy..."
+          sleep "${WAIT_SECS}"
+
+      - name: "Smoke — sin auth (espera 401)"
+        id: smoke_noauth
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X POST "${TARGET_URL}" \
+            -H "Content-Type: application/json" \
+            -d '{"plan_id":"starter"}')
+          echo "status_noauth=${STATUS}" >> "$GITHUB_OUTPUT"
+          echo "→ sin auth: HTTP ${STATUS}"
+          # 401 = endpoint existe, sesión requerida (OK)
+          # 404 = route no existe (FAIL)
+          # 500 + body Stripe error = detectado (FAIL)
+          if [ "${STATUS}" = "404" ]; then
+            echo "FAIL: endpoint no existe (404) — ¿deploy falló?"
+            exit 1
+          fi
+          echo "Sin-auth check OK (${STATUS})"
+
+      - name: "Smoke — con cookie sesión test"
+        id: smoke_auth
+        if: ${{ secrets.SMOKE_SESSION_COOKIE != '' }}
+        run: |
+          RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" \
+            -X POST "${TARGET_URL}" \
+            -H "Content-Type: application/json" \
+            -H "Cookie: session=${{ secrets.SMOKE_SESSION_COOKIE }}" \
+            -d '{"plan_id":"starter"}')
+          STATUS=$(echo "${RESPONSE}" | grep "HTTP_STATUS:" | cut -d: -f2)
+          BODY=$(echo "${RESPONSE}" | grep -v "HTTP_STATUS:")
+          echo "status_auth=${STATUS}" >> "$GITHUB_OUTPUT"
+          echo "body=${BODY}" >> "$GITHUB_OUTPUT"
+          echo "→ con auth: HTTP ${STATUS}"
+          echo "→ body: ${BODY}"
+
+          if [ "${STATUS}" = "200" ]; then
+            # Verificar que la URL de Checkout es de Stripe
+            if echo "${BODY}" | grep -q '"url":"https://checkout.stripe.com/'; then
+              echo "SUCCESS: URL de Stripe Checkout recibida"
+            else
+              echo "FAIL: HTTP 200 pero sin URL de Stripe Checkout"
+              echo "body_fail=${BODY}" >> "$GITHUB_OUTPUT"
+              exit 1
+            fi
+          elif [ "${STATUS}" = "502" ]; then
+            # 502 = backend devolvió el error de Stripe al cliente
+            STRIPE_MSG=$(echo "${BODY}" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('error','?'))" 2>/dev/null || echo "parse-error")
+            echo "FAIL: Stripe API devolvió error — ${STRIPE_MSG}"
+            echo "stripe_error=${STRIPE_MSG}" >> "$GITHUB_OUTPUT"
+            exit 1
+          elif [ "${STATUS}" = "401" ]; then
+            echo "SKIP: cookie expiró o es inválida — renovar SMOKE_SESSION_COOKIE"
+          else
+            echo "FAIL: status inesperado ${STATUS}"
+            exit 1
+          fi
+
+      - name: "Notificar fallo a owner por Telegram"
+        if: failure() && secrets.TELEGRAM_BOT_TOKEN != '' && secrets.TELEGRAM_OWNER_ID != ''
+        run: |
+          STATUS_NOAUTH="${{ steps.smoke_noauth.outputs.status_noauth }}"
+          STATUS_AUTH="${{ steps.smoke_auth.outputs.status_auth }}"
+          STRIPE_ERR="${{ steps.smoke_auth.outputs.stripe_error }}"
+
+          MSG="🚨 *Smoke checkout FAIL* — post-deploy%0A"
+          MSG+="Commit: \`${{ github.sha }}\`%0A"
+          MSG+="Sin-auth: ${STATUS_NOAUTH} | Con-auth: ${STATUS_AUTH}%0A"
+          if [ -n "${STRIPE_ERR}" ]; then
+            MSG+="Stripe error: ${STRIPE_ERR}%0A"
+          fi
+          MSG+="Centinela debería tener el error en errors.jsonl"
+
+          curl -s -X POST \
+            "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d "chat_id=${{ secrets.TELEGRAM_OWNER_ID }}" \
+            -d "text=${MSG}" \
+            -d "parse_mode=Markdown"
+
+      - name: "Resumen"
+        if: always()
+        run: |
+          echo "=== Smoke Checkout Summary ==="
+          echo "sin-auth:  ${{ steps.smoke_noauth.outputs.status_noauth }}"
+          echo "con-auth:  ${{ steps.smoke_auth.outputs.status_auth || 'SKIPPED (no cookie)' }}"
+          echo "stripe-err: ${{ steps.smoke_auth.outputs.stripe_error || 'none' }}"

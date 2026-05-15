@@ -17,10 +17,41 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto";
 import { getSessionFromRequest } from "@/lib/auth";
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY ?? "";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://cotizador.hectoria.mx";
+const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8080";
+const SESSION_SECRET = process.env.SESSION_SECRET ?? "dev-secret";
+
+/** Reporta un error de Stripe API al stream que Centinela escanea. Fire-and-forget. */
+async function reportStripeError(
+  errData: { error?: { message?: string; code?: string; param?: string } },
+  status: number,
+  tenantId: string,
+  planId: string
+): Promise<void> {
+  try {
+    const payload = JSON.stringify({
+      source: "stripe_api",
+      route: "/api/billing/create-checkout-session",
+      error_message: errData.error?.message ?? `Stripe HTTP ${status}`,
+      stripe_error_code: errData.error?.code ?? "",
+      stripe_error_param: errData.error?.param ?? "",
+      tenant_id: tenantId,
+      plan: planId,
+    });
+    const sig = crypto.createHmac("sha256", SESSION_SECRET).update(payload).digest("hex");
+    await fetch(`${BACKEND_URL}/api/v1/centinela/report-error`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Auth": `v1 ${sig}` },
+      body: payload,
+    }).catch(() => undefined); // fire-and-forget — nunca bloquear la respuesta al usuario
+  } catch {
+    // silencioso — no propagar errores de telemetría
+  }
+}
 
 // Price IDs por plan. Setear en .env.local / Vercel env vars.
 const PLAN_PRICE_MAP: Record<string, string | undefined> = {
@@ -118,11 +149,13 @@ export async function POST(req: NextRequest) {
     );
 
     if (!stripeResp.ok) {
-      const errData = await stripeResp.json().catch(() => ({}));
-      const errMsg =
-        (errData as { error?: { message?: string } }).error?.message ??
-        `Stripe error ${stripeResp.status}`;
-      console.error("[billing/create-checkout-session] Stripe error:", errMsg);
+      const errData = await stripeResp.json().catch(() => ({})) as {
+        error?: { message?: string; code?: string; param?: string };
+      };
+      const errMsg = errData.error?.message ?? `Stripe error ${stripeResp.status}`;
+      console.error("[billing/create-checkout-session] Stripe error:", errMsg, errData.error?.code);
+      // Reportar al stream de Centinela — detecta params inválidos antes que el próximo deploy
+      void reportStripeError(errData, stripeResp.status, tenantId, plan_id);
       return NextResponse.json({ error: errMsg }, { status: 502 });
     }
 
