@@ -72,12 +72,11 @@ export async function POST(req: NextRequest) {
       "line_items[0][price]": priceId,
       "line_items[0][quantity]": "1",
       mode: "subscription",
-      // P0-2: Forzar moneda MXN y locale es-MX para la UI de Stripe Checkout.
-      // Nota: el currency del Price object en Stripe Dashboard también debe ser
-      // MXN. Si el Price ya tiene currency definida, Stripe la respeta —
-      // currency aquí actúa como validación adicional (Stripe rechazará si no coincide).
+      // P0-2: Forzar moneda MXN y locale es-419 para la UI de Stripe Checkout.
+      // IMPORTANTE: Stripe NO acepta "es-MX" — solo "es" o "es-419" (LatAm spanish).
+      // Fix 2026-05-15: el valor anterior "es-MX" causaba error "Invalid locale".
       currency: "mxn",
-      locale: "es-MX",
+      locale: "es-419",
       // Métodos de pago: tarjeta + OXXO (voucher en efectivo 72h).
       "payment_method_types[0]": "card",
       "payment_method_types[1]": "oxxo",
