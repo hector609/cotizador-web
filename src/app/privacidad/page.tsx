@@ -39,12 +39,63 @@ export default function PrivacidadPage() {
           <li>Fly.io — hosting del bot y API.</li>
           <li>Anthropic PBC — procesamiento de lenguaje natural (Aria).</li>
           <li>ElevenLabs Inc. — síntesis de voz (opcional).</li>
+          <li>Stripe Inc. — procesamiento de pagos (ver sección específica abajo).</li>
           <li>Telcel — portal de cotización (usted ejecuta esta integración con sus propias credenciales).</li>
         </ul>
 
+        <h2>Datos compartidos con Stripe</h2>
+        <p>
+          Para procesar pagos de suscripciones, compartimos datos de pago únicamente con Stripe Inc., procesador de
+          pagos certificado PCI-DSS Level 1:
+        </p>
+        <ul>
+          <li>Nombre del titular de la tarjeta de crédito o débito.</li>
+          <li>
+            Número de tarjeta (procesado mediante tokenización en tiempo real; Cotizador no almacena el PAN completo).
+          </li>
+          <li>Código de seguridad (CVC).</li>
+          <li>Dirección de facturación.</li>
+          <li>Correo electrónico del titular del pago.</li>
+        </ul>
+        <p>
+          Estos datos viajan directamente desde su navegador a los servidores de Stripe en Estados Unidos, bajo
+          encriptación TLS 1.3. Cotizador nunca recibe ni almacena el número completo de la tarjeta; solo guardamos:
+        </p>
+        <ul>
+          <li>
+            <strong>stripe_customer_id</strong>: ID opaco del cliente en Stripe (no identifica la tarjeta específica).
+          </li>
+          <li>
+            <strong>Email del titular</strong>: para enviar recibos de pago (invoices).
+          </li>
+          <li>
+            <strong>Plan activo</strong>: nivel de suscripción vigente.
+          </li>
+          <li>
+            <strong>Últimos 4 dígitos</strong>: mostrados únicamente en{" "}
+            <Link href="/dashboard/billing" className="text-cyan-700 hover:underline">
+              /dashboard/billing
+            </Link>
+            {" "}para su referencia.
+          </li>
+        </ul>
+        <p>
+          Para conocer cómo Stripe trata sus datos, consulte su{" "}
+          <a
+            href="https://stripe.com/mx/privacy"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-cyan-700 hover:underline"
+          >
+            Política de Privacidad
+          </a>
+          .
+        </p>
+
         <h2>Derechos ARCO</h2>
         <p>
-          Usted puede ejercer sus derechos de Acceso, Rectificación, Cancelación u Oposición escribiendo a{" "}
+          Conforme a la Ley Federal de Protección de Datos Personales en Posesión de Particulares (LFPDPPP), usted puede
+          ejercer sus derechos de Acceso, Rectificación, Cancelación u Oposición escribiendo a{" "}
           <a href="mailto:privacidad@hectoria.mx" className="text-cyan-700 hover:underline">
             privacidad@hectoria.mx
           </a>

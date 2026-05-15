@@ -47,6 +47,44 @@ async function getStripeCustomerId(tenantId: string, distribuidorId: number): Pr
   }
 }
 
+/** Crea una Billing Portal Session y devuelve la URL. */
+async function createPortalSession(customerId: string): Promise<{ url: string } | { error: string; status: number }> {
+  const params = new URLSearchParams({
+    customer: customerId,
+    return_url: `${APP_URL}/dashboard/billing`,
+  });
+
+  const stripeResp = await fetch(
+    "https://api.stripe.com/v1/billing_portal/sessions",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${STRIPE_SECRET_KEY}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: params.toString(),
+    }
+  );
+
+  if (!stripeResp.ok) {
+    const errData = await stripeResp.json().catch(() => ({}));
+    const errMsg =
+      (errData as { error?: { message?: string } }).error?.message ??
+      `Stripe error ${stripeResp.status}`;
+    console.error("[billing/portal] Stripe error:", errMsg);
+    return { error: errMsg, status: 502 };
+  }
+
+  const portalSession = (await stripeResp.json()) as { url?: string };
+  if (!portalSession.url) {
+    return { error: "Stripe no devolvió URL", status: 502 };
+  }
+  return { url: portalSession.url };
+}
+
+/**
+ * GET /api/billing/portal — Redirige directamente al Customer Portal (navegación directa).
+ */
 export async function GET(req: NextRequest): Promise<NextResponse> {
   if (!STRIPE_SECRET_KEY) {
     return NextResponse.json({ error: "Stripe no configurado" }, { status: 500 });
@@ -54,57 +92,53 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   const session = getSessionFromRequest(req);
   if (!session) {
-    // Redirigir al login en lugar de 401 JSON para que el browser lo gestione.
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  const tenantId     = session.tenant_id;
-  const distribuidorId = session.distribuidor_id;
-
-  // Intentar obtener stripe_customer_id del bot.
-  let customerId = await getStripeCustomerId(tenantId, distribuidorId);
-
+  const customerId = await getStripeCustomerId(session.tenant_id, session.distribuidor_id);
   if (!customerId) {
-    // Sin customer_id: el tenant no ha pagado nunca. Redirigir a precios.
     return NextResponse.redirect(new URL("/precios", req.url));
   }
 
   try {
-    // Crear Billing Portal Session.
-    const params = new URLSearchParams({
-      customer: customerId,
-      return_url: `${APP_URL}/dashboard/billing`,
-    });
-
-    const stripeResp = await fetch(
-      "https://api.stripe.com/v1/billing_portal/sessions",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${STRIPE_SECRET_KEY}`,
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: params.toString(),
-      }
-    );
-
-    if (!stripeResp.ok) {
-      const errData = await stripeResp.json().catch(() => ({}));
-      const errMsg =
-        (errData as { error?: { message?: string } }).error?.message ??
-        `Stripe error ${stripeResp.status}`;
-      console.error("[billing/portal] Stripe error:", errMsg);
-      return NextResponse.json({ error: errMsg }, { status: 502 });
+    const result = await createPortalSession(customerId);
+    if ("error" in result) {
+      return NextResponse.json({ error: result.error }, { status: result.status });
     }
-
-    const portalSession = (await stripeResp.json()) as { url?: string };
-    if (!portalSession.url) {
-      return NextResponse.json({ error: "Stripe no devolvió URL" }, { status: 502 });
-    }
-
-    return NextResponse.redirect(portalSession.url);
+    return NextResponse.redirect(result.url);
   } catch (err) {
-    console.error("[billing/portal] error:", err);
+    console.error("[billing/portal] GET error:", err);
+    return NextResponse.json({ error: "Error interno" }, { status: 500 });
+  }
+}
+
+/**
+ * POST /api/billing/portal — Devuelve { url } JSON para que el cliente haga
+ * el redirect desde JS (útil en botones que necesitan feedback de carga).
+ */
+export async function POST(req: NextRequest): Promise<NextResponse> {
+  if (!STRIPE_SECRET_KEY) {
+    return NextResponse.json({ error: "Stripe no configurado" }, { status: 500 });
+  }
+
+  const session = getSessionFromRequest(req);
+  if (!session) {
+    return NextResponse.json({ error: "Tu sesión expiró. Vuelve a iniciar sesión." }, { status: 401 });
+  }
+
+  const customerId = await getStripeCustomerId(session.tenant_id, session.distribuidor_id);
+  if (!customerId) {
+    return NextResponse.json({ error: "No tienes una suscripción activa en Stripe." }, { status: 404 });
+  }
+
+  try {
+    const result = await createPortalSession(customerId);
+    if ("error" in result) {
+      return NextResponse.json({ error: result.error }, { status: result.status });
+    }
+    return NextResponse.json({ url: result.url });
+  } catch (err) {
+    console.error("[billing/portal] POST error:", err);
     return NextResponse.json({ error: "Error interno" }, { status: 500 });
   }
 }

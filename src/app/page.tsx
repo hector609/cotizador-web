@@ -6,6 +6,7 @@ import NumberFlow from "@number-flow/react";
 import { Area, AreaChart, ResponsiveContainer } from "recharts";
 import { useRef } from "react";
 import {
+  ArrowPathIcon,
   ArrowRightIcon,
   ArrowTrendingUpIcon,
   BoltIcon,
@@ -13,9 +14,12 @@ import {
   ChatBubbleLeftRightIcon,
   CheckCircleIcon,
   ClockIcon,
+  CreditCardIcon,
   CurrencyDollarIcon,
   DocumentTextIcon,
+  LockClosedIcon,
   ServerStackIcon,
+  ShieldCheckIcon,
   UsersIcon,
 } from "@/components/icons";
 import { ConciergeWidget } from "@/components/concierge/ConciergeWidget";
@@ -115,6 +119,7 @@ export default function Home() {
       <LogosStrip />
       <NumberedFeatures />
       <PricingTeaser />
+      <SecurePay />
       <FinalCTA />
       <Footer />
       <ConciergeWidget />
@@ -1351,6 +1356,235 @@ function PricingTeaser() {
             Ver todos los precios y comparar planes
             <ArrowRightIcon className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
           </Link>
+        </motion.div>
+      </div>
+    </section>
+  );
+}
+
+/* ---------------------------------------------------------------------- */
+/* SecurePay — trust section: Stripe + PCI-DSS + card logos               */
+/* ---------------------------------------------------------------------- */
+
+const secureFeatures = [
+  {
+    icon: CreditCardIcon,
+    title: "Visa, Mastercard, AmEx, OXXO",
+    desc: "Acepta todas las tarjetas mexicanas y pago en efectivo en OXXO.",
+    gradient: "from-indigo-500 to-cyan-500",
+  },
+  {
+    icon: ShieldCheckIcon,
+    title: "Certificación PCI-DSS",
+    desc: "El estándar más alto de la industria de pagos, auditado de forma independiente.",
+    gradient: "from-cyan-500 to-emerald-500",
+  },
+  {
+    icon: LockClosedIcon,
+    title: "Encriptación 256-bit",
+    desc: "Tus datos viajan cifrados de extremo a extremo en cada transacción.",
+    gradient: "from-violet-500 to-indigo-500",
+  },
+  {
+    icon: ArrowPathIcon,
+    title: "Sin contratos",
+    desc: "Cancela cuando quieras desde tu propio panel, sin penalizaciones ni letras chicas.",
+    gradient: "from-pink-500 to-orange-500",
+  },
+] as const;
+
+/* Stripe wordmark SVG (official simplified wordmark) */
+function StripeWordmark({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-label="Stripe"
+      viewBox="0 0 60 25"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+    >
+      <path
+        d="M5.464 9.777c0-.857.703-1.186 1.867-1.186 1.667 0 3.775.505 5.443 1.406V5.14C11.07 4.44 9.37 4.1 7.664 4.1 3.633 4.1 1 6.177 1 9.998c0 5.952 8.201 5.002 8.201 7.57 0 1.012-.877 1.34-2.104 1.34-1.819 0-4.153-.748-5.997-1.757V21.9c2.043.882 4.11 1.254 5.997 1.254 4.153 0 7.005-2.056 7.005-5.921-.022-6.43-8.638-5.284-8.638-7.456zM23.95 1l-4.65 9.909-.023-.044V1h-4.43v22.12h3.84l6.33-13.444L31.35 23.12h3.84V1h-4.43v9.865l-.023.044L26.087 1H23.95zM40.197 23.12h4.43V1h-4.43v22.12zM59 5.36V1h-13.6v22.12H59v-4.36h-9.17v-5.001H58.3v-4.143h-8.47V5.36H59z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
+/* Visa logo — blue wordmark */
+function VisaLogo({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-label="Visa"
+      viewBox="0 0 48 16"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+    >
+      <path
+        d="M18.6 0.5L12.2 15.5H8.1L5 3.8C4.8 3.1 4.6 2.8 4.1 2.5 3.2 2.1 1.7 1.6 0.5 1.3L0.6 0.5H7C7.9 0.5 8.6 1.1 8.8 2.1L10.4 10.6 14.5 0.5H18.6ZM35 10.7C35 6.8 29.4 6.6 29.4 4.9 29.4 4.3 30 3.7 31.2 3.6 31.8 3.5 33.4 3.5 35.2 4.3L35.9 1.1C35 0.8 33.9 0.5 32.5 0.5 28.6 0.5 25.8 2.6 25.8 5.7 25.8 8 27.9 9.3 29.5 10.1 31.1 10.9 31.6 11.4 31.6 12.1 31.6 13.2 30.3 13.6 29.1 13.7 27.1 13.7 26 13.1 25.1 12.7L24.3 16C25.3 16.4 26.9 16.8 28.6 16.8 32.8 16.8 35.5 14.7 35 10.7ZM44.8 15.5H48.5L45.3 0.5H41.9C41.1 0.5 40.4 1 40.1 1.7L34.2 15.5H38.3L39.1 13.2H44.2L44.8 15.5ZM40.2 10.1L42.3 4 43.5 10.1H40.2ZM24.1 0.5L20.9 15.5H17L20.2 0.5H24.1Z"
+        fill="#1A1F71"
+      />
+    </svg>
+  );
+}
+
+/* Mastercard logo — two overlapping circles */
+function MastercardLogo({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-label="Mastercard"
+      viewBox="0 0 38 24"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+    >
+      <circle cx="11" cy="12" r="11" fill="#EB001B" />
+      <circle cx="27" cy="12" r="11" fill="#F79E1B" />
+      <path
+        d="M19 4.54a11 11 0 000 14.92A11 11 0 0019 4.54z"
+        fill="#FF5F00"
+      />
+    </svg>
+  );
+}
+
+/* AmEx — simplified "AMEX" wordmark */
+function AmexLogo({ className }: { className?: string }) {
+  return (
+    <svg
+      aria-label="American Express"
+      viewBox="0 0 60 20"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+    >
+      <rect width="60" height="20" rx="3" fill="#2E77BC" />
+      <text
+        x="50%"
+        y="14"
+        textAnchor="middle"
+        fill="white"
+        fontSize="9"
+        fontFamily="Arial, sans-serif"
+        fontWeight="700"
+        letterSpacing="1.5"
+      >
+        AMEX
+      </text>
+    </svg>
+  );
+}
+
+function SecurePay() {
+  return (
+    <section className="relative py-24 px-6 bg-slate-50 border-y border-slate-100 overflow-hidden">
+      {/* Subtle background gradient */}
+      <div
+        aria-hidden
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background:
+            "radial-gradient(ellipse 60% 70% at 50% 50%, rgba(79,70,229,0.05) 0%, transparent 70%)",
+        }}
+      />
+
+      <div className="relative max-w-7xl mx-auto">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 0.7 }}
+          className="text-center mb-14 space-y-4"
+        >
+          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200/60 text-indigo-700 text-xs font-semibold uppercase tracking-wider">
+            Pagos
+          </span>
+          <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight text-slate-900">
+            Pago seguro con{" "}
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-cyan-500">
+              Stripe
+            </span>
+          </h2>
+          <p className="text-lg text-slate-500 max-w-2xl mx-auto leading-relaxed">
+            Procesamos pagos a través de Stripe — la misma tecnología que usan
+            Amazon, Google y Shopify.
+          </p>
+        </motion.div>
+
+        {/* Feature tiles — 2x2 mobile, 1x4 desktop */}
+        <motion.div
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-60px" }}
+          variants={containerVariants}
+          className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-6 mb-14"
+        >
+          {secureFeatures.map((f) => {
+            const Icon = f.icon;
+            return (
+              <motion.div
+                key={f.title}
+                variants={fadeUp}
+                whileHover={{ scale: 1.05, y: -4 }}
+                transition={{ type: "spring", stiffness: 260, damping: 20 }}
+                className="relative flex flex-col gap-4 bg-white rounded-2xl border border-slate-200 p-6 shadow-sm hover:shadow-xl hover:shadow-indigo-100/50 transition-shadow"
+              >
+                {/* Icon badge */}
+                <span
+                  className={`inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br ${f.gradient} text-white shadow-md flex-shrink-0`}
+                >
+                  <Icon className="w-6 h-6" />
+                </span>
+                <div className="space-y-1">
+                  <p className="font-bold text-slate-900 text-sm leading-snug">
+                    {f.title}
+                  </p>
+                  <p className="text-slate-500 text-sm leading-relaxed">
+                    {f.desc}
+                  </p>
+                </div>
+              </motion.div>
+            );
+          })}
+        </motion.div>
+
+        {/* Logos strip */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+          className="flex flex-col items-center gap-6"
+        >
+          <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
+            Procesadores aceptados
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-8">
+            {/* Stripe wordmark */}
+            <div className="flex items-center gap-2 px-5 py-3 bg-white rounded-xl border border-slate-200 shadow-sm">
+              <StripeWordmark className="h-6 text-[#635BFF]" />
+            </div>
+            {/* Visa */}
+            <div className="flex items-center gap-2 px-5 py-3 bg-white rounded-xl border border-slate-200 shadow-sm">
+              <VisaLogo className="h-5" />
+            </div>
+            {/* Mastercard */}
+            <div className="flex items-center gap-2 px-5 py-3 bg-white rounded-xl border border-slate-200 shadow-sm">
+              <MastercardLogo className="h-7" />
+            </div>
+            {/* AmEx */}
+            <div className="flex items-center gap-2 px-5 py-3 bg-white rounded-xl border border-slate-200 shadow-sm">
+              <AmexLogo className="h-6 w-16" />
+            </div>
+          </div>
+
+          {/* Legal footnote */}
+          <p className="text-xs text-slate-400 text-center max-w-xl leading-relaxed">
+            Stripe está autorizado por la Comisión Nacional Bancaria y de Valores
+            (CNBV) en México. Nunca almacenamos datos de tu tarjeta en nuestros
+            servidores.
+          </p>
         </motion.div>
       </div>
     </section>

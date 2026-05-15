@@ -341,3 +341,120 @@ export function PhotoIcon({ className = "w-6 h-6", title, ...rest }: IconProps) 
     </svg>
   );
 }
+
+export function CreditCardIcon({ className = "w-6 h-6", title, ...rest }: IconProps) {
+  return (
+    <svg {...baseProps(className, title)} {...rest}>
+      {title ? <title>{title}</title> : null}
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z"
+      />
+    </svg>
+  );
+}
+
+export function ArrowPathIcon({ className = "w-6 h-6", title, ...rest }: IconProps) {
+  return (
+    <svg {...baseProps(className, title)} {...rest}>
+      {title ? <title>{title}</title> : null}
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
+      />
+    </svg>
+  );
+}
+
+export function MagnifyingGlassIcon({ className = "w-6 h-6", title, ...rest }: IconProps) {
+  return (
+    <svg {...baseProps(className, title)} {...rest}>
+      {title ? <title>{title}</title> : null}
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"
+      />
+    </svg>
+  );
+}
+
+export function PlusIcon({ className = "w-6 h-6", title, ...rest }: IconProps) {
+  return (
+    <svg {...baseProps(className, title)} {...rest}>
+      {title ? <title>{title}</title> : null}
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M12 4.5v15m7.5-7.5h-15"
+      />
+    </svg>
+  );
+}
+
+export function MinusIcon({ className = "w-6 h-6", title, ...rest }: IconProps) {
+  return (
+    <svg {...baseProps(className, title)} {...rest}>
+      {title ? <title>{title}</title> : null}
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M19.5 12h-15"
+      />
+    </svg>
+  );
+}
+
+export function QuestionMarkCircleIcon({ className = "w-6 h-6", title, ...rest }: IconProps) {
+  return (
+    <svg {...baseProps(className, title)} {...rest}>
+      {title ? <title>{title}</title> : null}
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z"
+      />
+    </svg>
+  );
+}
+
+export function LinkIcon({ className = "w-6 h-6", title, ...rest }: IconProps) {
+  return (
+    <svg {...baseProps(className, title)} {...rest}>
+      {title ? <title>{title}</title> : null}
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"
+      />
+    </svg>
+  );
+}
+
+export function WrenchScrewdriverIcon({ className = "w-6 h-6", title, ...rest }: IconProps) {
+  return (
+    <svg {...baseProps(className, title)} {...rest}>
+      {title ? <title>{title}</title> : null}
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437l1.745-1.437m6.615 8.206L15.75 15.75M4.867 19.125h.008v.008h-.008v-.008z"
+      />
+    </svg>
+  );
+}
+
+export function UserCircleIcon({ className = "w-6 h-6", title, ...rest }: IconProps) {
+  return (
+    <svg {...baseProps(className, title)} {...rest}>
+      {title ? <title>{title}</title> : null}
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z"
+      />
+    </svg>
+  );
+}

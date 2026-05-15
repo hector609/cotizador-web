@@ -92,6 +92,12 @@ export async function POST(req: NextRequest) {
       "subscription_data[metadata][tenant_id]": tenantId,
       // Trial ya manejado en backend — no agregar trial period aquí
       // para no duplicar si ya existe uno.
+      // RFC/Tax ID collection para facturación — México.
+      "tax_id_collection[enabled]": "true",
+      "customer_creation": "always",
+      "billing_address_collection": "required",
+      "phone_number_collection[enabled]": "true",
+      "consent_collection[terms_of_service]": "required",
     });
 
     const stripeResp = await fetch(

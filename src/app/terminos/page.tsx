@@ -46,26 +46,67 @@ export default function TerminosPage() {
           provistas por usted y se almacenan cifradas. El Servicio no es operado, patrocinado ni avalado por Telcel.
         </p>
 
-        <h2>6. Limitación de responsabilidad</h2>
+        <h2>6. Pagos y suscripciones</h2>
+        <h3>Procesamiento de pagos</h3>
+        <p>
+          Las suscripciones se procesan a través de Stripe Inc., autorizado por la CNBV México como entidad reguladora
+          de servicios de pago electrónico. Los métodos de pago aceptados incluyen:
+        </p>
+        <ul>
+          <li>Tarjeta de crédito y débito: Visa, Mastercard, American Express.</li>
+          <li>OXXO Voucher: pago en efectivo con vigencia de 72 horas desde la generación.</li>
+        </ul>
+
+        <h3>Renovación automática y cancelación</h3>
+        <p>
+          Su suscripción se renueva automáticamente cada mes en la fecha de contratación. Puede cancelar su
+          suscripción en cualquier momento desde{" "}
+          <Link href="/dashboard/billing" className="text-cyan-700 hover:underline">
+            /dashboard/billing
+          </Link>
+          . No hay penalización por cancelación temprana; su acceso continúa hasta el final del período pagado.
+        </p>
+
+        <h3>Reembolsos</h3>
+        <p>
+          Los reembolsos se otorgan únicamente si lo solicita dentro de 7 días naturales de cualquier cargo. Después de
+          ese plazo no se procesan reembolsos, pero puede cancelar su renovación en cualquier momento sin costo
+          adicional.
+        </p>
+
+        <h3>Impuestos</h3>
+        <p>
+          Todos los precios mostrados en el Servicio ya incluyen el Impuesto al Valor Agregado (IVA) del 16%. No hay
+          cargos adicionales por concepto de impuestos.
+        </p>
+
+        <h3>Comprobantes fiscales</h3>
+        <p>
+          Los comprobantes de pago se emiten automáticamente a través de Stripe en formato de invoice PDF descargable.
+          Si requiere una factura electrónica (CFDI) del SAT, contacte a soporte; este proceso es manual en este momento
+          y se automatizará en el cuarto trimestre de 2026.
+        </p>
+
+        <h2>7. Limitación de responsabilidad</h2>
         <p>
           El Servicio se proporciona &quot;tal cual&quot;. No garantizamos disponibilidad ininterrumpida del portal
           Telcel ni la exactitud de los precios devueltos por sus sistemas. La responsabilidad máxima del Servicio se
           limita al monto pagado en los últimos 3 meses.
         </p>
 
-        <h2>7. Suspensión y terminación</h2>
+        <h2>8. Suspensión y terminación</h2>
         <p>
           Podemos suspender o terminar su acceso si detectamos uso indebido, fraude, o impago. Usted puede cancelar su
           cuenta en cualquier momento desde Configuración.
         </p>
 
-        <h2>8. Cambios a estos términos</h2>
+        <h2>9. Cambios a estos términos</h2>
         <p>
           Notificaremos cambios materiales con 15 días de anticipación al correo registrado. El uso continuado tras la
           notificación implica aceptación.
         </p>
 
-        <h2>9. Contacto</h2>
+        <h2>10. Contacto</h2>
         <p>
           Dudas legales:{" "}
           <a href="mailto:legal@hectoria.mx" className="text-cyan-700 hover:underline">
