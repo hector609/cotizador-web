@@ -93,7 +93,10 @@ export async function POST(req: NextRequest) {
       // para no duplicar si ya existe uno.
       // RFC/Tax ID collection para facturación — México.
       "tax_id_collection[enabled]": "true",
-      "customer_creation": "always",
+      // NOTA: 'customer_creation' SOLO valido en mode=payment (one-time).
+      // En mode=subscription Stripe crea customer automatico SIEMPRE — no es opcional.
+      // Quitado 2026-05-15 porque Stripe rechazaba el checkout con
+      // "customer_creation can only be used in payment mode".
       "billing_address_collection": "required",
       "phone_number_collection[enabled]": "true",
       "consent_collection[terms_of_service]": "required",
