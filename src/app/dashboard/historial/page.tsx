@@ -106,12 +106,7 @@ export default async function HistorialPage({ searchParams }: PageProps) {
   const userLabel = `Vendedor #${session.vendedor_id}`;
   const userSubtitle = `Distribuidor ${session.tenant_id}`;
 
-  // Promedio Ahorro-vs-base (A/B%) — el listing no expone "base" por
-  // cotización; usamos un proxy estable: porcentaje del monto vs el monto
-  // máximo de la página. Visualmente es solo una micro-bar de lectura.
-  const completadas = rows.filter((c) => c.estado === "completada");
-  const montos = completadas.map((c) => c.lineas * c.plan).filter((v) => v > 0);
-  const montoMax = montos.length > 0 ? Math.max(...montos) : 0;
+  // A/B viene del campo real `rentabilidad` por fila — no se necesita montoMax.
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 antialiased">
@@ -181,7 +176,7 @@ export default async function HistorialPage({ searchParams }: PageProps) {
             <EmptyState filtered={filtersActive} />
           ) : (
             <>
-              <TablaDesktop rows={rows} montoMax={montoMax} />
+              <TablaDesktop rows={rows} />
               <CardsMobile rows={rows} />
               {totalForPagination > PAGE_SIZE && (
                 <Paginacion
@@ -337,10 +332,8 @@ function EstadoBadge({ estado }: { estado: EstadoCotizacion }) {
 
 function TablaDesktop({
   rows,
-  montoMax,
 }: {
   rows: Cotizacion[];
-  montoMax: number;
 }) {
   return (
     <div className="hidden md:block rounded-2xl bg-white border border-slate-200 shadow-sm overflow-hidden">
@@ -371,7 +364,6 @@ function TablaDesktop({
             <FilaDesktop
               key={c.id}
               c={c}
-              montoMax={montoMax}
               delayIndex={idx}
             />
           ))}
@@ -383,11 +375,9 @@ function TablaDesktop({
 
 function FilaDesktop({
   c,
-  montoMax,
   delayIndex,
 }: {
   c: Cotizacion;
-  montoMax: number;
   delayIndex: number;
 }) {
   const fecha = new Date(c.created_at);
@@ -404,12 +394,15 @@ function FilaDesktop({
   // Folio compacto — UUID head en mono cyan-600.
   const folio = c.id.length > 8 ? c.id.slice(0, 8).toUpperCase() : c.id;
 
-  // Monto y micro-bar A/B (proxy: porcentaje del monto vs máximo de la página).
+  // Monto real.
   const monto = c.lineas * c.plan;
-  const ratio =
-    c.estado === "completada" && montoMax > 0
-      ? Math.max(4, Math.min(100, Math.round((monto / montoMax) * 100)))
-      : 0;
+
+  // A/B real: viene del backend como string "22.5%" o "22.5".
+  const abRaw = c.rentabilidad ?? null;
+  const abNum = abRaw
+    ? parseFloat(abRaw.replace("%", "").replace(",", "."))
+    : NaN;
+  const abHasValue = abRaw && Number.isFinite(abNum) && abNum >= 0;
 
   return (
     <MotionRow delayIndex={delayIndex}>
@@ -434,17 +427,17 @@ function FilaDesktop({
         {fmtMxn(monto)}
       </td>
       <td className="px-5 py-3.5 hidden lg:table-cell">
-        {ratio > 0 ? (
+        {abHasValue ? (
           <div className="flex items-center gap-2 w-28">
             <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
               <div
                 className="h-full bg-gradient-to-r from-cyan-400 to-cyan-500 rounded-full"
-                style={{ width: `${ratio}%` }}
+                style={{ width: `${Math.min(100, abNum * 3)}%` }}
                 aria-hidden="true"
               />
             </div>
             <span className="text-[10px] text-slate-500 tabular-nums w-8 text-right font-semibold">
-              {ratio}%
+              {abNum.toFixed(1)}%
             </span>
           </div>
         ) : (

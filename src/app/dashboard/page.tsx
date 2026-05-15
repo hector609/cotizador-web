@@ -68,13 +68,19 @@ function calcularKpis(rows: Cotizacion[]): DashboardKPIs {
   const ticketPromedio =
     delMes.length > 0 ? Math.round(montoMes / delMes.length) : 0;
 
-  // A/B promedio: hasta que el backend exponga el campo, usamos un
-  // proxy razonable (% de cotizaciones completadas vs totales) y le
-  // damos la unidad correcta (porcentaje 0-100).
-  const totalConsideradas = rows.length;
+  // A/B promedio real: promedio del campo `rentabilidad` del backend
+  // (string "22.5%" o "22.5") de las cotizaciones completadas del mes.
+  const completadasMes = delMes.filter((c) => c.estado === "completada");
+  const abValues = completadasMes
+    .map((c) => {
+      const raw = c.rentabilidad ?? null;
+      if (!raw) return NaN;
+      return parseFloat(raw.replace("%", "").replace(",", "."));
+    })
+    .filter((v) => Number.isFinite(v) && v >= 0);
   const abPromedio =
-    totalConsideradas > 0
-      ? Math.round((delMes.length / totalConsideradas) * 1000) / 10
+    abValues.length > 0
+      ? Math.round((abValues.reduce((s, v) => s + v, 0) / abValues.length) * 10) / 10
       : 0;
 
   const rfcSet = new Set<string>();
