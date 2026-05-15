@@ -77,11 +77,11 @@ export async function POST(req: NextRequest) {
       // Fix 2026-05-15: el valor anterior "es-MX" causaba error "Invalid locale".
       currency: "mxn",
       locale: "es-419",
-      // Métodos de pago: tarjeta + OXXO (voucher en efectivo 72h).
+      // Métodos de pago: SOLO tarjeta. OXXO NO soporta mode=subscription
+      // (es voucher one-time, Stripe rechaza con "oxxo not supported for subscription").
+      // Si quieres OXXO, requiere flow separado mode=payment para el primer mes
+      // + auto-renovación tarjeta después. Pendiente decisión owner.
       "payment_method_types[0]": "card",
-      "payment_method_types[1]": "oxxo",
-      // OXXO voucher expira 3 días naturales.
-      "payment_method_options[oxxo][expires_after_days]": "3",
       // Los precios YA incluyen IVA 16% — Stripe NO debe agregarlo encima.
       "automatic_tax[enabled]": "false",
       success_url: `${APP_URL}/dashboard/billing?checkout=success`,
