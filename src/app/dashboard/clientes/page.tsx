@@ -37,7 +37,6 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { Sidebar } from "@/components/admin/Sidebar";
-import { TrialBanner } from "@/components/admin/TrialBanner";
 
 type Cliente = {
   rfc: string;
@@ -151,7 +150,6 @@ export default function ClientesPage() {
       <Sidebar active="clientes" />
 
       <main className="lg:ml-64 pt-14 lg:pt-0 min-h-screen">
-        <TrialBanner />
         <div className="max-w-7xl mx-auto px-6 md:px-10 py-10 md:py-12">
           {/* Breadcrumb */}
           <div className="flex items-center gap-2 text-sm text-slate-500 mb-6">

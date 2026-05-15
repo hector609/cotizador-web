@@ -51,7 +51,6 @@ import {
 } from "lucide-react";
 import type { CrearCotizacionResponse } from "@/types/cotizacion";
 import { Sidebar, type SidebarKey } from "@/components/admin/Sidebar";
-import { TrialBanner } from "@/components/admin/TrialBanner";
 
 /**
  * Fases del banner progresivo. Idéntico al patrón en useChatCotizar —
@@ -385,7 +384,6 @@ export default function CotizarExcelPage() {
       <Sidebar active={sidebarActive} />
 
       <main className="lg:ml-64 pt-14 lg:pt-0 min-h-screen">
-        <TrialBanner />
         <div className="max-w-3xl mx-auto px-6 md:px-10 py-10 md:py-12">
           {/* Breadcrumb */}
           <div className="flex items-center gap-2 text-sm text-slate-500 mb-6">

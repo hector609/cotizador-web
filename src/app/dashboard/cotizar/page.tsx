@@ -1,7 +1,6 @@
 import { getSession } from "@/lib/auth";
 import { CotizarLayout } from "@/components/chat/CotizarLayout";
 import { Sidebar } from "@/components/admin/Sidebar";
-import { TrialBanner } from "@/components/admin/TrialBanner";
 
 /**
  * /dashboard/cotizar — chat UI conversacional + panel lateral de catálogo.
@@ -50,9 +49,6 @@ export default async function CotizarPage() {
       {/* Main wrapper: empuja contenido para liberar el sidebar fijo en lg+.
           pt-14 en mobile para no chocar con el top-bar mobile del Sidebar. */}
       <main className="relative lg:ml-64 pt-14 lg:pt-0 min-h-screen flex flex-col overflow-hidden">
-        <div className="absolute top-6 right-6 z-40">
-          <TrialBanner />
-        </div>
         <CotizarLayout />
       </main>
     </div>
