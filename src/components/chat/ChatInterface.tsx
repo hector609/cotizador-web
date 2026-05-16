@@ -163,6 +163,7 @@ export function ChatInterface({
     sendMessage,
     cancelJob,
     resetChat,
+    retryPreservingHistory,
     inputDisabled,
   } = useChatCotizar();
 
@@ -613,7 +614,12 @@ export function ChatInterface({
                     pdfUrl={job.pdfUrl}
                     screenshotUrl={job.screenshotUrl}
                     folio={job.id}
-                    onReset={resetChat}
+                    onReset={() =>
+                      retryPreservingHistory({
+                        previousFolio: job.id,
+                        reason: "completed",
+                      })
+                    }
                   />
                 </motion.div>
               )}
@@ -626,7 +632,12 @@ export function ChatInterface({
                   title="Cotización completada"
                   body="No recibimos el enlace al PDF, pero la cotización está en tu Historial."
                   actionLabel="Empezar otra"
-                  onAction={resetChat}
+                  onAction={() =>
+                    retryPreservingHistory({
+                      previousFolio: job.id,
+                      reason: "completed",
+                    })
+                  }
                 />
               )}
 
@@ -634,7 +645,12 @@ export function ChatInterface({
               <TelcelTimeoutCard
                 key="__timeout__"
                 message={job.message}
-                onRetry={resetChat}
+                onRetry={() =>
+                  retryPreservingHistory({
+                    previousFolio: job.id,
+                    reason: "timeout",
+                  })
+                }
                 rfc={job.rfc}
                 jobId={job.id}
               />
@@ -1094,6 +1110,18 @@ function TelcelTimeoutCard({
       <p className="text-xs text-rose-800 mt-1 leading-relaxed">
         {message} Tu cotización podría seguir corriendo del lado del operador
         — revisa Historial en unos minutos.
+      </p>
+      <p className="text-xs text-rose-700/90 mt-2 leading-relaxed">
+        Si esto persiste, contacta a tu admin o reporta el folio
+        {jobId ? (
+          <>
+            {" "}
+            <span className="font-mono font-semibold">
+              {jobId.slice(0, 8).toUpperCase()}
+            </span>
+          </>
+        ) : null}{" "}
+        para soporte.
       </p>
       <div className="mt-4 flex flex-wrap gap-2">
         <motion.button

@@ -65,6 +65,34 @@ function fmtMxn(n: number): string {
   }).format(n);
 }
 
+/**
+ * Mapea el error crudo del backend (status + message de listarCotizaciones)
+ * a un mensaje legible para el DAT. Owner reportó que mostrar "No autorizado"
+ * o "tenant inválido" crudo confunde — preferimos copy accionable.
+ *
+ * Fallback: si el `message` del backend es corto (<120 chars), legible y no
+ * parece tecnicismo (no contiene "tenant", "auth", "X-Auth"), lo dejamos
+ * pasar como string final; si no, mensaje genérico.
+ */
+function friendlyHistorialError(status: number, message: string): string {
+  if (status === 401 || status === 403) {
+    return "Tu sesión expiró. Vuelve a iniciar sesión.";
+  }
+  if (status === 502 || status === 503 || status === 504) {
+    return "El servicio está respondiendo lento. Intenta de nuevo en un momento.";
+  }
+  if (status >= 500) {
+    return "Tuvimos un problema temporal. Intenta de nuevo en un momento.";
+  }
+  const msg = (message || "").trim();
+  const looksTechnical =
+    /tenant|x-auth|jwt|signature|stack|traceback/i.test(msg);
+  if (msg && msg.length <= 120 && !looksTechnical) {
+    return msg;
+  }
+  return "No pudimos cargar el historial. Intenta de nuevo en un momento.";
+}
+
 export default async function HistorialPage({ searchParams }: PageProps) {
   const session = await getSession();
   const sp = await searchParams;
@@ -167,7 +195,17 @@ export default async function HistorialPage({ searchParams }: PageProps) {
               <p className="text-rose-700 font-semibold">
                 No pudimos cargar el historial.
               </p>
-              <p className="text-sm text-rose-600 mt-1">{result.message}</p>
+              <p className="text-sm text-rose-600 mt-1">
+                {friendlyHistorialError(result.status, result.message)}
+              </p>
+              {(result.status === 401 || result.status === 403) && (
+                <Link
+                  href="/login"
+                  className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white border border-rose-200 text-rose-700 text-sm font-semibold hover:bg-rose-100 hover:border-rose-300 transition"
+                >
+                  Volver a iniciar sesión
+                </Link>
+              )}
             </div>
           ) : rows.length === 0 ? (
             <EmptyState filtered={filtersActive} />

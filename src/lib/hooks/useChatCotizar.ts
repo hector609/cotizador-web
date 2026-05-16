@@ -205,6 +205,16 @@ export interface UseChatCotizarResult {
   cancelJob: () => Promise<void>;
   /** Resetea TODO: historial, conversation_id, job. Útil tras error fatal. */
   resetChat: () => void;
+  /**
+   * Soft reset para "Reintentar" / "Cotizar otra similar": preserva el
+   * historial de mensajes del chat y deja registro del folio anterior como
+   * mensaje system, pero limpia el job y la conversation_id para que el
+   * próximo mensaje del usuario inicie una cotización nueva.
+   *
+   * Owner pidió explícitamente: no perder historial al reintentar. Y dejó
+   * `retry_of` backend-side como out-of-scope; aquí solo preservamos UX local.
+   */
+  retryPreservingHistory: (opts?: { previousFolio?: string; reason?: "completed" | "timeout" }) => void;
   /** true si el input debe estar deshabilitado (sending, polling, rate-limit). */
   inputDisabled: boolean;
 }
@@ -593,6 +603,44 @@ export function useChatCotizar(): UseChatCotizarResult {
     setSending(false);
   }, [clearPolling, clearRateLimit]);
 
+  /**
+   * Soft reset: limpia job + conversation_id (para que el siguiente mensaje
+   * arranque una cotización fresca contra el agente), PERO mantiene el
+   * historial visible en el chat. Si pasamos `previousFolio`, inserta un
+   * mensaje `system` con el folio anterior para que el usuario tenga
+   * contexto de qué cotización estaban "retomando".
+   *
+   * NOTA: no incluimos `retry_of` en el body de /api/chat/cotizar — eso
+   * requeriría cambios backend (out of scope según el handoff). El backend
+   * verá esto como una conversación nueva, lo cual es aceptable: lo que
+   * queremos arreglar es que el USUARIO no pierda la traza visual del chat.
+   */
+  const retryPreservingHistory = useCallback(
+    (opts?: { previousFolio?: string; reason?: "completed" | "timeout" }) => {
+      clearPolling();
+      clearRateLimit();
+      conversationIdRef.current = null;
+      writeStoredConversationId(null);
+      setJob({ kind: "idle" });
+      setSending(false);
+      const folio = opts?.previousFolio;
+      const reason = opts?.reason;
+      let note: string;
+      if (folio && reason === "timeout") {
+        note = `Reintentando — la cotización ${folio.slice(0, 8).toUpperCase()} no respondió a tiempo. Te pregunto otra vez los datos para arrancar de nuevo.`;
+      } else if (folio) {
+        note = `Listo — generemos otra cotización. (La anterior #${folio.slice(0, 8).toUpperCase()} sigue disponible en Historial.)`;
+      } else {
+        note = "Empecemos una cotización nueva — el historial del chat se mantiene aquí.";
+      }
+      setMessages((prev) => [
+        ...prev,
+        { id: randomId(), role: "system", text: note, createdAt: Date.now() },
+      ]);
+    },
+    [clearPolling, clearRateLimit],
+  );
+
   const inputDisabled =
     sending ||
     rateLimitedFor > 0 ||
@@ -607,6 +655,7 @@ export function useChatCotizar(): UseChatCotizarResult {
     sendMessage,
     cancelJob,
     resetChat,
+    retryPreservingHistory,
     inputDisabled,
   };
 }
