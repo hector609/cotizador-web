@@ -474,10 +474,12 @@ export function useChatCotizar(): UseChatCotizarResult {
         });
 
         if (res.status === 401 || res.status === 403) {
-          appendMessage(
-            "system",
-            "Tu sesión expiró. Recarga la página o vuelve a entrar.",
-          );
+          // Sesión inválida — auto-redirect a login conservando destino actual.
+          // Sin mensaje scary intermedio. Tras re-login el user vuelve aquí.
+          if (typeof window !== "undefined") {
+            const next = encodeURIComponent(window.location.pathname + window.location.search);
+            window.location.href = `/login?next=${next}`;
+          }
           return;
         }
         if (res.status === 429) {
