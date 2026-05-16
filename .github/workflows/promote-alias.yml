@@ -1,0 +1,74 @@
+name: Promote cotizador.hectoria.mx to latest production deploy
+
+# Por qué existe este workflow:
+# Vercel SÍ deploya cada push a master, pero el custom domain
+# cotizador.hectoria.mx NO se actualiza automáticamente — queda
+# aliased al deployment que estaba activo cuando se configuró el
+# domain. Esto causó 8 días donde los pushes deployaban pero la
+# prod seguía mostrando código viejo. Este workflow corre tras
+# cada push a master + cada workflow_dispatch para forzar el alias.
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  promote-alias:
+    name: Update alias cotizador.hectoria.mx
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Wait for Vercel deploy to finish (90s)
+        run: |
+          echo "Esperando que Vercel termine de hacer build del commit recién pusheado..."
+          sleep 90
+
+      - name: Find latest production READY deployment
+        id: find
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+        run: |
+          response=$(curl -sS --max-time 15 \
+            "https://api.vercel.com/v6/deployments?projectId=${VERCEL_PROJECT_ID}&teamId=${VERCEL_ORG_ID}&limit=1&target=production&state=READY" \
+            -H "Authorization: Bearer ${VERCEL_TOKEN}")
+          deploy_id=$(echo "$response" | jq -r '.deployments[0].uid')
+          commit_sha=$(echo "$response" | jq -r '.deployments[0].meta.githubCommitSha // "unknown"' | cut -c1-7)
+          echo "Latest production deploy: $deploy_id (commit $commit_sha)"
+          echo "deploy_id=$deploy_id" >> "$GITHUB_OUTPUT"
+          echo "commit_sha=$commit_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Reassign cotizador.hectoria.mx alias
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          DEPLOY_ID: ${{ steps.find.outputs.deploy_id }}
+        run: |
+          response=$(curl -sS --max-time 15 -X POST \
+            "https://api.vercel.com/v2/deployments/${DEPLOY_ID}/aliases?teamId=${VERCEL_ORG_ID}" \
+            -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d '{"alias":"cotizador.hectoria.mx"}')
+          old=$(echo "$response" | jq -r '.oldDeploymentId // "(none)"')
+          status=$(echo "$response" | jq -r '.alias // .error.message // "unknown"')
+          echo "Alias promote: $status | from $old to $DEPLOY_ID"
+          if [ "$status" != "cotizador.hectoria.mx" ]; then
+            echo "::error::Failed to promote alias: $response"
+            exit 1
+          fi
+
+      - name: Smoke check critical routes
+        env:
+          COMMIT_SHA: ${{ steps.find.outputs.commit_sha }}
+        run: |
+          echo "Smoke check routes con el deploy nuevo (commit $COMMIT_SHA):"
+          for url in https://cotizador.hectoria.mx/ https://cotizador.hectoria.mx/precios https://cotizador.hectoria.mx/recuperar https://cotizador.hectoria.mx/robots.txt https://cotizador.hectoria.mx/sitemap.xml; do
+            code=$(curl -sS --max-time 8 -o /dev/null -w "%{http_code}" "$url" || echo "000")
+            echo "  $url -> HTTP $code"
+            if [ "$code" != "200" ] && [ "$code" != "404" ]; then
+              echo "::warning::$url devolvió $code"
+            fi
+          done
