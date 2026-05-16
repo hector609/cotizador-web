@@ -27,16 +27,15 @@ export default function DescargarPage() {
 
         <div className="mt-10 rounded-3xl border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/50">
           <a
-            href="/cotizador.apk"
-            download
+            href="mailto:hola@hectoria.mx?subject=Solicitar APK Cotizador Android"
             className="group flex items-center justify-center gap-3 rounded-2xl bg-gradient-to-r from-indigo-600 to-cyan-500 px-6 py-4 text-lg font-bold text-white shadow-lg shadow-indigo-500/40 transition-all hover:shadow-xl hover:shadow-indigo-500/50"
           >
             <Download className="h-6 w-6 group-hover:translate-y-0.5 transition-transform" />
-            Descargar APK
+            Solicitar APK
           </a>
 
           <p className="mt-3 text-center text-xs text-slate-500">
-            Última versión · ~5 MB · Android 7.0+
+            Próximamente · Android 7.0+
           </p>
 
           <div className="mt-8 space-y-4">

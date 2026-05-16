@@ -542,7 +542,7 @@ function TopClienteCard({ top }: { top: TopCliente | null }) {
             </div>
           </div>
           <Link
-            href={`/dashboard/cliente?rfc=${encodeURIComponent(top.rfc)}`}
+            href={`/dashboard/cliente/${encodeURIComponent(top.rfc)}`}
             className="text-sm font-bold text-indigo-600 hover:text-indigo-700 inline-flex items-center gap-1"
           >
             Ver detalle de cliente →

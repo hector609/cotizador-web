@@ -169,7 +169,7 @@ export default async function HistorialPage({ searchParams }: PageProps) {
             </div>
             <div className="flex items-center gap-3 shrink-0 flex-wrap">
               <a
-                href="/api/cotizaciones/export?format=xlsx"
+                href="/api/cotizaciones/excel"
                 className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full border border-indigo-200 text-indigo-700 text-sm font-semibold bg-white hover:bg-indigo-50 hover:border-indigo-300 transition"
                 title="Descarga todas las cotizaciones del periodo seleccionado en Excel"
               >
