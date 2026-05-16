@@ -48,7 +48,7 @@ const SECTIONS: Section[] = [
     items: [
       {
         q: "¿Qué métodos de pago aceptan?",
-        a: "Aceptamos Visa, Mastercard y American Express. El cobro se procesa de forma segura a través de Stripe. OXXO estará disponible próximamente — si lo necesitas, contáctanos en hector@hectoria.mx y buscamos una alternativa.",
+        a: "Aceptamos Visa, Mastercard y American Express. El cobro se procesa de forma segura a través de Stripe. OXXO estará disponible próximamente — si lo necesitas, contáctanos en hola@hectoria.mx y buscamos una alternativa.",
       },
       {
         q: "¿Cómo cancelo mi suscripción?",
@@ -56,7 +56,7 @@ const SECTIONS: Section[] = [
       },
       {
         q: "¿Hay reembolso si cancelo?",
-        a: "No emitimos reembolsos parciales por los días no utilizados dentro de un ciclo ya cobrado. Si cancelas antes de que termine tu prueba gratuita, no se realizará ningún cargo. En casos excepcionales por fallo técnico de nuestra parte, evaluamos reembolsos caso por caso — escríbenos a hector@hectoria.mx.",
+        a: "No emitimos reembolsos parciales por los días no utilizados dentro de un ciclo ya cobrado. Si cancelas antes de que termine tu prueba gratuita, no se realizará ningún cargo. En casos excepcionales por fallo técnico de nuestra parte, evaluamos reembolsos caso por caso — escríbenos a hola@hectoria.mx.",
       },
       {
         q: "¿Cuándo se renueva mi suscripción?",
@@ -68,7 +68,7 @@ const SECTIONS: Section[] = [
       },
       {
         q: "¿Cómo solicito factura CFDI?",
-        a: "La facturación CFDI está disponible en los planes Pro y Empresa. Escríbenos a hector@hectoria.mx con tu RFC, razón social, uso de CFDI y el mes a facturar. Emitimos la factura en un plazo máximo de 3 días hábiles.",
+        a: "La facturación CFDI está disponible en los planes Pro y Empresa. Escríbenos a hola@hectoria.mx con tu RFC, razón social, uso de CFDI y el mes a facturar. Emitimos la factura en un plazo máximo de 3 días hábiles.",
       },
       {
         q: "¿Es seguro pagar con tarjeta?",
@@ -87,7 +87,7 @@ const SECTIONS: Section[] = [
       },
       {
         q: "¿Qué pasa si el portal Telcel está caído?",
-        a: "El bot detecta automáticamente si el portal no responde y te notifica con un mensaje claro. La cotización queda en pausa — no se pierde — y puedes reintentar cuando el portal vuelva. También puedes escribirnos a hector@hectoria.mx si el problema persiste más de 1 hora.",
+        a: "El bot detecta automáticamente si el portal no responde y te notifica con un mensaje claro. La cotización queda en pausa — no se pierde — y puedes reintentar cuando el portal vuelva. También puedes escribirnos a hola@hectoria.mx si el problema persiste más de 1 hora.",
       },
       {
         q: "¿Cómo descargo el PDF?",
@@ -118,7 +118,7 @@ const SECTIONS: Section[] = [
       },
       {
         q: "Olvidé mi contraseña",
-        a: 'En la pantalla de /login haz clic en "¿Olvidaste tu contraseña?" e ingresa tu correo. Recibirás un enlace de restablecimiento válido por 24 horas. Si no ves el correo, revisa la carpeta de spam o escríbenos a hector@hectoria.mx.',
+        a: 'En la pantalla de /login haz clic en "¿Olvidaste tu contraseña?" e ingresa tu correo. Recibirás un enlace de restablecimiento válido por 24 horas. Si no ves el correo, revisa la carpeta de spam o escríbenos a hola@hectoria.mx.',
       },
       {
         q: "¿Cómo conecto mis credenciales Telcel?",
@@ -130,7 +130,7 @@ const SECTIONS: Section[] = [
       },
       {
         q: "¿Cómo agrego vendedores a mi cuenta?",
-        a: "Para agregar vendedores a tu equipo, contacta a soporte en hector@hectoria.mx con los detalles del vendedor (nombre y correo). Cada vendedor recibe un acceso independiente bajo tu misma cuenta de distribuidor. El número de vendedores incluidos depende de tu plan (Starter: hasta 3, Pro: hasta 10, Empresa: ilimitados).",
+        a: "Para agregar vendedores a tu equipo, contacta a soporte en hola@hectoria.mx con los detalles del vendedor (nombre y correo). Cada vendedor recibe un acceso independiente bajo tu misma cuenta de distribuidor. El número de vendedores incluidos depende de tu plan (Starter: hasta 3, Pro: hasta 10, Empresa: ilimitados).",
       },
     ],
   },
@@ -172,11 +172,11 @@ const SECTIONS: Section[] = [
       },
       {
         q: "El bot no me responde",
-        a: "Primero verifica que estás usando el bot correcto (el enlace te lo damos en el onboarding). Si el bot no responde en 2 minutos, prueba enviando /start para reiniciar la sesión. Si el problema persiste, escríbenos a hector@hectoria.mx con tu nombre y el mensaje que intentabas enviar.",
+        a: "Primero verifica que estás usando el bot correcto (el enlace te lo damos en el onboarding). Si el bot no responde en 2 minutos, prueba enviando /start para reiniciar la sesión. Si el problema persiste, escríbenos a hola@hectoria.mx con tu nombre y el mensaje que intentabas enviar.",
       },
       {
         q: "¿Cómo agrego otros vendedores al bot?",
-        a: "Para agregar vendedores que tengan acceso al bot, contacta a soporte en hector@hectoria.mx con los detalles del vendedor. Cada vendedor recibe credenciales de acceso independientes y conecta su propio Telegram. Así cada uno cotiza con su propio acceso pero bajo la misma cuenta de distribuidor.",
+        a: "Para agregar vendedores que tengan acceso al bot, contacta a soporte en hola@hectoria.mx con los detalles del vendedor. Cada vendedor recibe credenciales de acceso independientes y conecta su propio Telegram. Así cada uno cotiza con su propio acceso pero bajo la misma cuenta de distribuidor.",
       },
     ],
   },
@@ -187,7 +187,7 @@ const SECTIONS: Section[] = [
     items: [
       {
         q: "¿Cómo contacto a soporte humano?",
-        a: "Escríbenos directamente a hector@hectoria.mx. Respondemos en menos de 24 horas hábiles (Lun-Vie, 9am-7pm CDMX). Los planes Pro y Empresa tienen prioridad de respuesta.",
+        a: "Escríbenos directamente a hola@hectoria.mx. Respondemos en menos de 24 horas hábiles (Lun-Vie, 9am-7pm CDMX). Los planes Pro y Empresa tienen prioridad de respuesta.",
       },
       {
         q: "¿Cuál es el horario de soporte?",
@@ -199,7 +199,7 @@ const SECTIONS: Section[] = [
       },
       {
         q: "¿Cómo reporto un bug?",
-        a: "Envía un correo a hector@hectoria.mx con: (1) descripción de lo que intentabas hacer, (2) qué pasó vs. qué esperabas, (3) capturas de pantalla o el mensaje de error exacto, y (4) la hora aproximada del incidente. Con esa información podemos reproducir y resolver el problema mucho más rápido.",
+        a: "Envía un correo a hola@hectoria.mx con: (1) descripción de lo que intentabas hacer, (2) qué pasó vs. qué esperabas, (3) capturas de pantalla o el mensaje de error exacto, y (4) la hora aproximada del incidente. Con esa información podemos reproducir y resolver el problema mucho más rápido.",
       },
     ],
   },
@@ -529,11 +529,11 @@ function FinalCTA() {
         resolveremos tu duda directamente.
       </p>
       <a
-        href="mailto:hector@hectoria.mx"
+        href="mailto:hola@hectoria.mx"
         className="group relative inline-flex items-center justify-center gap-2 px-7 py-3 rounded-full bg-gradient-to-r from-indigo-600 to-cyan-500 text-white font-semibold text-sm shadow-[0_8px_24px_-6px_rgba(79,70,229,0.5)] hover:shadow-[0_10px_30px_-4px_rgba(6,182,212,0.55)] hover:scale-105 active:scale-95 transition-all duration-300 overflow-hidden"
       >
         <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-white/30 to-transparent" />
-        <span className="relative">Escribir a hector@hectoria.mx</span>
+        <span className="relative">Escribir a hola@hectoria.mx</span>
         <ArrowRightIcon className="w-4 h-4 relative" />
       </a>
     </motion.div>
@@ -629,7 +629,7 @@ export default function AyudaPage() {
               Prueba con otras palabras o escríbenos directamente.
             </p>
             <a
-              href="mailto:hector@hectoria.mx"
+              href="mailto:hola@hectoria.mx"
               className="inline-flex items-center gap-2 text-indigo-600 font-semibold text-sm hover:text-cyan-600 transition-colors"
             >
               Contactar soporte
@@ -654,10 +654,10 @@ export default function AyudaPage() {
                     Respuesta &lt; 24h hábiles
                   </p>
                   <a
-                    href="mailto:hector@hectoria.mx"
+                    href="mailto:hola@hectoria.mx"
                     className="inline-flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-cyan-600 transition-colors"
                   >
-                    hector@hectoria.mx
+                    hola@hectoria.mx
                     <ArrowRightIcon className="w-3 h-3" />
                   </a>
                 </div>

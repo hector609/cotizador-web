@@ -60,12 +60,12 @@ export function Step6Vendedores({ data, onChange, errors }: Props) {
         <p>
           Pídele al vendedor que abra el bot{" "}
           <a
-            href="https://t.me/CotizadorInteligenteBot"
+            href="https://t.me/CMdemobot"
             target="_blank"
             rel="noopener noreferrer"
             className="underline font-medium"
           >
-            @CotizadorInteligenteBot
+            @CMdemobot
           </a>{" "}
           y envíe el comando <code className="bg-cyan-100 px-1 rounded">/whoami</code>. El bot responde con su ID numérico.
         </p>

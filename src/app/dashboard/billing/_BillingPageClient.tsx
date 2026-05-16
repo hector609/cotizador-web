@@ -600,8 +600,8 @@ export default function BillingPageClient({ isAdmin = false }: BillingPageClient
           </p>
           <p>
             Para dudas de facturacion, escribe a{" "}
-            <a href="mailto:hjtm81@gmail.com" className="text-indigo-600 hover:underline">
-              hjtm81@gmail.com
+            <a href="mailto:hola@hectoria.mx" className="text-indigo-600 hover:underline">
+              hola@hectoria.mx
             </a>
             .
           </p>
