@@ -145,13 +145,34 @@ export async function POST(request: Request) {
   }
 
   const now = Math.floor(Date.now() / 1000);
-  const sessionPayload = {
+  // Firmamos `tenant_slug` cuando el backend lo provee (siempre en
+  // producción post-2026-05-15). Esto es la fuente de verdad para el
+  // tenant string-slug y evita que `getSession.tenant_id` quede pegado
+  // a `String(distribuidor_id)` cuando el numérico se corrompe (bug
+  // observado 2026-05-15 con celumaster: dashboard "Recientes" vacío
+  // porque la cookie no traía slug y caía a "null"). El backend acepta
+  // ambos (slug o numérico) — ver `signBackendRequest`.
+  const tenantSlug =
+    typeof payload.tenant_slug === "string" && payload.tenant_slug.trim().length > 0
+      ? payload.tenant_slug.trim().toLowerCase()
+      : undefined;
+  const sessionPayload: {
+    vendedor_id: number;
+    distribuidor_id: number;
+    tenant_slug?: string;
+    role: string;
+    iat: number;
+    exp: number;
+  } = {
     vendedor_id: payload.vendedor_id,
     distribuidor_id: payload.distribuidor_id,
     role: payload.role,
     iat: now,
     exp: now + SESSION_TTL_SEC,
   };
+  if (tenantSlug) {
+    sessionPayload.tenant_slug = tenantSlug;
+  }
 
   const sessionStr = JSON.stringify(sessionPayload);
   const sessionB64 = Buffer.from(sessionStr).toString("base64url");

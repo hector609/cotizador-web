@@ -26,6 +26,14 @@ import { getSessionSecret } from "@/lib/backend-auth";
 export interface SignedSessionPayload {
   vendedor_id: number;
   distribuidor_id: number;
+  /**
+   * Tenant slug (ej. "celumaster"). Firmado dentro de la cookie a partir de
+   * 2026-05-15. Cookies emitidas antes de esta fecha NO lo traen — en ese
+   * caso `getSession*` cae al derivado `String(distribuidor_id)` para
+   * back-compat (ver `verifySessionCookie`). Cuando todas las cookies
+   * activas en producción tengan este campo, se puede volver no-opcional.
+   */
+  tenant_slug?: string;
   role: string;
   iat: number;
   exp: number;
@@ -34,6 +42,11 @@ export interface SignedSessionPayload {
 /**
  * Vista expuesta a consumers. Incluye `tenant_id` derivado para compat con
  * el código que ya razona en términos de tenant (string). NO se firma.
+ *
+ * Preferimos `tenant_slug` firmado cuando está presente (cookies post
+ * 2026-05-15). Para cookies viejas que solo traen `distribuidor_id`,
+ * caemos al `String(distribuidor_id)` numérico. El backend acepta ambos
+ * para firmar X-Auth — ver `signBackendRequest`.
  */
 export interface SessionPayload extends SignedSessionPayload {
   tenant_id: string;
@@ -94,9 +107,20 @@ export function verifySessionCookie(cookieValue: string): SessionPayload | null 
   const nowSec = Math.floor(Date.now() / 1000);
   if (nowSec >= parsed.exp) return null;
 
+  // tenant_slug es opcional para back-compat con cookies viejas (sin el
+  // campo firmado). Si viene, lo validamos como string no-vacío. Si no
+  // viene o es inválido, caemos a `String(distribuidor_id)` que el backend
+  // acepta porque `_resolve_tenant_from_x_auth` enumera tenants por
+  // crc32(slug) y mantiene compat.
+  const slugFromCookie =
+    typeof parsed.tenant_slug === "string" && parsed.tenant_slug.trim().length > 0
+      ? parsed.tenant_slug.trim().toLowerCase()
+      : null;
+
   return {
     ...parsed,
-    tenant_id: String(parsed.distribuidor_id),
+    tenant_slug: slugFromCookie ?? undefined,
+    tenant_id: slugFromCookie ?? String(parsed.distribuidor_id),
   };
 }
 

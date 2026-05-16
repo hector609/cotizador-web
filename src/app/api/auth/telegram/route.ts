@@ -48,6 +48,7 @@ interface VerifyResponse {
   distribuidor_id: number;
   role: string;
   nombre?: string;
+  tenant_slug?: string;
 }
 
 const SESSION_TTL_SEC = 60 * 60 * 24; // 24h
@@ -176,13 +177,33 @@ export async function POST(request: Request) {
   }
 
   const now = Math.floor(Date.now() / 1000);
-  const sessionPayload = {
+  // Firmamos `tenant_slug` (cuando el backend lo provee — siempre post
+  // 2026-05-15). Fuente de verdad string del tenant para el frontend; el
+  // backend acepta tanto slug como `String(distribuidor_id)` para X-Auth
+  // (ver `signBackendRequest`). Soluciona bug observado 2026-05-15 con
+  // celumaster: dashboard "Recientes" vacío porque `tenant_id` derivado
+  // de un `distribuidor_id` corrupto no matcheaba ningún tenant.
+  const tenantSlug =
+    typeof verified.tenant_slug === "string" && verified.tenant_slug.trim().length > 0
+      ? verified.tenant_slug.trim().toLowerCase()
+      : undefined;
+  const sessionPayload: {
+    vendedor_id: number;
+    distribuidor_id: number;
+    tenant_slug?: string;
+    role: string;
+    iat: number;
+    exp: number;
+  } = {
     vendedor_id: verified.vendedor_id,
     distribuidor_id: verified.distribuidor_id,
     role: verified.role,
     iat: now,
     exp: now + SESSION_TTL_SEC,
   };
+  if (tenantSlug) {
+    sessionPayload.tenant_slug = tenantSlug;
+  }
 
   const sessionStr = JSON.stringify(sessionPayload);
   const sessionB64 = Buffer.from(sessionStr).toString("base64url");
