@@ -1,10 +1,27 @@
 /**
  * /api/centinela/report-error — proxy que forwardea errores web al backend.
  * Devuelve 204 always (no leak info).
+ *
+ * Rate-limit: 30 req/min por IP. Fail-open si KV no está disponible.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
+import { rateLimit } from "@/lib/rate-limit";
+
+// Rate limit: 30 reportes por minuto por IP.
+const RL_WINDOW_SEC = 60;
+const RL_MAX_HITS = 30;
+
+function getIp(req: NextRequest): string {
+  const realIp = req.headers.get("x-real-ip");
+  if (realIp) return realIp.trim();
+  const fwd = req.headers.get("x-forwarded-for");
+  if (fwd) return fwd.split(",")[0]?.trim() || "unknown";
+  const cf = req.headers.get("cf-connecting-ip");
+  if (cf) return cf.trim();
+  return "unknown";
+}
 
 interface ErrorPayload {
   source: "web";
@@ -22,6 +39,14 @@ function computeHMAC(payload: string, secret: string): string {
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
+  // Rate limit por IP. El endpoint siempre responde 204 — incluyendo el 429
+  // silencioso para no revelar al cliente que está siendo throttled.
+  const ip = getIp(req);
+  const rl = await rateLimit(`centinela:report-error:${ip}`, RL_MAX_HITS, RL_WINDOW_SEC);
+  if (!rl.allowed) {
+    return new NextResponse(null, { status: 204 });
+  }
+
   try {
     const body: ErrorPayload = await req.json();
 

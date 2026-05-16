@@ -19,11 +19,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { getSessionFromRequest } from "@/lib/auth";
+import { getSessionSecret } from "@/lib/backend-auth";
 
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY ?? "";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://cotizador.hectoria.mx";
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8080";
-const SESSION_SECRET = process.env.SESSION_SECRET ?? "dev-secret";
 
 /** Reporta un error de Stripe API al stream que Centinela escanea. Fire-and-forget. */
 async function reportStripeError(
@@ -42,7 +42,7 @@ async function reportStripeError(
       tenant_id: tenantId,
       plan: planId,
     });
-    const sig = crypto.createHmac("sha256", SESSION_SECRET).update(payload).digest("hex");
+    const sig = crypto.createHmac("sha256", getSessionSecret()).update(payload).digest("hex");
     await fetch(`${BACKEND_URL}/api/v1/centinela/report-error`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Auth": `v1 ${sig}` },

@@ -20,6 +20,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion, type Variants } from "framer-motion";
 import NumberFlow from "@number-flow/react";
+import { QuickPayButton } from "@/components/billing/QuickPayButton";
+import { Badge } from "@/components/ui/Badge";
 
 /* ---------- Tipos ---------- */
 
@@ -315,8 +317,10 @@ function UpgradeCard({
       ].join(" ")}
     >
       {isFeatured && (
-        <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 bg-gradient-to-r from-indigo-600 to-cyan-500 text-white text-[10px] font-bold rounded-full whitespace-nowrap">
-          Mas popular
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+          <Badge variant="primary" size="sm">
+            Más popular
+          </Badge>
         </div>
       )}
       <div>
@@ -473,12 +477,16 @@ export default function BillingPageClient({ isAdmin = false }: BillingPageClient
             <h1 className="text-xl font-bold text-slate-900">Suscripcion</h1>
             <p className="text-sm text-slate-500 mt-0.5">Gestiona tu plan y facturacion</p>
           </div>
-          <Link
-            href="/dashboard"
-            className="text-sm text-slate-500 hover:text-indigo-600 transition-colors"
-          >
-            Volver al inicio
-          </Link>
+          <div className="flex items-center gap-3">
+            {/* Muestra CTA de pago cuando el estado lo requiere (trialing/past_due/etc.) */}
+            <QuickPayButton inline />
+            <Link
+              href="/dashboard"
+              className="text-sm text-slate-500 hover:text-indigo-600 transition-colors"
+            >
+              Volver al inicio
+            </Link>
+          </div>
         </div>
       </div>
 

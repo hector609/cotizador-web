@@ -26,7 +26,7 @@ import { DashboardKpiCards } from "@/components/admin/DashboardKpiCards";
 import { DashboardActionTiles } from "@/components/admin/DashboardActionTiles";
 import { TrialBanner } from "@/components/admin/TrialBanner";
 
-const TELEGRAM_BOT_URL = "https://t.me/CotizadorInteligenteBot";
+const TELEGRAM_BOT_URL = "https://t.me/CMdemobot";
 const KPI_LIMIT = 100;
 
 interface DashboardKPIs {

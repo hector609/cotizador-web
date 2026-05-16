@@ -146,10 +146,10 @@ export default function VendedorTelcelPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {[
               "Acceso directo a Telcel",
-              "Historial ilimitado",
+              "Historial de cotizaciones",
               "Descarga PDF",
               "Chat Concierge",
-              "Exportar a Excel",
+              "Cotizaciones ilimitadas",
               "Soporte por email",
             ].map((feature, i) => (
               <div key={i} className="flex items-center gap-3">

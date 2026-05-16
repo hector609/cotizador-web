@@ -24,6 +24,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
+import { kv } from "@vercel/kv";
 
 const STRIPE_SECRET_KEY    = process.env.STRIPE_SECRET_KEY ?? "";
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET ?? "";
@@ -36,6 +37,7 @@ function getPlanFromPriceId(priceId: string): string {
   if (priceId === process.env.STRIPE_PRICE_STARTER) return "starter";
   if (priceId === process.env.STRIPE_PRICE_PRO) return "pro";
   if (priceId === process.env.STRIPE_PRICE_EMPRESA) return "empresa";
+  if (priceId === process.env.STRIPE_PRICE_VENDEDOR_TELCEL) return "vendedor_telcel";
   return "starter"; // fallback conservador
 }
 
@@ -187,6 +189,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     event = JSON.parse(rawBody) as StripeEvent;
   } catch {
     return NextResponse.json({ error: "Datos inválidos. Verifica los campos e intenta de nuevo." }, { status: 400 });
+  }
+
+  // Dedup — nonce store con TTL 600s para evitar replay del mismo event_id.
+  const stripeEventId = (event as unknown as { id?: string }).id ?? "";
+  if (stripeEventId) {
+    const seen = await kv.set(`stripe_event:${stripeEventId}`, "1", { nx: true, ex: 600 });
+    if (!seen) {
+      console.warn("[billing/webhook] Duplicate Stripe event, skipping:", stripeEventId);
+      return NextResponse.json({ ok: true, duplicate: true }, { status: 200 });
+    }
   }
 
   const { type, data } = event;

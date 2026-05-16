@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSessionFromRequest } from "@/lib/auth";
+import { rateLimit } from "@/lib/rate-limit";
 
 /**
  * POST /api/telemetry/event — telemetría mínima (chat vs Excel).
@@ -23,6 +24,22 @@ import { getSessionFromRequest } from "@/lib/auth";
  * flows pre-login podrían querer reportar visitas, y bloquear con 401 solo
  * generaría ruido en logs sin ganar nada.
  */
+
+// Rate limit: 60 eventos por minuto por IP. Los eventos pueden ser frecuentes
+// pero un número ilimitado abriría el endpoint a flood/DDoS de logs.
+const RL_WINDOW_SEC = 60;
+const RL_MAX_HITS = 60;
+
+function getIp(request: Request): string {
+  const h = request.headers;
+  const realIp = h.get("x-real-ip");
+  if (realIp) return realIp.trim();
+  const fwd = h.get("x-forwarded-for");
+  if (fwd) return fwd.split(",")[0]?.trim() || "unknown";
+  const cf = h.get("cf-connecting-ip");
+  if (cf) return cf.trim();
+  return "unknown";
+}
 
 const ALLOWED_SOURCES = new Set(["chat", "excel"]);
 const ALLOWED_TYPES = new Set(["cotizacion_iniciada"]);
@@ -58,6 +75,17 @@ function sanitizeExtra(value: unknown): Record<string, string | number | boolean
 }
 
 export async function POST(request: Request) {
+  // Rate limit por IP.
+  const ip = getIp(request);
+  const rl = await rateLimit(`telemetry:event:${ip}`, RL_MAX_HITS, RL_WINDOW_SEC);
+  if (!rl.allowed) {
+    // Telemetría es fire-and-forget desde el cliente — devolver 429 es suficiente.
+    return new NextResponse(null, {
+      status: 429,
+      headers: { "Retry-After": String(rl.retryAfter ?? RL_WINDOW_SEC) },
+    });
+  }
+
   let body: TelemetryBody;
   try {
     body = (await request.json()) as TelemetryBody;

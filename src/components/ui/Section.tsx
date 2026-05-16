@@ -1,3 +1,6 @@
+// public-api — use for marketing page sections to standardize max-w-6xl mx-auto px-6 py-16 rhythm.
+// Prefer this over hand-rolling spacing per-page.
+
 /**
  * Section — page section wrapper that standardizes vertical rhythm and
  * horizontal max-width across the marketing pages.

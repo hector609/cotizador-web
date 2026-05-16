@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { signBackendRequest } from "@/lib/backend-auth";
+import { rateLimit } from "@/lib/rate-limit";
 
 /**
  * POST /api/signup — proxy público al bot para solicitudes self-service.
@@ -14,11 +15,26 @@ import { signBackendRequest } from "@/lib/backend-auth";
  *   - "individual"   → vendedor Telcel persona física (RFC PF 13 chars)
  *   - "distribuidor" → distribuidor empresa (RFC PM/PF 12-13 chars)
  *
- * Rate-limit: pendiente. Como mitigación trivial, max-bytes 4KB en el bot.
- * Si vemos abuso, agregar rate-limit por IP en la edge.
+ * Rate-limit: 5 req/min por IP. Vercel KV via `src/lib/rate-limit.ts`.
+ * Si KV no está configurado (dev local), fail-open con log warning.
  */
 
 const BOT_API_URL = process.env.BOT_API_URL || "https://cmdemobot.fly.dev";
+
+// Rate limit: 5 solicitudes de registro por minuto por IP.
+const RL_WINDOW_SEC = 60;
+const RL_MAX_HITS = 5;
+
+function getIp(request: Request): string {
+  const h = request.headers;
+  const realIp = h.get("x-real-ip");
+  if (realIp) return realIp.trim();
+  const fwd = h.get("x-forwarded-for");
+  if (fwd) return fwd.split(",")[0]?.trim() || "unknown";
+  const cf = h.get("cf-connecting-ip");
+  if (cf) return cf.trim();
+  return "unknown";
+}
 
 const RFC_EMPRESA_REGEX = /^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/;
 const RFC_PF_REGEX = /^[A-ZÑ&]{4}\d{6}[A-Z0-9]{3}$/; // PF estricto: 4 letras = 13 chars
@@ -86,6 +102,16 @@ function validate(body: SignupBody):
 }
 
 export async function POST(request: Request) {
+  // Rate limit por IP.
+  const ip = getIp(request);
+  const rl = await rateLimit(`signup:${ip}`, RL_MAX_HITS, RL_WINDOW_SEC);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Demasiados intentos. Espera un momento e intenta de nuevo." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter ?? RL_WINDOW_SEC) } },
+    );
+  }
+
   let body: SignupBody;
   try {
     body = (await request.json()) as SignupBody;

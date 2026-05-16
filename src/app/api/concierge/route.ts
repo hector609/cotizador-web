@@ -62,7 +62,8 @@ const SYSTEM_PROMPT = `Eres Aria, asistente virtual del cotizador Hectoria — u
 Tu rol: responder dudas de visitantes que llegaron al landing y están evaluando si registrarse. Sé concisa, amable y honesta.
 
 INFORMACIÓN VERIFICADA QUE PUEDES COMPARTIR:
-- Precios: plan gratuito para empezar (sin tarjeta), Pro $299/mes (toggle anual 15% off), Empresa $999/mes con onboarding custom.
+- Precios (IVA incluido, pago con tarjeta): Vendedor Telcel $399 MXN/mes, Starter $999 MXN/mes, Pro $2,499 MXN/mes, Empresa $4,999 MXN/mes.
+- Prueba gratuita para empezar (sin tarjeta).
 - No requiere tarjeta para registrarse ni para probar la demo.
 - Cotiza planes Telcel Empresa, Negocio, Plus y Corporativo (tarifas oficiales del portal Telcel B2B).
 - Tiempo: 2-3 minutos por cotización vs ~1.5h con Excel manual.

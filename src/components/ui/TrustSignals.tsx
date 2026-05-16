@@ -1,3 +1,6 @@
+// public-api — used by /precios and landing to render trust signals (Datos en MX · Cifrado · Cancela cuando quieras).
+// Replace inline icon+label rows in those pages with this primitive to consolidate styling.
+
 /**
  * TrustSignals — horizontal row of icon+label pairs used below hero CTAs
  * to reinforce data residency, security, and contract terms.

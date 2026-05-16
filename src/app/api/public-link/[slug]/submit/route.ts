@@ -14,11 +14,26 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { rateLimit } from "@/lib/rate-limit";
 
 const BOT_API_URL = process.env.BOT_API_URL ?? "https://cmdemobot.fly.dev";
 
 // Slug whitelist defensivo: base32-ish, 6-12 chars.
 const SLUG_RE = /^[A-Z2-9]{6,12}$/i;
+
+// Rate limit: 3 envíos por minuto por IP+slug.
+const RL_WINDOW_SEC = 60;
+const RL_MAX_HITS = 3;
+
+function getIp(req: NextRequest): string {
+  const realIp = req.headers.get("x-real-ip");
+  if (realIp) return realIp.trim();
+  const fwd = req.headers.get("x-forwarded-for");
+  if (fwd) return fwd.split(",")[0]?.trim() || "unknown";
+  const cf = req.headers.get("cf-connecting-ip");
+  if (cf) return cf.trim();
+  return "unknown";
+}
 
 export async function POST(
   req: NextRequest,
@@ -28,6 +43,16 @@ export async function POST(
 
   if (!SLUG_RE.test(slug)) {
     return NextResponse.json({ error: "Link inválido." }, { status: 400 });
+  }
+
+  // Rate limit por IP+slug: evita flood desde una misma IP a un link específico.
+  const ip = getIp(req);
+  const rl = await rateLimit(`public-link:${ip}:${slug}`, RL_MAX_HITS, RL_WINDOW_SEC);
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Demasiados intentos. Espera un momento e intenta de nuevo." },
+      { status: 429, headers: { "Retry-After": String(rl.retryAfter ?? RL_WINDOW_SEC) } },
+    );
   }
 
   let body: unknown;
